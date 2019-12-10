@@ -1,0 +1,4 @@
+language: html
+install: true
+script: gradle build
+jdk: oraclejdk8
