@@ -1,4 +1,5 @@
-language: html
-install: true
-script: gradle build
-jdk: oraclejdk8
+language: php
+
+php:
+  - 7.1.9
+  - nightly
