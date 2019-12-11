@@ -1,5 +1,15 @@
-language: html
+language: ruby
+rvm:
+- 2.1
 
-html:
-  - 7.1.9
-  - nightly
+script: ./script/cibuild
+
+# 分支白名单
+branches:
+  only:
+  - gh-pages    
+  - /pages-(.*)/ 
+
+env:
+  global:
+  - NOKOGIRI_USE_SYSTEM_LIBRARIES=true 
