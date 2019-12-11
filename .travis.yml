@@ -4,7 +4,6 @@ rvm:
 
 script: ./script/cibuild
 
-# 分支白名单
 branches:
   only:
   - gh-pages    
