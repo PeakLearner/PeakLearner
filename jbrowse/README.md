@@ -106,3 +106,43 @@ to create a release on GitHub under https://github.com/GMOD/jbrowse/releases
 1. Write an email announcing the release, sending to gmod-ajax. If it is a major release, add gmod-announce and make a GMOD news item.
 
 As you can tell, this process could really use some more streamlining and automation.
+
+
+# PeakLearner Read Me
+
+To began you will need to run the setup.sh command for jbrowse, do this by writiting "./setup.sh" in to the terminal.
+
+next create/copy the below text in to a file called "tracks.conf" into the file called "data":
+
+"
+               [GENERAL]
+               refSeqs=hg19.fa.fai
+
+               [tracks.wigglehighlighter_multi]
+               key=WiggleHighter w/ MultiBigWig
+               type=WiggleHighlighter/View/Track/MultiXYPlot
+               urlTemplates+=json:{"url":"coverage.bigWig", "name": "Coverage", "color": "#235"}
+               urlTemplates+=json:{"url":"joint_peaks.bigWig", "name": "joint peaks", "color": "#a54"}
+               storeClass=MultiBigWig/Store/SeqFeature/MultiBigWig
+               storeConf=json:{"storeClass": "JBrowse/Store/SeqFeature/BigBed", "urlTemplate": "all_labels.bigBed"}
+               max_score=50
+               autoscale=global
+"
+
+finally, download the three files below files, and place them in to the data folder
+
+1) https://rcdata.nau.edu/genomic-ml/PeakSegFPOP/labels/H3K4me3_TDH_immune/samples/bcell/McGill0091/labels.bigBed
+2) https://rcdata.nau.edu/genomic-ml/PeakSegFPOP/labels/H3K4me3_TDH_immune/samples/bcell/McGill0091/coverage.bigWig
+3) https://rcdata.nau.edu/genomic-ml/PeakSegFPOP/labels/H3K4me3_TDH_immune/samples/bcell/McGill0091/joint_peaks.bigWig
+
+That will set up a test set of data to view how the track looks
+
+The highlighter tool as of right now is used through clicking view and add highlight. Then type in the range of where you want a highlight to be. This will print out on to the consale a message that the highlight was caught and also a JSON file that has the start and end of the highlight
+
+
+
+
+
+
+
+
