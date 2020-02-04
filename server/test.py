@@ -16,6 +16,7 @@ class myHandler(BaseHTTPRequestHandler):
 			self.path="../jbrowse/index.html"#this is the starting page
                 else:
                         self.path = "../jbrowse" + self.path#this is where to find all additional files to load the start page
+                        self.path = self.path.split("?")[0]
 
 		try:
 			#Check the file extension required and
