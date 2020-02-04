@@ -3,9 +3,9 @@ import http.server
 import socketserver
 import os
 
-PORT = 8000
+PORT = 8002
 
-web_dir = os.path.dirname('../')
+web_dir = os.path.dirname('../jbrowse/')
 os.chdir(web_dir)
 
 Handler = http.server.SimpleHTTPRequestHandler
