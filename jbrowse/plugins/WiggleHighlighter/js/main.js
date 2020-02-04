@@ -18,7 +18,12 @@ function (
             
             dojo.subscribe("/jbrowse/v1/n/globalHighlightChanged", function(data){
                console.log("Event inside: /jbrowse/v1/n/globalHighlightChanged",data);
-               console.log(document.cookie);
+               if(data.length != 0)
+               {
+                  document.cookie = "name="+data[0].ref+";";
+                  document.cookie += "start="+data[0].start+";"
+                  document.cookie += "end="+data[0].end+";";
+               }
             });
 
         }
