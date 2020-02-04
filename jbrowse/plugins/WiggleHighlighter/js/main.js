@@ -12,11 +12,15 @@ function (
 ) {
     return declare(JBrowsePlugin, {
         constructor: function (/* args */) {
+            var highlightJSON = {}
+            
             console.log('WiggleHighlighter plugin starting');
             
             dojo.subscribe("/jbrowse/v1/n/globalHighlightChanged", function(data){
                console.log("Event inside: /jbrowse/v1/n/globalHighlightChanged",data);
+               console.log(document.cookie);
             });
+
         }
     });
 });
