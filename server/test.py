@@ -1,5 +1,7 @@
 #!/usr/bin/python
-from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
+
+from BaseHTTPServer import HTTPServer
+from RangeHTTPServer import RangeRequestHandler
 from os import curdir, sep
 import cgi
 import mimetypes
@@ -8,7 +10,7 @@ PORT_NUMBER = 8080
 
 #This class will handles any incoming request from
 #the browser 
-class myHandler(BaseHTTPRequestHandler):
+class myHandler(RangeRequestHandler):
 	
 	#Handler for the GET requests
 	def do_GET(self):
@@ -75,7 +77,7 @@ class myHandler(BaseHTTPRequestHandler):
 try:
 	#Create a web server and define the handler to manage the
 	#incoming request
-	server = HTTPServer(('', PORT_NUMBER), myHandler)
+	server =HTTPServer(('', PORT_NUMBER), myHandler)
 	print 'Started httpserver on port ' , PORT_NUMBER
 	
 	#Wait forever for incoming htto requests
