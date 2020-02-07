@@ -20,9 +20,10 @@ function (
                console.log("Event inside: /jbrowse/v1/n/globalHighlightChanged",data);
                if(data.length != 0)
                {
-                  document.cookie = "name="+data[0].ref+";";
-                  document.cookie += "start="+data[0].start+";"
-                  document.cookie += "end="+data[0].end+";";
+                  document.cookie = "name="+data[0].ref;
+                  document.cookie = "start="+data[0].start
+                  document.cookie = "end="+data[0].end;
+                  console.log("test");
                }
             });
 
