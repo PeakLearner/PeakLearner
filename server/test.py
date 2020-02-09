@@ -40,6 +40,12 @@ class myHandler(RangeRequestHandler):
 			elif self.path.endswith(".css"):
 				mimetype='text/css'
 				sendReply = True
+			elif self.path.endswith(".json"):
+				mimetype='application/json'
+				sendReply = True
+			elif self.path.endswith(".conf"):
+				mimetype='text/plain'
+				sendReply = True
                         else:
                                 mimetype='none'
                                 sendReply = True
