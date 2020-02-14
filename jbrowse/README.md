@@ -114,20 +114,39 @@ To began you will need to run the setup.sh command for jbrowse, do this by writi
 
 next create/copy the below text in to a file called "tracks.conf" into the file called "data":
 
-"
-               [GENERAL]
-               refSeqs=hg19.fa.fai
+===========================================
 
-               [tracks.wigglehighlighter_multi]
-               key=WiggleHighter w/ MultiBigWig
-               type=WiggleHighlighter/View/Track/MultiXYPlot
-               urlTemplates+=json:{"url":"coverage.bigWig", "name": "Coverage", "color": "#235"}
-               urlTemplates+=json:{"url":"joint_peaks.bigWig", "name": "joint peaks", "color": "#a54"}
-               storeClass=MultiBigWig/Store/SeqFeature/MultiBigWig
-               storeConf=json:{"storeClass": "JBrowse/Store/SeqFeature/BigBed", "urlTemplate": "all_labels.bigBed"}
-               max_score=50
-               autoscale=global
-"
+[GENERAL]
+refSeqs=hg19.fa.fai
+
+[tracks.CoverageTest]
+key=WiggleHighter w/ MultiBigWig
+type=WiggleHighlighter/View/Track/MultiXYPlot
+urlTemplates+=json:{"url":"coverage.bigWig", "name": "Coverage", "color": "#235"}
+urlTemplates+=json:{"url":"joint_peaks.bigWig", "name": "joint peaks", "color": "#a54"}
+storeClass=MultiBigWig/Store/SeqFeature/MultiBigWig
+storeConf=json:{"storeClass": "JBrowse/Store/SeqFeature/BigBed", "urlTemplate": "all_labels.bigBed"}
+max_score=50
+autoscale=global
+onClick=function(clickEvent) {
+            var decodedCookie = decodeURIComponent(document.cookie).split(";");
+            var track = this.attributes.id.value.slice(6);
+            var type = "Peak";
+            if(clickEvent.altKey) {
+                  type = "notPeak";
+            }
+            var chr = decodedCookie[0].split("=")[1].slice(3);
+            var start = decodedCookie[1].split("=")[1];
+            var stop = decodedCookie[2].split("=")[1];
+            var returnJSON = {"Track" : track, "Type" : type, "Chr" : chr, "Start" : start, "Stop" : stop};
+            if(chr === "")
+            {
+               returnJSON = {};
+            }
+            console.log(returnJSON);
+            return "clicked"}
+            
+=====================================
 
 finally, download the three files below files, and place them in to the data folder
 

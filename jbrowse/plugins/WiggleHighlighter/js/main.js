@@ -26,7 +26,13 @@ function (
                   console.log("test");
                }
             });
-
+            
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", '/send' , true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.send(JSON.stringify({
+               "test" : "hello world"
+            }));
         }
     });
 });
