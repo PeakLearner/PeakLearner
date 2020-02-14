@@ -112,6 +112,8 @@ As you can tell, this process could really use some more streamlining and automa
 
 To began you will need to run the setup.sh command for jbrowse, do this by writiting "./setup.sh" in to the terminal.
 
+next run "bin/generate-name.pl"
+
 next create/copy the below text in to a file called "tracks.conf" into the file called "data":
 
 ===========================================
