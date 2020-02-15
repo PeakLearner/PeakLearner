@@ -10,8 +10,9 @@ browser all at once.
 
 import os
 import re
+import simplejson
 from BaseHTTPServer import HTTPServer
-
+from io import BytesIO
 try:
     # Python3
     from http.server import SimpleHTTPRequestHandler
@@ -61,6 +62,25 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
     - Override send_head to look for 'Range' and respond appropriately.
     - Override copyfile to only transmit a range when requested.
     """
+    def do_POST(self):
+        print('Got a post')
+        content_length = int(self.headers['Content-Length'])
+        body = self.rfile.read(content_length)
+        self.send_response(200)
+        self.end_headers()
+        response = BytesIO()
+        response.write(b'This is POST request. ')
+        response.write(b'Received: ')
+        response.write(body)
+        self.wfile.write(response.getvalue())
+        print(body)
+        jsondata = simplejson.loads(body)
+        print(jsondata)
+        print(jsondata["first"])
+        self.wfile.write(response)
+        #This is an example of how to get data out of the post request sent from the browser.
+        #This should be replaced with th code to put the request object (called jsondata) into the DB
+
     def send_head(self):
         if 'Range' not in self.headers:
             self.range = None
@@ -74,7 +94,6 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
         # Mirroring SimpleHTTPServer.py here
         path = self.translate_path(self.path)
-        print(self.path)
         f = None
         ctype = self.guess_type(path)
         try:
@@ -118,7 +137,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 try:
 	#Create a web server and define the handler to manage the
 	#incoming request
-	server =HTTPServer(('', PORT_NUMBER), RangeRequestHandler)
+        server = HTTPServer(('', PORT_NUMBER), RangeRequestHandler)
 	print 'Started httpserver on port ', PORT_NUMBER
 	#Wait forever for incoming http requests
 	server.serve_forever()

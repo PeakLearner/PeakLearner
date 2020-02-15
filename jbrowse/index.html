@@ -12,6 +12,8 @@
     <meta name="msapplication-TileColor" content="#2d89ef">
     <meta name="theme-color" content="#ffffff">
 
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
     <script type="text/javascript">
         window.onerror=function(msg){
             if( document.body )
@@ -21,6 +23,22 @@
             window.electronRequire = require;
             delete window.require;
         }
+
+
+	function sendPost(jsonToSend) {
+		 $.ajax({
+		        type: 'POST',
+		        url: '/',
+		        dataType: 'json',
+			data: JSON.stringify({'first':'John', 'last':'Doe'}),
+			data: JSON.stringify(jsonToSend),
+		        contentType : 'application/json',
+		        success: function(data) {
+				console.log('POST sent successfully')
+            			console.log(data)
+        		}
+  		 });
+	}
     </script>
     <style>
         html, body, div.jbrowse {
@@ -34,7 +52,11 @@
   </head>
 
   <body>
-    <div class="jbrowse" id="GenomeBrowser" data-config='"allowCrossOriginDataRoot": false, "cacheBuster": true'>
+
+<!-- This is an example of how to use the post request we need to send
+	<button onclick="sendPost({'first':'First Name', 'last':'Last Name'})">Click me</button>
+-->
+	  <div class="jbrowse" id="GenomeBrowser" data-config='"allowCrossOriginDataRoot": false, "cacheBuster": true'>
       <div id="LoadingScreen" style="padding: 50px;">
         <h1>Loading...</h1>
       </div>
