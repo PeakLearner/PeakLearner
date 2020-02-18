@@ -22,7 +22,11 @@ except:
 #import for image splitting
 #import Image
 
+<<<<<<< HEAD
 DB_HOME = os.path.join('db', )
+=======
+DB_HOME = os.path.join('/usr/local/var/www', "db")
+>>>>>>> origin/database-dev
 env = bsddb3.db.DBEnv()
 env.open(
     DB_HOME,
@@ -36,6 +40,11 @@ env.open(
 
 CLOSE_ON_EXIT = []
 
+<<<<<<< HEAD
+=======
+CLOSE_ON_EXIT = []
+
+>>>>>>> origin/database-dev
 # this prevents lockers/locks from accumulating when python is closed
 # normally, but does not prevent this when we C-c out of the server.
 
@@ -262,6 +271,36 @@ class Regions(Container):
         return [(k, d["min"]) for k, d in self.get()["data"].iteritems()]
 
 
+<<<<<<< HEAD
+=======
+class ChromLengths(Resource):
+    CHROM_ORDER = [str(x+1) for x in range(22)]+["X"]
+    CHROM_RANK = dict(zip(CHROM_ORDER, enumerate(CHROM_ORDER)))
+    keys = ("db", )
+    u = "http://hgdownload.soe.ucsc.edu/goldenPath/%s/database/chromInfo.txt.gz"
+
+    def make_details(self):
+        s = self.values[0]
+        local = os.path.join(CHROMLENGTH_DIR, s+".txt.gz")
+        if not os.path.isfile(local):
+            # print "downloading %s" % local
+            #u = self.u % s
+            #urllib2.urlopen(u, local)
+            # print "chrom info for %s not available"%s
+            return None
+        # print "reading %s" % local
+        f = gzip.open(local)
+        r = csv.reader(f, delimiter="\t")
+        chroms = dict([
+            (ch.replace("chr", ""), int(last))
+            for ch, last, ignore in r
+            ])
+        return dict([
+            (ch, chroms[ch])
+            for ch in self.CHROM_ORDER
+            ])
+
+>>>>>>> origin/database-dev
 
 def get_model(probes, break_after):
     """Calculate breaks and segments after PrunedDP."""
