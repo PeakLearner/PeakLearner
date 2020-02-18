@@ -17,13 +17,28 @@ function (
             console.log('WiggleHighlighter plugin starting');
             
             dojo.subscribe("/jbrowse/v1/n/globalHighlightChanged", function(data){
-               console.log("Event inside: /jbrowse/v1/n/globalHighlightChanged",data);
+
                if(data.length != 0)
                {
-                  document.cookie = "name="+data[0].ref;
-                  document.cookie = "start="+data[0].start
-                  document.cookie = "end="+data[0].end;
-                  console.log("test");
+                  localStorage.clear()
+                  localStorage.setItem("label", data[0].ref + " " + data[0].start + " " + data[0].end);
+               }
+               else
+               {
+                  var labelInfo = localStorage.getItem("label").split(" ");
+                  var tracks = localStorage.getItem("tracks").split(" ");
+                  var jsonArray = Array()
+                  
+                  for(var i = 0; i < tracks.length; i++)
+                  {
+                     jsonArray.push({"chr": labelInfo[0],
+                     "start": labelInfo[1],
+                     "end": labelInfo[2],
+                     "name": tracks[i],
+                     "peakType": parseInt(localStorage.getItem(tracks[i])) % 4})
+                  }
+                  
+                  console.log(jsonArray)
                }
             });
             
