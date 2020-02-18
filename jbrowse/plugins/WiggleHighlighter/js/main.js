@@ -22,23 +22,24 @@ function (
                {
                   localStorage.clear()
                   localStorage.setItem("label", data[0].ref + " " + data[0].start + " " + data[0].end);
+                  localStorage.setItem("UILable", "true");
                }
                else
                {
                   var labelInfo = localStorage.getItem("label").split(" ");
                   var tracks = localStorage.getItem("tracks").split(" ");
-                  var jsonArray = Array()
-                  
-                  for(var i = 0; i < tracks.length; i++)
+                  var jsonArray = Array();
+                  for(var i = 0; i < tracks.length - 1; i++)
                   {
                      jsonArray.push({"chr": labelInfo[0],
                      "start": labelInfo[1],
                      "end": labelInfo[2],
                      "name": tracks[i],
-                     "peakType": parseInt(localStorage.getItem(tracks[i])) % 4})
+                     "peakType": localStorage.getItem(tracks[i] + " peakType")});
                   }
                   
                   console.log(jsonArray)
+                  localStorage.setItem("UILable", "false");
                }
             });
             
