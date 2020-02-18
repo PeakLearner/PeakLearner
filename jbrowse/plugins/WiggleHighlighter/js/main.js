@@ -12,27 +12,46 @@ function (
 ) {
     return declare(JBrowsePlugin, {
         constructor: function (/* args */) {
-            var highlightJSON = {}
-            
+
             console.log('WiggleHighlighter plugin starting');
             
             dojo.subscribe("/jbrowse/v1/n/globalHighlightChanged", function(data){
-               console.log("Event inside: /jbrowse/v1/n/globalHighlightChanged",data);
+
                if(data.length != 0)
                {
-                  document.cookie = "name="+data[0].ref;
-                  document.cookie = "start="+data[0].start
-                  document.cookie = "end="+data[0].end;
-                  console.log("test");
+                  localStorage.clear()
+                  localStorage.setItem("label", data[0].ref + " " + data[0].start + " " + data[0].end);
+                  localStorage.setItem("UILable", "true");
+               }
+               else
+               {
+                  if(localStorage.getItem("tracks") === null)
+                  {
+                     
+                  }
+                  else
+                  {
+                     var labelInfo = localStorage.getItem("label").split(" ");
+                     var tracks = localStorage.getItem("tracks").split(" ");
+                     var jsonArray = Array();
+                     for(var i = 0; i < tracks.length - 1; i++)
+                     {
+                        jsonArray.push({"chr": labelInfo[0],
+                        "start": labelInfo[1],
+                        "end": labelInfo[2],
+                        "name": tracks[i],
+                        "peakType": localStorage.getItem(tracks[i] + " peakType")});
+                     }
+                     
+                     console.log(jsonArray)
+                     localStorage.setItem("UILable", "false");
+                     var xhr = new XMLHttpRequest();
+                     xhr.open("POST", '/send' , true);
+                     xhr.setRequestHeader('Content-Type', 'application/json');
+                     xhr.send(jsonArray);
+                  }
                }
             });
-            
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", '/send' , true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.send(JSON.stringify({
-               "test" : "hello world"
-            }));
         }
     });
 });
