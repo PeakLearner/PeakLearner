@@ -10,7 +10,7 @@ browser all at once.
 
 import os
 import re
-import simplejson
+import json
 from BaseHTTPServer import HTTPServer
 from io import BytesIO
 try:
@@ -74,7 +74,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         response.write(body)
         self.wfile.write(response.getvalue())
         print(body)
-        jsondata = simplejson.loads(body)
+        jsondata = json.loads(body)
         print(jsondata)
         print(jsondata["first"])
         self.wfile.write(response)
