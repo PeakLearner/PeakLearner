@@ -12,8 +12,7 @@ function (
 ) {
     return declare(JBrowsePlugin, {
         constructor: function (/* args */) {
-            var highlightJSON = {}
-            
+
             console.log('WiggleHighlighter plugin starting');
             
             dojo.subscribe("/jbrowse/v1/n/globalHighlightChanged", function(data){
@@ -26,29 +25,33 @@ function (
                }
                else
                {
-                  var labelInfo = localStorage.getItem("label").split(" ");
-                  var tracks = localStorage.getItem("tracks").split(" ");
-                  var jsonArray = Array();
-                  for(var i = 0; i < tracks.length - 1; i++)
+                  if(localStorage.getItem("tracks") === null)
                   {
-                     jsonArray.push({"chr": labelInfo[0],
-                     "start": labelInfo[1],
-                     "end": labelInfo[2],
-                     "name": tracks[i],
-                     "peakType": localStorage.getItem(tracks[i] + " peakType")});
+                     
                   }
-                  
-                  console.log(jsonArray)
-                  localStorage.setItem("UILable", "false");
+                  else
+                  {
+                     var labelInfo = localStorage.getItem("label").split(" ");
+                     var tracks = localStorage.getItem("tracks").split(" ");
+                     var jsonArray = Array();
+                     for(var i = 0; i < tracks.length - 1; i++)
+                     {
+                        jsonArray.push({"chr": labelInfo[0],
+                        "start": labelInfo[1],
+                        "end": labelInfo[2],
+                        "name": tracks[i],
+                        "peakType": localStorage.getItem(tracks[i] + " peakType")});
+                     }
+                     
+                     console.log(jsonArray)
+                     localStorage.setItem("UILable", "false");
+                     var xhr = new XMLHttpRequest();
+                     xhr.open("POST", '/send' , true);
+                     xhr.setRequestHeader('Content-Type', 'application/json');
+                     xhr.send(jsonArray);
+                  }
                }
             });
-            
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", '/send' , true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.send(JSON.stringify({
-               "test" : "hello world"
-            }));
         }
     });
 });
