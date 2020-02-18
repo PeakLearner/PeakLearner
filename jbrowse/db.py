@@ -9,7 +9,11 @@ import math
 import atexit
 import time
 # third party module not by me:
-from bsddb3 import db
+import bsddb3
+try:
+    os.mkdir(home)
+except:
+    pass
 # modules by me created specifically for this project:
 #from PrunedDP import PrunedDP
 #from SegAnnot import SegAnnotBases
@@ -17,11 +21,20 @@ from bsddb3 import db
 #import scatterplot
 #import for image splitting
 #import Image
-# scatterplot sizes in pixels.
-# DEFAULT_WIDTH = 1500
 
-env = db.DB()
-env.open('db_Peak',dbtype = db.DB_HASH, flags = db.DB_CREATE)
+DB_HOME = os.path.join('/usr/local/var/www', "db")
+env = bsddb3.db.DBEnv()
+env.open(
+    DB_HOME,
+    bsddb3.db.DB_INIT_MPOOL |
+    # bsddb3.db.DB_INIT_CDB|
+    bsddb3.db.DB_INIT_LOCK |
+    bsddb3.db.DB_INIT_TXN |
+    bsddb3.db.DB_INIT_LOG |
+    bsddb3.db.DB_CREATE)
+
+
+CLOSE_ON_EXIT = []
 
 CLOSE_ON_EXIT = []
 
@@ -60,7 +73,7 @@ def rename_all(find, replace):
 
 class Resource(object):
     __metaclass__ = DB
-    DBTYPE = db.DB_BTREE
+    DBTYPE = bsddb3.db.DB_BTREE
     RE_LEN = 0
 
     @classmethod
@@ -1007,7 +1020,7 @@ def label_segment(ann, segment):
 
 
 class ProfileQueue(Resource):
-    DBTYPE = db.DB_QUEUE
+    DBTYPE = bsddb3.db.DB_QUEUE
     RE_LEN = 50
 
     keys = ("name", )
@@ -1066,3 +1079,5 @@ class ModelError(Vector):
         models = Models(self.info["name"], self.info["chr"]).get()
         error = numpy.array([0 for m in models])
         return error
+
+
