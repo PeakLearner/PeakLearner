@@ -22,7 +22,9 @@ except:
 #import for image splitting
 #import Image
 
-DB_HOME = os.path.join('/usr/local/var/www', "db")
+
+DB_HOME = os.path.join('db', )
+
 env = bsddb3.db.DBEnv()
 env.open(
     DB_HOME,
@@ -33,8 +35,6 @@ env.open(
     bsddb3.db.DB_INIT_LOG |
     bsddb3.db.DB_CREATE)
 
-
-CLOSE_ON_EXIT = []
 
 CLOSE_ON_EXIT = []
 
@@ -264,6 +264,7 @@ class Regions(Container):
         return [(k, d["min"]) for k, d in self.get()["data"].iteritems()]
 
 
+
 class ChromLengths(Resource):
     CHROM_ORDER = [str(x+1) for x in range(22)]+["X"]
     CHROM_RANK = dict(zip(CHROM_ORDER, enumerate(CHROM_ORDER)))
@@ -290,7 +291,6 @@ class ChromLengths(Resource):
             (ch, chroms[ch])
             for ch in self.CHROM_ORDER
             ])
-
 
 def get_model(probes, break_after):
     """Calculate breaks and segments after PrunedDP."""
