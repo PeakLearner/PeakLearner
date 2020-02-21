@@ -25,8 +25,6 @@ except:
 
 DB_HOME = os.path.join('db', )
 
-DB_HOME = os.path.join('', "db")
-
 env = bsddb3.db.DBEnv()
 env.open(
     DB_HOME,
