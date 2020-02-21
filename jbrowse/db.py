@@ -22,11 +22,11 @@ except:
 #import for image splitting
 #import Image
 
-<<<<<<< HEAD
+
 DB_HOME = os.path.join('db', )
-=======
-DB_HOME = os.path.join('/usr/local/var/www', "db")
->>>>>>> origin/database-dev
+
+DB_HOME = os.path.join('', "db")
+
 env = bsddb3.db.DBEnv()
 env.open(
     DB_HOME,
@@ -40,11 +40,6 @@ env.open(
 
 CLOSE_ON_EXIT = []
 
-<<<<<<< HEAD
-=======
-CLOSE_ON_EXIT = []
-
->>>>>>> origin/database-dev
 # this prevents lockers/locks from accumulating when python is closed
 # normally, but does not prevent this when we C-c out of the server.
 
@@ -271,8 +266,7 @@ class Regions(Container):
         return [(k, d["min"]) for k, d in self.get()["data"].iteritems()]
 
 
-<<<<<<< HEAD
-=======
+
 class ChromLengths(Resource):
     CHROM_ORDER = [str(x+1) for x in range(22)]+["X"]
     CHROM_RANK = dict(zip(CHROM_ORDER, enumerate(CHROM_ORDER)))
@@ -299,8 +293,6 @@ class ChromLengths(Resource):
             (ch, chroms[ch])
             for ch in self.CHROM_ORDER
             ])
-
->>>>>>> origin/database-dev
 
 def get_model(probes, break_after):
     """Calculate breaks and segments after PrunedDP."""
