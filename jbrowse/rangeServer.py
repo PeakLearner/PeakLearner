@@ -82,11 +82,6 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         #This is an example of how to get data out of the post request sent from the browser.
         #This should be replaced with th code to put the request object (called jsondata) into the DB
         #db.put(jsondata["first"], jsondata, txn=None, flags=0, dlen=-1, doff=-1)
-        DB_TXN* txn;
-        ret = env.txn_begin(env, NULL, None, 0)
-        ret = db.open(db, txn, "__db.001", NULL, DB_BTREE, DB_CREATE, 0)
-        ret = db.get(db, txn, sondata["first"], jsondata, 0)
-        ret = db.put(db, txn, sondata["first"], jsondata, 0)
 
 def send_head(self):
     if 'Range' not in self.headers:
