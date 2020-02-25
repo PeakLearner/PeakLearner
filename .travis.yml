@@ -1,3 +1,5 @@
+# see https://github.com/tdhock/PeakSegPipeline/blob/master/.travis.yml
+
 language: python
 rvm:
 - 2.1
