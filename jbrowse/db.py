@@ -25,15 +25,23 @@ except:
 
 DB_HOME = os.path.join('db', )
 
-env = bsddb3.db.DBEnv()
-env.open(
-    DB_HOME,
-    bsddb3.db.DB_INIT_MPOOL |
-    # bsddb3.db.DB_INIT_CDB|
-    bsddb3.db.DB_INIT_LOCK |
-    bsddb3.db.DB_INIT_TXN |
-    bsddb3.db.DB_INIT_LOG |
-    bsddb3.db.DB_CREATE)
+#env = bsddb3.db.DBEnv()
+#env.open(
+#    DB_HOME,
+#    bsddb3.db.DB_INIT_MPOOL |
+#    # bsddb3.db.DB_INIT_CDB|
+#    bsddb3.db.DB_INIT_LOCK |
+#    bsddb3.db.DB_INIT_TXN |
+#    bsddb3.db.DB_INIT_LOG |
+#    bsddb3.db.DB_CREATE)
+
+dbenv = bsddb3.db.DBEnv()
+
+dbenv.open(DB_HOME, bsddb3.db.DB_CREATE | bsddb3.db.DB_INIT_MPOOL)
+
+env = bsddb3.db.DB(dbenv)
+
+env.open("test.log", bsddb3.db.DB_BTREE, bsddb3.db.DB_CREATE)
 
 
 CLOSE_ON_EXIT = []
