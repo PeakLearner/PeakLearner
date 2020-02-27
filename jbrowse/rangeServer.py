@@ -77,14 +77,17 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         print(body)
         jsondata = simplejson.loads(body)
         print(jsondata)
-        print(jsondata["first"])
-        self.wfile.write(response)
+        print(jsondata["test"])
+        #self.wfile.write(response)
         #This is an example of how to get data out of the post request sent from the browser.
         #This should be replaced with th code to put the request object (called jsondata) into the DB
-        env.open("test.log", bsddb3.db.DB_BTREE, bsddb3.db.DB_CREATE)
-        env.put(jsondata["first"],jsondata)
-        printf(env.get(jsondata["first"]))
-
+        
+        env = db.env
+        env.put(b'test',jsondata["test"])
+        print("database test")
+        print(env.get(b'test'))
+        
+        
 def send_head(self):
     if 'Range' not in self.headers:
         self.range = None
