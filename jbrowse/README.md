@@ -131,21 +131,33 @@ storeConf=json:{"storeClass": "JBrowse/Store/SeqFeature/BigBed", "urlTemplate": 
 max_score=50
 autoscale=global
 onClick=function(clickEvent) {
-            var decodedCookie = decodeURIComponent(document.cookie).split(";");
-            var track = this.attributes.id.value.slice(6);
-            var type = "Peak";
-            if(clickEvent.altKey) {
-                  type = "notPeak";
-            }
-            var chr = decodedCookie[0].split("=")[1].slice(3);
-            var start = decodedCookie[1].split("=")[1];
-            var stop = decodedCookie[2].split("=")[1];
-            var returnJSON = {"Track" : track, "Type" : type, "Chr" : chr, "Start" : start, "Stop" : stop};
-            if(chr === "")
+            var tracks = localStorage.getItem("tracks");
+            var name = this.attributes.id.value.slice(6);
+            var clicks = localStorage.getItem(name + " clicks");
+            var labelOp = ["NO_LABEL", "PEAK", "NOT_PEAK", "PEAK_START", "PEAK_END"];
+            var peakType = "PEAK";
+            var UILable = localStorage.getItem("UILable");
+            if(tracks === null)
             {
-               returnJSON = {};
+               tracks = "";
             }
-            console.log(returnJSON);
+            if(clicks === null)
+            {
+               localStorage.setItem("tracks", tracks + name + " ");
+               clicks = 0
+            }
+            clicks = (parseInt(clicks) + 1) % 5;
+            peakType = labelOp[clicks];
+            if(UILable.localeCompare("true") === 0)
+            {
+               this.track.label.textContent = name + ", Adding: " + peakType;
+            }
+            else
+            {
+               this.track.label.textContent = name;
+            }
+            localStorage.setItem(name + " clicks", clicks);
+            localStorage.setItem(name + " peakType", peakType);
             return "clicked"}
             
 =====================================

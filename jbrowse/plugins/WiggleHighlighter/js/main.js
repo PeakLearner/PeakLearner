@@ -8,7 +8,6 @@ function (
 ) {
     return declare(JBrowsePlugin, {
         constructor: function (/* args */) {
-            console.log('WiggleHighlighter plugin starting');
         }
     });
 });
