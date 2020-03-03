@@ -11,7 +11,7 @@
 import os
 import re
 import db
-import simplejson
+import json as simplejson
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from io import BytesIO
 try:
@@ -82,10 +82,10 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         #This is an example of how to get data out of the post request sent from the browser.
         #This should be replaced with th code to put the request object (called jsondata) into the DB
         
-        env = db.env
-        env.put(b'test',jsondata["test"])
+        testDB = db.testDB
+        testDB.put(b'test',jsondata["test"])
         print("database test")
-        print(env.get(b'test'))
+        print(testDB.get(b'test'))
         
         
 def send_head(self):
