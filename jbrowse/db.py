@@ -14,44 +14,19 @@ try:
     os.mkdir(home)
 except:
     pass
-# modules by me created specifically for this project:
-#from PrunedDP import PrunedDP
-#from SegAnnot import SegAnnotBases
-#from gradient_descent import mmir
-#import scatterplot
-#import for image splitting
-#import Image
-
 
 DB_HOME = os.path.join('db',)
+testDB=bsddb3.db.DB()
+testDB.open('test.db',dbtype = bsddb3.db.DB_HASH, flags = bsddb3.db.DB_CREATE)
 
-#env = bsddb3.db.DBEnv()
-#env.open(
-#    DB_HOME,
-#    bsddb3.db.DB_INIT_MPOOL |
-#    # bsddb3.db.DB_INIT_CDB|
-#    bsddb3.db.DB_INIT_LOCK |
-#    bsddb3.db.DB_INIT_TXN |
-#    bsddb3.db.DB_INIT_LOG |
-#    bsddb3.db.DB_CREATE)
-
-dbenv = bsddb3.db.DBEnv()
-
-dbenv.open(DB_HOME, bsddb3.db.DB_CREATE | bsddb3.db.DB_INIT_MPOOL)
-
-env = bsddb3.db.DB(dbenv)
-
-env.open("test.db", bsddb3.db.DB_BTREE, bsddb3.db.DB_CREATE)
-CLOSE_ON_EXIT = []
 
 # this prevents lockers/locks from accumulating when python is closed
 # normally, but does not prevent this when we C-c out of the server.
 
-
+CLOSE_ON_EXIT = []
 def close_db():
     for db in CLOSE_ON_EXIT:
         db.close()
-    env.close()
 atexit.register(close_db)
 
 DB_CLASSES = []
@@ -63,13 +38,13 @@ class DB(type):
         if "keys" in dir(cls):
             DB_CLASSES.append(cls)
             cls.filename = name
-            cls.db = bsddb3.db.DB(env)
+            cls.db = bsddb3.db.DB()
             if cls.RE_LEN:
                 cls.db.set_re_len(cls.RE_LEN)
-            cls.db.open(cls.filename, None, cls.DBTYPE,
-                        bsddb3.db.DB_AUTO_COMMIT |
+            #cls.db.open(cls.filename, None, cls.DBTYPE,
+                        #bsddb3.db.DB_AUTO_COMMIT |
                         # bsddb3.db.DB_THREAD|
-                        bsddb3.db.DB_CREATE)
+                 #       bsddb3.db.DB_CREATE)
             CLOSE_ON_EXIT.append(cls.db)
 
 def rename_all(find, replace):
