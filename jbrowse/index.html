@@ -36,7 +36,15 @@
 		        success: function(data) {
 				console.log('POST sent successfully')
             			console.log(data)
-        		}
+				//It will be assumed that information about our model will be in this data object
+				//Do something with the model info here
+        		},
+			error: function(xhr, textStatus, errorCode){
+				alert('Something went wrong with that POST request. Refer to the console logs for details.') 
+				console.log(xhr)
+				console.log(textStatus)
+				console.log(errorCode)
+			}
   		 });
 	}
     </script>
@@ -54,7 +62,7 @@
   <body>
 
 <!-- This is an example of how to use the post request we need to send
-	<button onclick="sendPost({'first':'First Name', 'last':'Last Name'})">Click me</button>
+	<button onclick="sendPost({'first':'First Name', 'test':'TEST Name'})">Click me</button>
 -->
 	  <div class="jbrowse" id="GenomeBrowser" data-config='"allowCrossOriginDataRoot": false, "cacheBuster": true'>
       <div id="LoadingScreen" style="padding: 50px;">

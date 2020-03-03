@@ -103,24 +103,31 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         print('Got a post')
+        # first parse out the infomation we got from the post 
         content_length = int(self.headers['Content-Length'])
         body = self.rfile.read(content_length)
         self.send_response(200)
         self.end_headers()
-        response = BytesIO()
-        response.write(b'This is POST request. ')
-        response.write(b'Received: ')
-        response.write(body)
-        self.wfile.write(response.getvalue())
-        print(body)
         jsondata = simplejson.loads(body)
+
+        #print a few tests to make sure it is what is expected
+        print(body)
         print(jsondata)
         print(jsondata["test"])
         
+        #put the labels we got into our database
         testDB = db.testDB
         testDB.put(b'test',jsondata["test"])
         print("database test")
         print(testDB.get(b'test'))
+        
+        #get an optimal Model and turn it into a JSON object here
+        model = simplejson.dumps({'model': 'myModel.bigWig', 'errors':'1'})
+
+        #write a response containing the optimal model and send it back to the browser
+        response = BytesIO()
+        response.write(model)
+        self.wfile.write(response.getvalue())
 
 try:
     #Create a web server and define the handler to manage the
