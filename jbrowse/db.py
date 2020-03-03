@@ -45,6 +45,7 @@ class DB(type):
                         #bsddb3.db.DB_AUTO_COMMIT |
                         # bsddb3.db.DB_THREAD|
                  #       bsddb3.db.DB_CREATE)
+                cls.db.open(cls.filename,cls.DBTYPE, flags = bsddb3.db.DB_CREATE)
             CLOSE_ON_EXIT.append(cls.db)
 
 def rename_all(find, replace):
