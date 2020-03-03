@@ -1,14 +1,24 @@
-language: ruby
+# see https://github.com/tdhock/PeakSegPipeline/blob/master/.travis.yml
+
+language: python
 rvm:
 - 2.1
+
+before_install:
+  - sudo mkdir /etc/slurm-llnl
+  - sudo cp slurm.conf /etc/slurm-llnl
+  - cp batchtools.conf.R tests/testthat
+  - sudo apt-get install -y slurm-llnl
+  - sudo /usr/sbin/create-munge-key
+  - sudo service munge start
 
 script: ./script/cibuild
 
 branches:
   only:
-  - gh-pages    
-  - /pages-(.*)/ 
+  - gh-pages
+  - /pages-(.*)/
 
 env:
   global:
-  - NOKOGIRI_USE_SYSTEM_LIBRARIES=true 
+  - NOKOGIRI_USE_SYSTEM_LIBRARIES=true
