@@ -57,6 +57,7 @@ The storeConf is obviously more generic, but was added later. BigBed remains for
 * indicatorHeight - a height for the indicator, defalt 3px
 * broaden - number to broaden the drawn peaks by in bp
 * type - this plugin has WiggleHighlighter/View/Track/XYPlot and WiggleHighlighter/View/Track/Density track types
+* onHighlightClick - A callback on the clicking of the highlight or the indicator
 
 
 ## Screenshot

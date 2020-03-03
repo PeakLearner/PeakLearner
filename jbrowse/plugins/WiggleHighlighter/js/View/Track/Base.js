@@ -17,8 +17,7 @@ function (
     return declare(FeatureDetailMixin, {
         constructor: function (args) {
             if (this.config.bigbed) {
-                const ret = Object.assign({}, this.config.bigbed, args);
-                this.highlightStore = new BigBed(ret);
+                this.highlightStore = new BigBed(Object.assign({}, this.config.bigbed, args));
             } else {
                 const conf = this.config.storeConf;
                 const CLASS = dojo.global.require(conf.storeClass);
@@ -52,7 +51,7 @@ function (
                             top: 0,
                             zIndex: 10000,
                             position: 'absolute',
-                            backgroundColor: this.getConf('highlightColor', feature)
+                            backgroundColor: this.getConf('highlightColor', [feature, this])
                         }
                     }, block.domNode);
                     const indicator = dojo.create('div', {
@@ -63,19 +62,18 @@ function (
                             zIndex: 10000,
                             top: canvas.style.height,
                             position: 'absolute',
-                            backgroundColor: this.getConf('indicatorColor', feature)
+                            backgroundColor: this.getConf('indicatorColor', [feature, this])
                         }
                     }, block.domNode);
-                    on(indicator, 'click',
-                        () => {
-                            new Dialog({ content: this.defaultFeatureDetail(this, feature, null, null, null) }).show();
-                        }
-                    );
-                    on(ret, 'click',
-                        () => {
-                            new Dialog({ content: this.defaultFeatureDetail(this, feature, null, null, null) }).show();
-                        }
-                    );
+
+                    const callback = this.config.onHighlightClick ?
+                        () => this.config.onHighlightClick(feature, this) :
+                        () => new Dialog({ content: this.defaultFeatureDetail(this, feature, null, null, null) }).show();
+
+
+                    on(indicator, 'click', callback)
+                    on(ret, 'click', callback)
+
                 },
                 () => { },
                 error => { console.error(error); }
