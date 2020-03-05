@@ -13,6 +13,8 @@ import db
 import json as simplejson
 from io import BytesIO
 
+#these are needed to run R scripts
+import subprocess
 
 PORT_NUMBER = 8081
 
@@ -123,6 +125,27 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         
         #get an optimal Model and turn it into a JSON object here
         model = simplejson.dumps({'model': 'myModel.bigWig', 'errors':'1'})
+
+        ############################################
+
+        # Define command and arguments
+        command = 'Rscript'
+        path2script = '../PeakSegOptimal-master/R/PeakSegFPOP.R'
+
+        # the function we want to run has 3 arguments
+        #count.vec integer vector of size > 3
+        #weight.vec vector of same size with weights >0
+        #penatly > 0
+        args = ['(1, 2, 3, 4)', '(1, 1, 1, 1)', '1']
+
+        # Build subprocess command
+        cmd = [command, path2script] + args
+
+        # check_output will run the command and store to result
+        newModel = subprocess.check_output(cmd, universal_newlines=True)
+
+        print('The new model we got:', newModel)
+        ############################################
 
         #write a response containing the optimal model and send it back to the browser
         response = BytesIO()
