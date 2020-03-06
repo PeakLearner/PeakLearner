@@ -130,7 +130,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
         # Define command and arguments
         command = 'Rscript'
-        path2script = '../PeakSegOptimal-master/R/PeakSegFPOP.R'
+        path2script = '../PeakSegDisk-master/R/PeakSegFPOP_dir.R'
 
         # the function we want to run has 3 arguments
         #count.vec integer vector of size > 3
