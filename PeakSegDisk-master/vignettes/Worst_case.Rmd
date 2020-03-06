@@ -1,0 +1,99 @@
+<!--
+%\VignetteEngine{knitr::knitr}
+%\VignetteIndexEntry{Worst case time complexity}
+-->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+options(width=100)
+```
+
+The time complexity of the algorithm depends on the number of
+intervals (candidate changepoints stored). Here we compute the
+mean number of intervals for real Mono27ac data, and synthetic
+count data which are always increasing.
+
+```{r}
+data(Mono27ac, package="PeakSegDisk", envir=environment())
+library(data.table)
+loss.list <- list()
+N.data.vec <- 10^seq(1, 3)
+for(penalty in c(0, 1e2, 1e4, 1e6)){
+  for(N.data in N.data.vec){
+    some.cov <- Mono27ac$coverage[1:N.data]
+    some.inc <- data.table(some.cov)
+    some.inc[, count := 1:.N]
+    data.list <- list(
+      real=some.cov,
+      synthetic=some.inc)
+    for(short.type in names(data.list)){
+      df <- data.list[[short.type]]
+      fit <- PeakSegDisk::PeakSegFPOP_df(df, penalty)
+      loss.list[[paste(penalty, N.data, short.type)]] <- data.table(
+        N.data,
+        short.type,
+        fit$loss)
+    }
+  }
+}
+(loss <- do.call(rbind, loss.list))[, .(
+  penalty, short.type, N.data, 
+  mean.intervals, max.intervals,
+  megabytes, seconds)][order(penalty, short.type, N.data)]
+```
+
+Theoretically the most intervals that could be stored is $O(i)$ for
+each data point $i\in\{1, ..., N\}$. Therefore the largest total
+number of intervals is `sum(1:N)`, which can also be computed by
+`N*(N+1)/2`. The largest mean is `mean(1:N)`, which can be computed
+via `sum(1:N)/N` = `(N+1)/2`.
+  
+```{r}
+(worst.dt <- data.table(
+  N.data=N.data.vec,
+  mean.intervals=(N.data.vec+1)/2,
+  short.type="theoretical"))
+```
+
+The plot below shows that the algorithm achieves the theoretical
+worst case time complexity for the synthetic increasing data,
+when the penalty is large. But the number of intervals is always
+much smaller for real Mono27ac ChIP-seq data.
+  
+```{r, fig.height=3}
+library(ggplot2)
+one <- function(short.type, data.type, color){
+  data.table(short.type, data.type, color)
+}
+type.dt <- rbind(
+  one("theoretical", "Theoretical\nworst case", "grey"),
+  one("synthetic", "Synthetic\nIncreasing", "red"),
+  one("real", "Real ChIP-seq", "black"))
+loss.types <- type.dt[loss, on=list(short.type)]
+worst.types <- type.dt[worst.dt, on=list(short.type)]
+(type.colors <- type.dt[, structure(color, names=data.type)])
+ggplot()+
+  guides(
+    color=guide_legend(keyheight=3)
+  )+
+  geom_blank(aes(
+    N.data, 1),
+    data=data.table(N.data=c(5, 2000)))+
+  theme_bw()+
+  theme(panel.spacing=grid::unit(0, "lines"))+
+  facet_grid(. ~ penalty, labeller=label_both)+
+  geom_line(aes(
+    N.data, mean.intervals, color=data.type),
+    data=worst.types)+
+  scale_color_manual(
+    values=type.colors,
+    breaks=names(type.colors))+
+  geom_line(aes(
+    bedGraph.lines, mean.intervals, color=data.type),
+    data=loss.types)+
+  scale_x_log10("N data")+
+  scale_y_log10("Mean intervals (candidate changepoints)")
+```

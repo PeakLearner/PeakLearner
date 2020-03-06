@@ -1,0 +1,139 @@
+[[https://travis-ci.org/tdhock/PeakSegDisk][https://travis-ci.org/tdhock/PeakSegDisk.png?branch=master]]
+
+PeakSegDisk: an R package for fast and optimal ChIP-seq peak
+detection. Two major differences between other packages for peak
+detection: 
+- *The optimal piecewise constant model works well in many kinds of
+  genomic data.* The dynamic programming C++ code computes the most
+  likely piecewise constant model (for a given penalty / number of
+  peaks), so it works well for many different kinds of genomic data
+  (e.g. ATAC-seq, transcription factor, broad H3K36me3, sharp
+  H3K4me3). 
+- *Fast and memory efficient solver.* The on-disk implementation of
+  the Generalized Functional Pruning Optimal Partitioning algorithm
+  (GFPOP, [[https://arxiv.org/abs/1810.00117][arXiv:1810.00117]]) is O(N log N) time, O(N log N) disk, O(log
+  N) memory, which makes it possible to compute optimal peak models
+  for even very large genomic subsets. For example when we split
+  typical ChIP-seq data aligned to the human genome (hg19) into one
+  bedGraph file per contig (between [[http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/gap.txt.gz][gaps]]), we end up with files of up
+  to 10 million lines. Analyzing such large files is possible on
+  common laptops, because the algorithm uses <1GB memory and <100GB
+  disk (in a temporary file which is deleted after finding the optimal
+  solution).
+
+** Installation 
+
+#+BEGIN_SRC R
+install.packages("PeakSegDisk")
+## OR:
+if(!require(devtools))install.packages("devtools")
+devtools::install_github("tdhock/PeakSegDisk")
+#+END_SRC
+
+** Vignettes / example code
+
+- The first thing to read is the [[https://cloud.r-project.org/web/packages/PeakSegDisk/vignettes/Examples.pdf][Examples]] vignette, which describes how to use the main functions with small simulated data.
+- The second is the [[https://cloud.r-project.org/web/packages/PeakSegDisk/vignettes/Spatial_correlation.html][Spatial correlation]] vignette, which shows how to perform peak detection in ChIP-seq data sets.
+- The last vignette explores the [[https://cloud.r-project.org/web/packages/PeakSegDisk/vignettes/Worst_case.html][Worst case]] time complexity of the algorithm, and is mainly of theoretical interest.
+
+** Additional R function usage/examples
+
+PeakSegDisk implements two new algorithms, which both read input data from
+disk (not R objects/memory) in order to handle very large data sets
+while using only O(log N) memory. So you never need to read the entire
+data set into R/memory, and results are saved/cached on disk for further efficiency.
+
+*** Writing a data set to a coverage.bedGraph file
+
+Write your data set to a [[https://genome.ucsc.edu/goldenPath/help/bedgraph.html][bedGraph]] file:
+plain text, with 4 tab-separated columns, chrom (chr), chromStart
+(int), chromEnd (int), coverage (int). The data to segment using the
+up-down constrained Poisson segmentation model should be non-negative
+integers in column 4. If your data are not genomic, that is fine, just
+make up a name for the first column (it is ignored). For example if
+you want to run the algo on the 6 data points [5, 5, 18, 15, 20, 2]
+you should create the following file, named coverage.bedGraph:
+
+#+BEGIN_SRC text
+c	0	2	5
+c	2	3	18
+c	3	4	15
+c	4	5	20
+c	5	6	2
+#+END_SRC
+
+Note that runs of data points with the same value should be combined
+into a single line in the bedGraph file (e.g. the two data 5,5 at the
+beginning of the data sequence becomes one line with start=0 end=2 at
+the beginning of the bedGraph file). Also it is recommended to put the
+file in a folder with a name that is consistent with the start/end
+positions of the data. In the example above it would be
+=sampleID/problems/c-0-6/coverage.bedGraph=
+
+*** PeakSegDisk::PeakSegFPOP_dir 
+
+The first algorithm is Generalized Functional Pruning Optimal
+Partitioning (GFPOP) with up-down (PeakSeg) constraints between
+adjacent segment means. To use this algorithm you must give the folder
+name (not the coverage.bedGraph file name) to the PeakSegFPOP_dir
+function:
+
+#+BEGIN_SRC R
+PeakSegDisk::PeakSegFPOP_dir("sampleID/problems/c-0-6", "0.1")
+#+END_SRC
+
+Note that the second argument must be a character string that
+represents a penalty value (non-negative real number, larger penalties
+yield fewer peaks). The smallest value is "0" which yields max peaks,
+and the largest value is "Inf" which yields no peaks. It must be an R
+character string (not a real number) because that string is used to
+create files such as
+sampleID/problems/c-0-6/coverage.bedGraph_penalty=0.1_loss.tsv which
+are used to store/cache the results. If the files already exist (and
+are consistent) then PeakSegFPOP_dir just reads them; otherwise it
+runs the dynamic programming C++ code in order to create those files.
+It returns the model as a named list of data.tables -- see
+=help(PeakSegFPOP_dir)= for details of how to interpret.
+
+*Computational complexity:* O(N log N) time, O(N log N) disk, O(log N)
+memory. Basically you will never have to worry about running out of
+memory, but make sure you have some free space on the disk where you
+put your bedGraph file. The algorithm stores the optimal cost
+functions in a file named
+sampleID/problem/c-0-6/coverage.bedGraph_penalty=0.1.db -- for large
+genomic data sets (e.g. bedGraph file with 10 million lines) the db
+file is about 80GB.
+
+*** PeakSegDisk::sequentialSearch_dir
+
+GFPOP can only compute an optimal model for a given penalty value (and
+we can not directly specify the number of peaks). Thus we provide a
+sequential search algorithm which computes the model with a given
+number of peaks. Actually, some numbers of peaks are not computable
+via GFPOP, and in this case the sequential search returns the next
+simpler model. The first argument again must specify the folder which
+contains your coverage.bedGraph data file. For example,
+
+#+BEGIN_SRC R
+PeakSegDisk::sequentialSearch_dir("sampleID/problems/c-0-6", 17L)
+#+END_SRC
+
+computes the most likely model with at most 17 peaks.
+
+*Computational complexity:* O(N*log(N)*log(P)) time, O(N log N) disk,
+O(log N) memory. The sequential search has the same storage
+requirements as one run of GFPOP, so make sure you have some free disk
+space. Note that it is slower than GFPOP by a factor of O(log P) --
+this is because it needs to call GFPOP to solve for that number of
+penalties/models before finding the one with the desired number of
+peaks.
+
+** Related work
+
+[[https://github.com/tdhock/PeakSegOptimal][PeakSegOptimal::PeakSegFPOP]] provides a O(N log N) memory (and no disk
+usage) implementation of the PeakSegFPOP algorithm for separately
+calling peaks for every sample and genomic problem. In contrast the
+PeakSegDisk package implements the same algorithm using O(log N)
+memory and O(N log N) disk space (which is highly unlikely to memory
+swap, but a constant factor of about 2x slower). 
+

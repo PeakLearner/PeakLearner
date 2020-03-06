@@ -1,0 +1,20 @@
+Package: PeakSegDisk
+Type: Package
+Title: Disk-Based Constrained Change-Point Detection
+Version: 2019.12.9
+Author: Toby Dylan Hocking
+Maintainer: Toby Dylan Hocking <toby.hocking@r-project.org>
+Description: Disk-based implementation of
+ Functional Pruning Optimal Partitioning with up-down constraints
+ <arXiv:1810.00117> for single-sample peak calling
+ (independently for each sample and genomic problem),
+ can handle huge data sets (10^7 or more).
+License: GPL-3
+Depends: R (>= 2.10)
+Imports: data.table (>= 1.9.8)
+Suggests: testthat, ggplot2,
+ future.apply, future,
+ knitr
+VignetteBuilder: knitr
+URL: http://github.com/tdhock/PeakSegDisk
+BugReports: http://github.com/tdhock/PeakSegDisk/issues

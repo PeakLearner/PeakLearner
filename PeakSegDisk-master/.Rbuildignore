@@ -1,0 +1,8 @@
+appveyor.yml
+config.log
+build.sh
+valgrind.sh
+.travis.yml
+README.org
+bin
+.gitignore

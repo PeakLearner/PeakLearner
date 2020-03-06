@@ -1,0 +1,8 @@
+auto
+config.log
+*.dll
+*~
+.Rhistory
+*.so
+*.o
+symbols.rds

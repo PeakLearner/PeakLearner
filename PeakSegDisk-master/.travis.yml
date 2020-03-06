@@ -1,0 +1,27 @@
+language: r
+
+sudo: required
+
+apt_packages:
+  - texlive
+  - ghostscript
+  - texlive-fonts-extra
+  - texinfo  
+
+env:
+  - TEST_SUITE=CRAN
+  - TEST_SUITE=TRAVIS
+
+script:
+  - mkdir /tmp/tmp256K
+  - sudo mount -t tmpfs -o size=256K tmpfs /tmp/tmp256K
+  - mkdir /tmp/tmp160000
+  - sudo mount -t tmpfs -o size=160000 tmpfs /tmp/tmp160000
+  - R CMD INSTALL .
+  - if [ "$TEST_SUITE" == "CRAN" ];then bash build.sh;else Rscript -e "source('tests/testthat.R', chdir = TRUE)";fi
+
+notifications:
+  email:
+    on_success: change
+    on_failure: change
+
