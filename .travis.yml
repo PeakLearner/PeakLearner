@@ -14,7 +14,7 @@ before_install:
   - sudo /usr/sbin/create-munge-key
   - sudo service munge start
 
-script:  {TRAVIS_BUILD_DIR}/PeakLearner-1.1/jbrowse/tests/cluster_tests/clusterTest.py
+script:  clusterTest.py
 
 env:
   global:
