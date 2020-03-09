@@ -4,11 +4,21 @@ language: python
 python:
   - "2.7"
 
-script:  echo "Hello world"
+before_install:
+  - sudo mkdir /etc/slurm-llnl
+  - sudo cp slurm.conf /etc/slurm-llnl
+  - cp batchtools.conf.R tests/testthat
+  - sudo /etc/init.d/slurmctld restart  # not sure where this and the following line go
+  - sudo /etc/init.d/slurmd restart 
+  - sudo apt-get install -y slurm-llnl
+  - sudo /usr/sbin/create-munge-key
+  - sudo service munge start
+
+script:  {TRAVIS_BUILD_DIR}/PeakLearner-1.1/jbrowse/tests/cluster_tests/clusterTest.py
 
 env:
   global:
-  - NOKOGIRI_USE_SYSTEM_LIBRARIES=true
+  - NOKOGIRI_USE_SYSTEM_LIBRARIES=true  # do we need this?
 
 notifications:
-  slack: capstoneteam2019-2020:bvR3ofKEeSgoYiI9E4pchZs6
+  slack: capstoneteam2019-2020:99sHd15zMUNsTJEWiIUvlrF3
