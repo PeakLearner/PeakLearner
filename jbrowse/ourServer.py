@@ -126,17 +126,17 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         #get an optimal Model and turn it into a JSON object here
         model = simplejson.dumps({'model': 'myModel.bigWig', 'errors':'1'})
 
+        #This next block is our simulation of the cluster and using Dr. Hockings R code
         ############################################
 
         # Define command and arguments
         command = 'Rscript'
         path2script = '../PeakSegDisk-master/R/PeakSegFPOP_dir.R'
 
-        # the function we want to run has 3 arguments
-        #count.vec integer vector of size > 3
-        #weight.vec vector of same size with weights >0
+        # the function we want to run has 2 arguments
+        #a path to the coverage data we are observing
         #penatly > 0
-        args = ['(1, 2, 3, 4)', '(1, 1, 1, 1)', '1']
+        args = ['path/to/coverageData', '1']
 
         # Build subprocess command
         cmd = [command, path2script] + args
@@ -145,6 +145,11 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         newModel = subprocess.check_output(cmd, universal_newlines=True)
 
         print('The new model we got:', newModel)
+        ############################################
+        #For now, in this section we will always send back a specific model which we will write to here
+        #this should make jbrowse redraw when it gets a response to view the model
+        
+        
         ############################################
 
         #write a response containing the optimal model and send it back to the browser
