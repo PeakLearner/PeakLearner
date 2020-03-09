@@ -48,12 +48,14 @@ function (
                            return f;
                         }
                      });
-                     console.log("removing label: ", {
+                     var removeJSON = {
                         'name' : track.name,
                         'ref' : feature.get('ref'),
                         'start' : feature.get('start'),
                         'end' : feature.get('end')
-                     });
+                     }
+                     console.log("removing label: ", removeJSON);
+                     sendPost(removeJSON);
                    }
                    track.redraw();
                    localStorage.setItem('ipaFeatures', JSON.stringify(features));
