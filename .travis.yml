@@ -21,4 +21,4 @@ env:
   - NOKOGIRI_USE_SYSTEM_LIBRARIES=true  # do we need this?
 
 notifications:
-  slack: capstoneteam2019-2020:bvR3ofKEeSgoYiI9E4pchZs6
+  slack: capstoneteam2019-2020:99sHd15zMUNsTJEWiIUvlrF3
