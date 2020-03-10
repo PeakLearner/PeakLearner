@@ -1,7 +1,7 @@
 define([
     'dojo/_base/declare',
     'JBrowse/Util',
-    'WiggleHighlighter/View/Track/XYPlot'
+    'WiggleHighlighter/View/Track/MultiXYPlot'
 ],
 function (
     declare,
