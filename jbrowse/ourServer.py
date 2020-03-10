@@ -164,7 +164,14 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
 
         # now change the line, note that you have to add a newline
-        data[7] = 'urlTemplates+=json:{"url":"joint_peaks.bigWig", "name": "joint peaks", "color": "#a54"}\n'
+        fakemodel1 = 'urlTemplates+=json:{"url":"joint_peaks.bigWig", "name": "joint peaks", "color": "#a54"}\n'
+        fakemodel2 ='urlTemplates+=json:{"url":"coverage.bigWig", "name": "Coverage", "color": "#235"}\n'
+        print(data[7])
+        print(data[7] == fakemodel2)
+        if data[7] == fakemodel2:
+            data[7] = fakemodel1 
+        else:
+            data[7] = fakemodel2 
 
         # and write everything back
         with open(abs_file_path, 'w') as file:
