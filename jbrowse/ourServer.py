@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+
 #These are needed to handle range requests
 import os
 import re
@@ -153,8 +154,21 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         print('The new model we got from R:', newModel)
         ############################################
         #For now, in this section we will always send back a specific model which we will write to here
-        #this should make jbrowse redraw when it gets a response to view the model
-        
+        script_dir = os.path.dirname(__file__) #<-- absolute dir the script is in
+        rel_path = "data/tracks.conf"
+        abs_file_path = os.path.join(script_dir, rel_path)
+
+        with open(abs_file_path, 'r') as file:
+            # read a list of lines into data
+            data = file.readlines()
+
+
+        # now change the line, note that you have to add a newline
+        data[7] = 'urlTemplates+=json:{"url":"joint_peaks.bigWig", "name": "joint peaks", "color": "#a54"}\n'
+
+        # and write everything back
+        with open(abs_file_path, 'w') as file:
+            file.writelines( data )        
         #model = do something with the parser and the trackhub       
         ############################################
 
