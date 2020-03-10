@@ -1,14 +1,13 @@
-# see https://github.com/tdhock/PeakSegPipeline/blob/master/.travis.yml
-
 language: python
+
 python:
   - "2.7"
 
 before_install:
   - sudo mkdir /etc/slurm-llnl
   - sudo cp slurm.conf /etc/slurm-llnl
-  - cp batchtools.conf.R tests/testthat
-  - sudo /etc/init.d/slurmctld restart  # not sure where this and the following line go
+#  - cp batchtools.conf.R tests/testthat
+  - sudo /etc/init.d/slurmctld restart
   - sudo /etc/init.d/slurmd restart 
   - sudo apt-get install -y slurm-llnl
   - sudo /usr/sbin/create-munge-key
@@ -19,6 +18,10 @@ script:  clusterTest.py
 env:
   global:
   - NOKOGIRI_USE_SYSTEM_LIBRARIES=true  # do we need this?
+  
+branches:
+  only:
+  - test-branch
 
 notifications:
   slack: capstoneteam2019-2020:99sHd15zMUNsTJEWiIUvlrF3
