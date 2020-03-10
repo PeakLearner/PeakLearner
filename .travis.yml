@@ -9,7 +9,7 @@ before_install:
 #  - sudo /etc/init.d/slurmctld restart
 #  - sudo /etc/init.d/slurmd restart
   - sudo apt-get install -y slurm-llnl
-  - sudo /usr/sbin/create-munge-key
+#  - sudo /usr/sbin/create-munge-key
   - sudo service munge start
 
 script:  PeakLearner-1.1/jbrowse/tests/cluster_tests/clusterTest.py
