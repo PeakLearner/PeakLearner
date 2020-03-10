@@ -144,12 +144,12 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         # check_output will run the command and store to result
         newModel = subprocess.check_output(cmd, universal_newlines=True)
 
-        print('The new model we got:', newModel)
+        print('The new model we got from R:', newModel)
         ############################################
         #For now, in this section we will always send back a specific model which we will write to here
         #this should make jbrowse redraw when it gets a response to view the model
         
-        
+        #model = do something with the parser and the trackhub       
         ############################################
 
         #write a response containing the optimal model and send it back to the browser
