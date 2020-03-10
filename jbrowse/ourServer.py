@@ -113,18 +113,24 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         jsondata = simplejson.loads(body)
 
         #print a few tests to make sure it is what is expected
-        print(body)
         print(jsondata)
-        print(jsondata["test"])
-        
+        allLabelsArray = jsondata["labels"]
+        print(allLabelsArray)
+
         #put the labels we got into our database
         testDB = db.testDB
-        testDB.put(b'test',jsondata["test"])
-        print("database test")
-        print(testDB.get(b'test'))
+        for label in allLabelsArray:
+            print(label)
+            print("label above")
+            testDB.put(b'start',str(label))
         
+        print("database test")
+        print(testDB.get(b'start'))
+        
+        #this model is just a placeholder for now
         #get an optimal Model and turn it into a JSON object here
         model = simplejson.dumps({'model': 'myModel.bigWig', 'errors':'1'})
+
 
         #This next block is our simulation of the cluster and using Dr. Hockings R code
         ############################################
