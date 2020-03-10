@@ -13,7 +13,7 @@ before_install:
   - sudo service munge start
   - chmod +x jbrowse/tests/cluster_tests/clusterTest.py
 
-script:  jbrowse/tests/cluster_tests/clusterTest.py
+script:  python jbrowse/tests/cluster_tests/clusterTest.py
 
 env:
   global:

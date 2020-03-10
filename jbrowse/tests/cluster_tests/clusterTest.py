@@ -1,4 +1,3 @@
-#!usr/bin/python
 import subprocess
 
 #This next block is our simulation of the cluster and using Dr. Hockings R code
