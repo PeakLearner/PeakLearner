@@ -121,9 +121,6 @@ next create/copy the below text in to a file called "tracks.conf" into the file 
 [GENERAL]
 refSeqs=hg19.fa.fai
 
-[GENERAL]
-refSeqs=hg19.fa.fai
-
 [tracks.interactive]
 key=interactive
 type=InteractivePeakAnnotator/View/Track/MultiXYPlot 
