@@ -8,7 +8,7 @@ import BaseHTTPServer
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 
 #These are needed to handle the database
-import db
+#import db
 
 #these are needed to handle our post requests
 import json as simplejson
@@ -115,18 +115,18 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
         #print a few tests to make sure it is what is expected
         print(jsondata)
-        allLabelsArray = jsondata["labels"]
-        print(allLabelsArray)
+        #allLabelsArray = jsondata["labels"]
+       # print(allLabelsArray)
 
         #put the labels we got into our database
-        testDB = db.testDB
-        for label in allLabelsArray:
-            print(label)
-            print("label above")
-            testDB.put(b'start',str(label))
+        #testDB = db.testDB
+        #for label in allLabelsArray:
+         #   print(label)
+          #  print("label above")
+           # testDB.put(b'start',str(label))
         
-        print("database test")
-        print(testDB.get(b'start'))
+        #print("database test")
+        #print(testDB.get(b'start'))
         
         #this model is just a placeholder for now
         #get an optimal Model and turn it into a JSON object here

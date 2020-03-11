@@ -121,44 +121,17 @@ next create/copy the below text in to a file called "tracks.conf" into the file 
 [GENERAL]
 refSeqs=hg19.fa.fai
 
-[tracks.CoverageTest]
-key=WiggleHighter w/ MultiBigWig
-type=WiggleHighlighter/View/Track/MultiXYPlot
-urlTemplates+=json:{"url":"coverage.bigWig", "name": "Coverage", "color": "#235"}
+[GENERAL]
+refSeqs=hg19.fa.fai
+
+[tracks.interactive]
+key=interactive
+type=InteractivePeakAnnotator/View/Track/MultiXYPlot 
+urlTemplates+=json:{"url":"coverage.bigWig", "name": "volvox_positive", "color": "#235"}
 urlTemplates+=json:{"url":"joint_peaks.bigWig", "name": "joint peaks", "color": "#a54"}
 storeClass=MultiBigWig/Store/SeqFeature/MultiBigWig
-storeConf=json:{"storeClass": "JBrowse/Store/SeqFeature/BigBed", "urlTemplate": "all_labels.bigBed"}
-max_score=50
-autoscale=global
-onClick=function(clickEvent) {
-            var tracks = localStorage.getItem("tracks");
-            var name = this.attributes.id.value.slice(6);
-            var clicks = localStorage.getItem(name + " clicks");
-            var labelOp = ["NO_LABEL", "PEAK", "NOT_PEAK", "PEAK_START", "PEAK_END"];
-            var peakType = "PEAK";
-            var UILable = localStorage.getItem("UILable");
-            if(tracks === null)
-            {
-               tracks = "";
-            }
-            if(clicks === null)
-            {
-               localStorage.setItem("tracks", tracks + name + " ");
-               clicks = 0
-            }
-            clicks = (parseInt(clicks) + 1) % 5;
-            peakType = labelOp[clicks];
-            if(UILable.localeCompare("true") === 0)
-            {
-               this.track.label.textContent = name + ", Adding: " + peakType;
-            }
-            else
-            {
-               this.track.label.textContent = name;
-            }
-            localStorage.setItem(name + " clicks", clicks);
-            localStorage.setItem(name + " peakType", peakType);
-            return "clicked"}
+storeConf=json:{"storeClass": "InteractivePeakAnnotator/Store/SeqFeature/Features"}
+max_score=150
             
 =====================================
 
