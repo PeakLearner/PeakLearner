@@ -8,7 +8,6 @@ function (
     Util,
     XYPlot
 ) {
-{
     return declare([ XYPlot],
      {
         _defaultConfig: function () 
