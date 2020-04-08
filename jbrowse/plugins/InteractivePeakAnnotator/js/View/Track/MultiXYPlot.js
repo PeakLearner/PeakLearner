@@ -54,7 +54,7 @@ function (
                         'end' : feature.get('end')
                      }
                      console.log("removing label: ", removeJSON);
-                     //sendPost(removeJSON);
+                     sendPost(removeJSON);
                    }
                    track.redraw();
                    localStorage.setItem('ipaFeatures', JSON.stringify(features));

@@ -115,20 +115,20 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
         #print a few tests to make sure it is what is expected
         print(jsondata)
-        allLabelsArray = jsondata["test"]
-        print(allLabelsArray)
+#        allLabelsArray = jsondata["test"]
+#        print(allLabelsArray)
 
         #put the labels we got into our database
-        testDB = db.testDB
-        for label in allLabelsArray:
-            print(label)
-            print("label above")
-            key_name = 'start' + str(label)
-            key = 'b' + key_name
-            testDB.put(key,str(label))
-        
-        print("database test")
-        print(testDB.get(b'starta'))
+#        testDB = db.testDB
+#        for label in allLabelsArray:
+#            print(label)
+#            print("label above")
+#            key_name = 'start' + str(label)
+#            key = 'b' + key_name
+#            testDB.put(key,str(label))
+#        
+#        print("database test")
+#        print(testDB.get(b'starta'))
         
         #this model is just a placeholder for now
         #get an optimal Model and turn it into a JSON object here
@@ -166,8 +166,8 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
 
         # now change the line, note that you have to add a newline
-        fakemodel1 = 'urlTemplates+=json:{"url":"joint_peaks.bigWig", "name": "joint peaks", "color": "#a54"}\n'
-        fakemodel2 ='urlTemplates+=json:{"url":"coverage.bigWig", "name": "Coverage", "color": "#235"}\n'
+        fakemodel1 = 'urlTemplates+=json:{"url":"joint_peaks.bigWig", "name": "joint peaks", "color": "#235", "lineWidth":"3"}\n'
+        fakemodel2 ='urlTemplates+=json:{"url":"coverage.bigWig", "name": "Coverage", "color": "#a54"}\n'
         print(data[7])
         print(data[7] == fakemodel2)
         if data[7] == fakemodel2:
