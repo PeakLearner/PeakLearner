@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+
 #These are needed to handle range requests
 import os
 import re
@@ -113,18 +114,26 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         jsondata = simplejson.loads(body)
 
         #print a few tests to make sure it is what is expected
-        print(body)
         print(jsondata)
-        print(jsondata["test"])
-        
+#        allLabelsArray = jsondata["test"]
+#        print(allLabelsArray)
+
         #put the labels we got into our database
-        testDB = db.testDB
-        testDB.put(b'test',jsondata["test"])
-        print("database test")
-        print(testDB.get(b'test'))
+#        testDB = db.testDB
+#        for label in allLabelsArray:
+#            print(label)
+#            print("label above")
+#            key_name = 'start' + str(label)
+#            key = 'b' + key_name
+#            testDB.put(key,str(label))
+#        
+#        print("database test")
+#        print(testDB.get(b'starta'))
         
+        #this model is just a placeholder for now
         #get an optimal Model and turn it into a JSON object here
         model = simplejson.dumps({'model': 'myModel.bigWig', 'errors':'1'})
+
 
         #This next block is our simulation of the cluster and using Dr. Hockings R code
         ############################################
@@ -144,12 +153,32 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         # check_output will run the command and store to result
         newModel = subprocess.check_output(cmd, universal_newlines=True)
 
-        print('The new model we got:', newModel)
+        print('The new model we got from R:', newModel)
         ############################################
         #For now, in this section we will always send back a specific model which we will write to here
-        #this should make jbrowse redraw when it gets a response to view the model
-        
-        
+        script_dir = os.path.dirname(__file__) #<-- absolute dir the script is in
+        rel_path = "data/tracks.conf"
+        abs_file_path = os.path.join(script_dir, rel_path)
+
+        with open(abs_file_path, 'r') as file:
+            # read a list of lines into data
+            data = file.readlines()
+
+
+        # now change the line, note that you have to add a newline
+        fakemodel1 = 'urlTemplates+=json:{"url":"joint_peaks.bigWig", "name": "joint peaks", "color": "#235", "lineWidth":"3"}\n'
+        fakemodel2 ='urlTemplates+=json:{"url":"coverage.bigWig", "name": "Coverage", "color": "#a54"}\n'
+        print(data[7])
+        print(data[7] == fakemodel2)
+        if data[7] == fakemodel2:
+            data[7] = fakemodel1 
+        else:
+            data[7] = fakemodel2 
+
+        # and write everything back
+        with open(abs_file_path, 'w') as file:
+            file.writelines( data )        
+        #model = do something with the parser and the trackhub       
         ############################################
 
         #write a response containing the optimal model and send it back to the browser
