@@ -11,7 +11,7 @@ before_install:
   - sudo apt-get install -y slurm-llnl
 #  - sudo /usr/sbin/create-munge-key
   - sudo service munge start
-  - chmod +x jbrowse/testing.py
+  - cd jbrowse/testing.py
 
 script:  python testing.py
 
