@@ -14,8 +14,7 @@ before_install:
   - cd jbrowse
 
 script:
-    python tests/cluster_tests/clusterTest.py
-    python testing.py
+    python testing.py tests/cluster_tests/clusterTest.py
 
 env:
   global:
