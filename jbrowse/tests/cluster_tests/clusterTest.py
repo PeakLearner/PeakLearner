@@ -23,4 +23,4 @@ class ClusterTest(unittest.TestCase):
         # check_output will run the command and store to result
         newModel = subprocess.check_output(cmd, universal_newlines=True)
 
-        assertIsNotNone(newModel)
+        print assertIsNotNone(newModel)
