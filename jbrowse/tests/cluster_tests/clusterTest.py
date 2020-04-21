@@ -4,8 +4,9 @@ import unittest
 import subprocess
 
 class ClusterTest(unittest.TestCase):
-    def testCreateModel(self):
-        #This next block is our simulation of the cluster and using Dr. Hockings R code
+
+    def test_create_model(self):
+        #This next block is our simulation of the cluster and using Dr. Hocking's R code
         ############################################
 
         # Define command and arguments
@@ -23,4 +24,8 @@ class ClusterTest(unittest.TestCase):
         # check_output will run the command and store to result
         newModel = subprocess.check_output(cmd, universal_newlines=True)
 
-        print assertIsNotNone(newModel)
+        assert IsNotNone(newModel)
+
+if __name__ == "__main__":
+    unittest.main()
+    print("Everything passed")
