@@ -11,7 +11,7 @@ class ClusterTest(unittest.TestCase):
 
         # Define command and arguments
         command = 'Rscript'
-        path2script = '../PeakSegDisk-master/R/PeakSegFPOP_dir.R'
+        path2script = '../../../PeakSegDisk-master/R/PeakSegFPOP_dir.R'
 
         # the function we want to run has 2 arguments
         #a path to the coverage data we are observing
