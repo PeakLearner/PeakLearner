@@ -9,16 +9,13 @@ class ClusterTest(unittest.TestCase):
         self.assertTrue(True)
 
     def test_create_model(self):
-        #This next block is our simulation of the cluster and using Dr. Hocking's R code
-        ############################################
-
         # Define command and arguments
         command = 'Rscript'
         path2script = '../../../PeakSegDisk-master/R/PeakSegFPOP_dir.R'
 
         # the function we want to run has 2 arguments
-        #a path to the coverage data we are observing
-        #penalty > 0
+        # a path to the coverage data we are observing
+        # and a penalty > 0
         args = ['../PeakLearner-1.1/jbrowse/tests/data/all_labels.bigBed', '1']
 
         # Build subprocess command
