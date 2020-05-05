@@ -52,10 +52,11 @@ function (
                         'ref' : feature.get('ref'),
                         'start' : feature.get('start'),
                         'end' : feature.get('end')
-                     }
+                     };
                      console.log("removing label: ", removeJSON);
-                     sendPost(removeJSON);
-                   }
+                     //sendPost(removeJSON);
+                   }     
+                   //sendGet('chr1,0,1000');
                    track.redraw();
                    localStorage.setItem('ipaFeatures', JSON.stringify(features));
                 },

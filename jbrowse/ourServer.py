@@ -8,7 +8,7 @@ import BaseHTTPServer
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 
 #These are needed to handle the database
-import db
+#import db
 
 #these are needed to handle our post requests
 import json as simplejson
@@ -50,7 +50,6 @@ def parse_byte_range(byte_range):
     if last and last < first:
         raise ValueError('Invalid byte range %s' % byte_range)
     return first, last
-
 
 class RangeRequestHandler(SimpleHTTPRequestHandler):
     def send_head(self):
@@ -139,21 +138,21 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         ############################################
 
         # Define command and arguments
-        command = 'Rscript'
-        path2script = '../PeakSegDisk-master/R/PeakSegFPOP_dir.R'
+        #command = 'Rscript'
+        #path2script = '../PeakSegDisk-master/R/PeakSegFPOP_dir.R'
 
         # the function we want to run has 2 arguments
         #a path to the coverage data we are observing
         #penatly > 0
-        args = ['path/to/coverageData', '1']
+        #args = ['path/to/coverageData', '1']
 
         # Build subprocess command
-        cmd = [command, path2script] + args
+        #cmd = [command, path2script] + args
 
         # check_output will run the command and store to result
-        newModel = subprocess.check_output(cmd, universal_newlines=True)
+        #newModel = subprocess.check_output(cmd, universal_newlines=True)
 
-        print('The new model we got from R:', newModel)
+        #print('The new model we got from R:', newModel)
         ############################################
         #For now, in this section we will always send back a specific model which we will write to here
         script_dir = os.path.dirname(__file__) #<-- absolute dir the script is in
@@ -166,8 +165,8 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
 
         # now change the line, note that you have to add a newline
-        fakemodel1 = 'urlTemplates+=json:{"url":"joint_peaks.bigWig", "name": "joint peaks", "color": "#235", "lineWidth":"3"}\n'
-        fakemodel2 ='urlTemplates+=json:{"url":"coverage.bigWig", "name": "Coverage", "color": "#a54"}\n'
+        fakemodel1 = 'urlTemplates+=json:{"url":"joint_peaks.bigWig", "name": "joint peaks", "color": "red", "lineWidth":"3"}\n'
+        fakemodel2 ='urlTemplates+=json:{"url":"coverage.bigWig", "name": "Coverage", "color": "blue"}\n'
         print(data[7])
         print(data[7] == fakemodel2)
         if data[7] == fakemodel2:

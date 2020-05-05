@@ -9,6 +9,7 @@ function (
     return declare(JBrowsePlugin, {
         constructor: function (args) {
             console.log('InteractivePeakAnnotator plugin starting');
+            
             dojo.subscribe('/jbrowse/v1/n/globalHighlightChanged', function (data) {
                 if (data.length) {
                     localStorage.setItem('highlightFlag', 1);
@@ -23,7 +24,7 @@ function (
                   localStorage.setItem('highlightFlag', 0);
                   var labelsJSON = JSON.parse(localStorage.getItem('ipaFeatures'));
                   console.log("sending new labels: ", labelsJSON[labelsJSON.length - 1]);
-                  sendPost(labelsJSON);
+                  //sendPost(labelsJSON);
                 }
             });
         }
