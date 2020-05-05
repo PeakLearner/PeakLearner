@@ -7,6 +7,10 @@ import re
 import BaseHTTPServer
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 
+#api handaling
+from flask import Flask
+from flask_cors import CORS
+
 #These are needed to handle the database
 #import db
 
@@ -16,6 +20,9 @@ from io import BytesIO
 
 #these are needed to run R scripts
 import subprocess
+
+#for api requests to read bigwig
+import bbi
 
 PORT_NUMBER = 8081
 
@@ -50,6 +57,33 @@ def parse_byte_range(byte_range):
     if last and last < first:
         raise ValueError('Invalid byte range %s' % byte_range)
     return first, last
+
+
+
+# apiSetup
+app = Flask(__name__)
+CORS(app)
+
+@app.route("/", methods=['GET', 'OPTIONS'])
+def restGet():
+    print('got to restGet()')
+    arr = bbi.fetch('data/joint_peaks.bigWig', 'chr1', 0, 29000)
+    featList = []
+    index = 0
+
+    while index < len(arr):
+        if arr[index] != 0:
+            start = index
+            value = arr[index]
+            while index < len(arr) and arr[index] == value:
+                index = index + 1
+            end = index
+            newList = {'start': start, 'end': end, 'value': value}
+            featList.append(newList)
+        index = index + 1
+        
+    return simplejson.dumps(featList)
+
 
 class RangeRequestHandler(SimpleHTTPRequestHandler):
     def send_head(self):
@@ -192,7 +226,7 @@ try:
     print ('Started httpserver on port ', PORT_NUMBER)
     #Wait forever for incoming http requests
     server.serve_forever()
-    
+
 except KeyboardInterrupt:
     #This is the way to close the server, by hitting control + c
     print ('^C received, shutting down the web server')

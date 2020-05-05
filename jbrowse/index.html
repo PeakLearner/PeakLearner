@@ -27,8 +27,8 @@
     function sendGet(Url) {        
         $.ajax({
                 type: 'GET',
-                url: '/',
-                dataType: 'text',
+                url: 'http://127.0.0.1:5000/',
+                dataType: 'json',
                 data: JSON.stringify(Url),
             success: function(data) {
                 console.log('GET sent successfully')
