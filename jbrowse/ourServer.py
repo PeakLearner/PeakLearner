@@ -1,15 +1,10 @@
 #!/usr/bin/python
 
-
 #These are needed to handle range requests
 import os
 import re
 import BaseHTTPServer
 from SimpleHTTPServer import SimpleHTTPRequestHandler
-
-#api handaling
-from flask import Flask
-from flask_cors import CORS
 
 #These are needed to handle the database
 #import db
@@ -54,33 +49,6 @@ def parse_byte_range(byte_range):
     if last and last < first:
         raise ValueError('Invalid byte range %s' % byte_range)
     return first, last
-
-
-
-# apiSetup
-app = Flask(__name__)
-CORS(app)
-
-@app.route("/", methods=['GET', 'OPTIONS'])
-def restGet():
-    print('got to restGet()')
-    arr = bbi.fetch('data/joint_peaks.bigWig', 'chr1', 0, 29000)
-    featList = []
-    index = 0
-
-    while index < len(arr):
-        if arr[index] != 0:
-            start = index
-            value = arr[index]
-            while index < len(arr) and arr[index] == value:
-                index = index + 1
-            end = index
-            newList = {'start': start, 'end': end, 'value': value}
-            featList.append(newList)
-        index = index + 1
-        
-    return simplejson.dumps(featList)
-
 
 class RangeRequestHandler(SimpleHTTPRequestHandler):
     def send_head(self):
@@ -186,6 +154,10 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         ############################################
         
         # code to simulate getting a new model
+        # NOTE: this is for the demo, how it will actually work is 
+        # NOTE: the appropriate model will be handed back by the
+        # NOTE: database and the server can make it so the correct
+        # NOTE: model is where the api is expecting it
         
         # checks to see what state we are in, true model or fake model
         if os.path.exists('/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaksFAKE.bigWig'):
