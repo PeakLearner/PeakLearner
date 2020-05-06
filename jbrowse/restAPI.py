@@ -2,6 +2,7 @@ from flask import Flask, request, Response
 from flask_cors import CORS
 import json as simplejson
 import requests
+import urllib
 import bbi
 
 #api set up
@@ -34,23 +35,11 @@ def get_stats():
 def get_model(refseq):
     start = int(request.args.get('start'))
     end = int(request.args.get('end'))
-    print(request.args.get('flag'))
-    arr = bbi.fetch('data/joint_peaks.bigWig', 'chr1', start, end)
-    featList = []
-    index = 0
-
-    while index < len(arr):
-        if arr[index] != 0:
-            start = index
-            value = arr[index]
-            while index < len(arr) and arr[index] == value:
-                index = index + 1
-            end = index
-            newList = {"start": start, "end": end, "score": value}
-            featList.append(newList)
-        index = index + 1
-        
-    return simplejson.dumps({ 'features' : featList })
+    json = {'features': []}
+    for entry in bbi.fetch_intervals('data/joint_peaks.bigWig', 'chr1', start, end):
+        inter = { "start": entry[1], "end": entry[2], "score": entry[3] }
+        json['features'].append(inter)
+    return simplejson.dumps(json)
     
 @app.after_request
 def apply_caching(response):
