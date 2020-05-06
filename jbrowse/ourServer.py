@@ -21,9 +21,6 @@ from io import BytesIO
 #these are needed to run R scripts
 import subprocess
 
-#for api requests to read bigwig
-import bbi
-
 PORT_NUMBER = 8081
 
 #https://github.com/danvk/RangeHTTPServer
@@ -148,8 +145,6 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
         #print a few tests to make sure it is what is expected
         print(jsondata)
-#        allLabelsArray = jsondata["test"]
-#        print(allLabelsArray)
 
         #put the labels we got into our database
 #        testDB = db.testDB
@@ -166,8 +161,9 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         #this model is just a placeholder for now
         #get an optimal Model and turn it into a JSON object here
         model = simplejson.dumps({'model': 'myModel.bigWig', 'errors':'1'})
-
-
+        
+        
+        
         #This next block is our simulation of the cluster and using Dr. Hockings R code
         ############################################
 
@@ -188,30 +184,19 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
         #print('The new model we got from R:', newModel)
         ############################################
-        #For now, in this section we will always send back a specific model which we will write to here
-        script_dir = os.path.dirname(__file__) #<-- absolute dir the script is in
-        rel_path = "data/tracks.conf"
-        abs_file_path = os.path.join(script_dir, rel_path)
-
-        with open(abs_file_path, 'r') as file:
-            # read a list of lines into data
-            data = file.readlines()
-
-
-        # now change the line, note that you have to add a newline
-        fakemodel1 = 'urlTemplates+=json:{"url":"joint_peaks.bigWig", "name": "joint peaks", "color": "red", "lineWidth":"3"}\n'
-        fakemodel2 ='urlTemplates+=json:{"url":"coverage.bigWig", "name": "Coverage", "color": "blue"}\n'
-        print(data[7])
-        print(data[7] == fakemodel2)
-        if data[7] == fakemodel2:
-            data[7] = fakemodel1 
+        
+        # code to simulate getting a new model
+        
+        # checks to see what state we are in, true model or fake model
+        if os.path.exists('/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaksFAKE.bigWig'):
+            # this is if the model is currently ture
+            os.rename(r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaks.bigWig', r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/true_joint_peaks.bigWig') # joint_peaks -> true_joint_peaks
+            os.rename(r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaksFAKE.bigWig', r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaks.bigWig') # joint_peaksFake -> joint_peaks
         else:
-            data[7] = fakemodel2 
-
-        # and write everything back
-        with open(abs_file_path, 'w') as file:
-            file.writelines( data )        
-        #model = do something with the parser and the trackhub       
+            # this is if the model is currently false
+            os.rename(r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaks.bigWig',r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaksFAKE.bigWig') # joint_peaks -> joint_peaksFAKE
+            os.rename(r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/true_joint_peaks.bigWig',r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaks.bigWig') # true_joint_peaks -> joint_peaks
+            
         ############################################
 
         #write a response containing the optimal model and send it back to the browser

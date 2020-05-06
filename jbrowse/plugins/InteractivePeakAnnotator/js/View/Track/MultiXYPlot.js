@@ -16,6 +16,7 @@ function (
             {
                 onHighlightClick: function (feature, track) 
                 {
+                  console.log(track)
                   var features = JSON.parse(localStorage.getItem('ipaFeatures'));
                   var highlightFlag = parseInt(localStorage.getItem('highlightFlag'));
                   if(highlightFlag === 1)
@@ -36,7 +37,7 @@ function (
                                    f[track.name] = 1;
                                }
                            }
-                       });
+                       }); 
                    }
                    else
                    {
@@ -54,7 +55,7 @@ function (
                         'end' : feature.get('end')
                      };
                      console.log("removing label: ", removeJSON);
-                     //sendPost(removeJSON);
+                     sendPost(removeJSON)
                    }
                    track.redraw();
                    localStorage.setItem('ipaFeatures', JSON.stringify(features));

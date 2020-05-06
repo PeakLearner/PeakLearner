@@ -23,26 +23,7 @@
             window.electronRequire = require;
             delete window.require;
         }
-
-    function sendGet(Url) {        
-        $.ajax({
-                type: 'GET',
-                url: 'http://127.0.0.1:5000/',
-                dataType: 'json',
-                data: JSON.stringify(Url),
-            success: function(data) {
-                console.log('GET sent successfully')
-                console.log(data)
-                },
-            error: function(xhr, textStatus, errorCode) {
-                //alert('Something went wrong with that GET request. Refer to the console logs for details.')
-                console.log(xhr)
-                console.log(textStatus)
-				console.log(errorCode)
-				}
-			});
-    }
-
+    
 	function sendPost(jsonToSend) {
 		 $.ajax({
 		        type: 'POST',
@@ -53,7 +34,7 @@
 		        contentType : 'application/json',
 		    success: function(data) {
 				console.log('POST sent successfully')
-                console.log(data)
+                //console.log(data)
 				//It will be assumed that information about our model will be in this data object
 				//Do something with the model info here
         		},
