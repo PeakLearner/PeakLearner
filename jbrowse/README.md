@@ -105,7 +105,7 @@ to create a release on GitHub under https://github.com/GMOD/jbrowse/releases
 As you can tell, this process could really use some more streamlining and automation.
 
 
-# ===================================================PeakLearner Read Me===================================================
+# PeakLearner Read Me
 
 index:
 1. Setup
