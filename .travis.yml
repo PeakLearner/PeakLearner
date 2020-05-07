@@ -9,11 +9,16 @@ before_install:
 #  - sudo /etc/init.d/slurmctld restart
 #  - sudo /etc/init.d/slurmd restart
   - sudo apt-get install -y slurm-llnl
+#  - sudo apt-get install -y berkeley-db
+  - sudo apt-get install -y bsddb3
+  - sudo apt-get install -y http.server
 #  - sudo /usr/sbin/create-munge-key
   - sudo service munge start
-  - chmod +x jbrowse/tests/cluster_tests/clusterTest.py
+  - cd jbrowse
 
-script:  jbrowse/tests/cluster_tests/clusterTest.py
+script:
+    ./ourServer.py
+    python testing.py
 
 env:
   global:
@@ -24,4 +29,4 @@ branches:
         test-branch
 
 notifications:
-  slack: capstoneteam2019-2020:99sHd15zMUNsTJEWiIUvlrF3
+#  slack: capstoneteam2019-2020:99sHd15zMUNsTJEWiIUvlrF3
