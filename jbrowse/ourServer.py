@@ -170,6 +170,15 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         kidney22Peaks = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/kidneyCancer_McGill0022Peaks.bigWig"
         kidney23Peaks = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/kidney_McGill0023Peaks.bigWig"
         
+        '''
+        nameList = []
+        for entry, in jsondata:
+            entry.pop("start", None)
+            entry.pop("end", None)
+            entry.pop("ref", None)
+            print(entry)
+        print(jsondata)
+        '''
         
         if os.path.exists(bcell91True):
             # this is if the model is currently true
