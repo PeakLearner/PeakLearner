@@ -146,10 +146,24 @@ OnHighlightClick() will grab the labels from local storage and has an array of t
 The color is determend by highlightColot() and indecatorColor() which are both in "MultiXYPlot.js". Both of these grab the track type from the label json and use that as an index in a color list.
 
 Removing a Label:
-Removing a label can be done by clicking on the label at any time after the highlight tool has been closed. 
+Removing a label can be done by clicking on the label at any time after the highlight tool has been closed. This will activate the "onHighlightClick()" method in the "MultiXYPlot.js" file of the InteractivePeakAnnotator plugin. This method will loop through the labels in localStorage and remove the one that was clicked on.
+
+## rest API
+
+The rest API is a system that jbrowse has inplace for retrieving data across the internet. PeakLearner is designed to have the model of an InteractivePeakAnnotator retrieved using the rest API implemented in "restAPI.py". The only function that is used right now is the "get_model()" function. The rest are supposed to be there however in the setup described above on how to set up an IPA track it dosent need any of the other ones. 
+
+tracks.conf
+When creating the track information inside of tracks.conf it is important to configure the model urltemplate with the correct information. Below is the urlTemplate for an example model:
+'''
+urlTemplates+=json:{"storeClass": "JBrowse/Store/SeqFeature/REST", "baseUrl":"http://127.0.0.1:5000", "name": "joint_peaks", "color": "red", "lineWidth": 5, "noCache": true, "query": {"name": "joint_peaks.bigWig"}}
+'''
+The very first thiing is assigning this specific bigwig to the REST store class, this will make jbrowse call the api at the url in "baseURL". The name, color, and lineWidth are all style choices for a line and can be set to most anything. NOTE the only exception is the name, it has to be unique in the file. To have the model update in real time the "noCache" needs to be set to true, otherwise jbrowse would start to store pieces of the model locally and while this would be quicker it would not ask for the new information. With "noCache" set to true, everytime a redraw is called on the track, jbrowse will request the information again from the api. The final element is the "query" key. The "query" key an have a json object of arbatrary length, that is sent with every call to the api. Currently this is used to pass the name of the model to the api.
+
+restAPI.py
+"get_model()" is the funciton that handles an incomming call to the path "feature/<refSeq>". First the method parses the query information to get the start and end of the information being asked for. Followed by finding the refseq which is misleading as that is the chromasom the information is comming from. And finally the queary also has the information about what the name of the model should be. Using the name of the model and the files position it creates the appropriate path name for the model in question. It then uses a python library called "bbi" to fetch all of the non zero ranges of bases that overlap with the range requested. This gives the correct information but it is not in the correct format of what jbrowse expects. The loop takes the information from the information that "bbi" gives and converts it in to the right format. 
 
 
-## Refrences
+# Refrences
 
 Jbrowse Documentation               https://jbrowse.org/docs/installation.html
 
