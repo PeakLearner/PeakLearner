@@ -1,0 +1,203 @@
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[english]{babel}
+\usepackage{cite}
+\usepackage{blindtext}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{wrapfig}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{index}
+\usepackage{caption} 
+\captionsetup[table]{skip=4pt}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{tocloft}
+\usepackage{titlesec}
+\usepackage{hyperref}
+
+\newenvironment{monospace}{\fontfamily{pcr}\selectfont}{\par}
+
+\titleformat{\paragraph}
+{\normalfont\normalsize\bfseries}{\theparagraph}{1em}{}
+\titlespacing*{\paragraph}
+{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+
+\begin{document}
+\begin{titlepage}
+	\centering
+	\includegraphics[width=0.15\textwidth]{gnome.png}\par\vspace{1cm}
+	{\scshape\LARGE PeakLearner: User Manual \par}
+	\vspace{1cm}
+	{\huge\bfseries GNomes\par}
+	\vspace{1cm}
+	{\scshape\Large Members\par}
+	{\Large\itshape Jacob Christiansen\par}
+	{\Large\itshape Allen Clarke\par}
+	{\Large\itshape Yuanyuan Fu\par}
+	{\Large\itshape John Jackson\par}
+	\vspace{1cm}
+	{\scshape\Large Mentor\par}
+	{\Large\itshape Mahsa Keshavarz\par}
+	\vspace{1cm}
+	{\scshape\Large Clients\par}
+	{\Large\itshape Dr. Toby Hocking\par}
+	{\Large\itshape Christopher Coffey\par}
+
+
+	\vfill
+
+	{\large\scshape Version 1.0\par}
+	{\large \today\par}
+\end{titlepage}
+
+\setcounter{tocdepth}{1}
+\tableofcontents
+
+\newpage
+
+
+\section{Introduction}
+
+Thank you for choosing PeakLearner for your genomic data analysis. PeakLearner is a genomic data viewing tool that has been custom-designed to meet your needs. Some of the key highlights include:
+	\begin{itemize}
+		\item label drawing with color-coded labels
+		\item dynamic model redrawing based on supervised machine learning
+		\item the same look and feel as other genome browsers
+	\end{itemize}
+The purpose of this user manual is to help you, the client, successfully
+install, administer, and maintain the PeakLearner product into your existing system and to make sure it is as useful as possible for years to come.
+
+
+\section{Installation}
+
+As part of final delivery, the PeakLearner system is capable of running on any Ubuntu 16.04 or Mac 10.15.04 (Catalina) machine. Over time, however, you may want to move to a new platform or re-install the product. On an Ubuntu machine, use the following commands to install NodeJS, Berkeley-DB version 6.1, and the Python package bsddb3:
+	\begin{itemize}
+		\item \begin{monospace}apt-get install nodejs\end{monospace}
+		\item \begin{monospace}brew install berkeley-db\end{monospace}
+		\item \begin{monospace}apt-get install python3-bsddb3\end{monospace}
+	\end{itemize}
+To install on OSX Catalina, use these commands:
+	\begin{itemize}
+		\item \begin{monospace}brew install node\end{monospace}
+			\begin{itemize}
+				\item If you encounter this error: \begin{monospace}Warning: the post-install step did not complete successfully\end{monospace} run the following commands:
+				\begin{itemize}
+					\item \begin{monospace}sudo chown -R <username> \linebreak /usr/local/lib/node\_modules/npm/node\_modules\end{monospace}
+					\item \begin{monospace}sudo chown -R <username> \linebreak /usr/local/lib/node\_modules/npm/\end{monospace}
+					\item \begin{monospace}brew postinstall node\end{monospace}
+				\end{itemize}
+			\end{itemize}
+		\item \begin{monospace}brew install berkeley-db\end{monospace}
+		\item \begin{monospace}pip install bsddb3\end{monospace}
+	\end{itemize}
+Once all of these packages are installed properly, you will have everything needed to set up the server used to communicate with the web browser.
+
+The next step is going to the PeakLearner github repository \linebreak \url{https://github.com/yf6666/PeakLearner-1.1} and cloning the master branch, as it is the most stable branch. Once this is done, you will have to configure JBrowse to work properly by following this sequence of steps.
+	\begin{enumerate}
+		\item \begin{monospace}git clone https://github.com/yf6666/PeakLearner-1.1\end{monospace}
+		\item create a new branch if desired
+		\item from the /jbrowse directory, run \begin{monospace}./setup.sh\end{monospace}
+		\item make a new directory called \begin{monospace}data\end{monospace}
+	\end{enumerate}
+
+
+For additional information on setup and installation, read the README files in the jbrowse folder and the outermost directory.
+
+\section{Configuration and Daily Operation}
+
+JBrowse requires a server, and you can run the server by simply typing \begin{monospace}./ourServer.py.\end{monospace}This will start a web server hosting PeakLearner on the desired port found in the ourServer.py file. To have the ability to use an InteractivePeakAnnotator track you will also need to start the restAPI.py by typing \begin{monospace}python restAPI.py.\end{monospace}This will start a side server on port 5000. Then you can go to \url{http://localhost:<port #>/?data=plugins/InteractivePeakAnnotator/test/data} for a small demo with the volvox data that comes with JBrowse. \par
+
+When you want to show your own data you will need to create a tracks.conf file. You will most likely place this file inside of the data directory created in the setup. Once this is done, \url{http://localhost:<port #>} will immediately open that directory and the tracks.conf within. If you have many directories you can place a tracks.conf in each and switch between them by using data=$<$folder path$>$ inside of your url. For example: http://localhost:\linebreak$<$port \#$>$/?data=plugins/InteractivePeakAnnotator/test/data
+
+\newpage
+Below is an example tracks.conf with a breakdown of some of its terms: \linebreak
+
+\begin{monospace}
+
+\raggedright [GENERAL] \linebreak
+refSeqs=volvox.fa.fai \linebreak
+
+[tracks.refseq] \linebreak
+urlTemplate=volvox.fa \linebreak
+storeClass=JBrowse/Store/SeqFeature/IndexedFasta \linebreak
+type=Sequence \linebreak
+key=volvox reference \linebreak
+
+[tracks.my-bigwig-track] \linebreak
+storeClass = JBrowse/Store/SeqFeature/BigWig \linebreak
+urlTemplate = myfile.bw \linebreak
+type = JBrowse/View/Track/Wiggle/XYPlot \linebreak
+key = Coverage plot of NGS alignments from XYZ
+
+
+\end{monospace}
+
+\begin{itemize}
+	\item \textbf{General}: a heading that denotes where information that will apply to all the tracks in the file. The only required assignment here is "refSeqs" as this is used by JBrowse to know where in the file the user is currently looking across all of the tracks in the file.
+	\item \textbf{tracks.$<$NAME$>$}: each track needs to have a unique tracks.$<$NAME$>$ to denote it. This name is passed to the server when adding and removing labels. Below this will be all of the setup for the track in question.
+	\item \textbf{urlTemplate}: the relative path or url to the file
+	\item \textbf{storeClass}: this dictates how the file is stored by jbrowse. there are more types of store classes then what is shown above, to find some of the other ones for basic file types you can go to "jbrowse/src/Jbrowse/store/ SeqFeature". The other important kinds of storeClass is those from plugins. To find these go in to "jbrowse/plugins/$<$PLUGIN NAME$>$/js/ Store/SeqFeature".
+	\item \textbf{type}: designates the track type, and determines how the file responds to user input. Some basic types are "Sequence" and "Alignments2". For some more specific ones you can go to "JBrowse/ View/Track/$<$TRACK TYPE$>$/". Just as with storeClass type can also be inside of a plugin at "jbrowse/plugins/$<$PLUGIN NAME$>$/js/ View/Track"
+	\item \textbf{key}: the name that will actually be displayed in the browser
+\end{itemize}
+
+Below is an example of an InteractivePeakAnnotator track: \linebreak
+
+\begin{monospace}
+
+\raggedright [tracks.interactive] \linebreak
+key=Interactive MultiXYPlot \linebreak
+type=InteractivePeakAnnotator/View/Track/MultiXYPlot \linebreak
+urlTemplates+=json:\{"url":"coverage.bigWig", "name":"volvox\_positive", "color":"\#235"\} \linebreak
+urlTemplates+=json:\{"storeClass":"JBrowse/Store/ SeqFeature/REST", "baseUrl":"http://127.0.0.1:5000", "name":"joint\_peaks", "color":"red", "lineWidth":5, "noCache":true\} \linebreak
+storeClass=MultiBigWig/Store/SeqFeature/MultiBigWig \linebreak
+storeConf=json:\{"storeClass": "InteractivePeakAnnotator/Store/SeqFeature/Features"\} \linebreak
+
+\end{monospace}
+
+This is much like a normal bigWig track but with a few differences, the first being urlTemplates. Instead of a path or url you will add new JSON objects with some information on the bigWig. It is important to notice it is '+=' for urlTemplates not an '='. These JSON objects can be thought of as mini track configurations for the bigWig inside. \par
+
+For the second urlTemplate you define a different storeClass, the this one being for a REST file. This, along with noCache being true, is what makes it the model update immediately. The REST store class makes it so that JBrowse asks an outside API in order to get the sequence information and the noCache means that JBrowse wont store the information locally, so once the model updates on the server side it will update on the user side.
+
+\section{Maintenance}
+
+The source code can be found here to reinstall/setup the system: \linebreak \url{https://github.com/yf6666/PeakLearner-1.1} \par
+
+Separately, the majority of the action for the server is found in the ourServer.py file. The send\_post is what handles adding labels to the database and is also where the code skeleton to hook up the system to a GPU cluster can be found. The majority of the server should be very stable, but any server issues can be handled in this file. \par
+
+\newpage
+
+The code we have added to JBrowse can primarily be found inside of the main.js and MultiXYPlot.js files inside of InteractivePeakAnnotator. The links to the repositories that this code releases on can be found in the README inside of the JBrowse folder of PeakLearner. \par
+
+Inside of main.js you will find the event listener to watch the highlight tool of jbrowse to create new labels. MultiXYPlot.js has the code to edit and remove labels.  \par
+
+The only other thing JBrowse will rely on would be the restAPI.py file. Note this is only used by tracks with the rest store class, including the setup discussed above for interactivePeakAnnotator tracks. For more info about the JBrowse REST API you can look here: \url{https://jbrowse.org/docs/data_formats.html}. 
+
+\section{Troubleshooting}
+
+The best way to troubleshoot the system is to add logs to ensure the system is communicating as intended. The most common errors happen when data being sent between two entities is not properly encoded/decoded and is sent to the wrong location. The easiest way to fix this is to print to the console exactly what the server is sending and receiving whenever the browser makes a request. This will eliminate the majority of communication problems and make sure that the data is in the corrected format.
+
+To troubleshoot any errors pertaining to JBrowse and the model displaying, you should first open the console on your browser. JBrowse will print out many errors and why they happened there. If that does not help, try the following:
+	\begin{itemize}
+		\item from /PeakLearner-1.1/jbrowse, run \begin{monospace}bin/generate-name.pl\end{monospace}
+		\item uninstall and reinstall JBrowse and all of its dependencies
+	\end{itemize}
+The latter step can be accomplished by deleting the local save of PeakLearner and again going through the setup process.
+
+\newpage
+
+\section{Conclusion}
+This concludes the PeakLearner user manual. We wish you years of productive use of this product, and we are happy to have been of service.
+
+While we are all moving on to professional careers, we would be happy to answer questions in the coming months to help this project's continued development and operation. With best wishes from your PeakLearner developers:
+	\begin{itemize}
+		\item Jacob Christiansen (jdc465@nau.edu)
+		\item Allen Clarke (amc879@nau.edu)
+		\item Yuanyuan Fu (yf66@nau.edu)
+		\item John Jackson (jcj52@nau.edu)
+	\end{itemize}
+\end{document}
+
+
+
