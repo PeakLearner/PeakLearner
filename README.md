@@ -62,20 +62,20 @@ First clone the repository found at "https://github.com/yf6666/PeakLearner-1.1".
 
 To have jbrowse show some information a tracks.conf or trackList.json file inside of "../PeakLearner-1.1/jbrowse/data" needs to be created. When first designing this the Gnomes team primarily used the tracks.conf method, so some of the resources and how to use them will be primarly focused on that. Below is an example of a tracks.conf file followed by a breakdown of some of its terms
 
-[GENERAL]
-refSeqs=volvox.fa.fai
+    [GENERAL]
+    refSeqs=volvox.fa.fai
 
-[tracks.refseq]
-urlTemplate=volvox.fa
-storeClass=JBrowse/Store/SeqFeature/IndexedFasta
-type=Sequence
-key=volvox refrence
+    [tracks.refseq]
+    urlTemplate=volvox.fa
+    storeClass=JBrowse/Store/SeqFeature/IndexedFasta
+    type=Sequence
+    key=volvox refrence
 
-[ tracks.my-bigwig-track ]
-storeClass = JBrowse/Store/SeqFeature/BigWig
-urlTemplate = myfile.bw
-type = JBrowse/View/Track/Wiggle/XYPlot
-key = Coverage plot of NGS alignments from XYZ
+    [ tracks.my-bigwig-track ]
+    storeClass = JBrowse/Store/SeqFeature/BigWig
+    urlTemplate = myfile.bw
+    type = JBrowse/View/Track/Wiggle/XYPlot
+    key = Coverage plot of NGS alignments from XYZ
 
 General: is a heading to denote where information that will apply to all the tracks in the file. The only requierd assignment here is "refSeqs" as this is used by jbrowse to know where in the file the user is curently looking accross all of the tracks in the file.
 
@@ -104,13 +104,13 @@ This is the type for PeakLearner tracks. This file handles changing what kind of
 tracks.conf
 Below is an example of how to set up a tracks.conf for a PeakLearner track. 
 
-[tracks.interactive]
-key=Interactive MultiXYPlot
-type=InteractivePeakAnnotator/View/Track/MultiXYPlot
-urlTemplates+=json:{"url":"coverage.bigWig", "name": "volvox_positive", "color": "#235"}
-urlTemplates+=json:{"storeClass": "JBrowse/Store/SeqFeature/REST", "baseUrl":"http://127.0.0.1:5000", "name": "joint_peaks", "color": "red", "lineWidth": 5, "noCache": true}
-storeClass=MultiBigWig/Store/SeqFeature/MultiBigWig
-storeConf=json:{"storeClass": "InteractivePeakAnnotator/Store/SeqFeature/Features"}
+    [tracks.interactive]
+    key=Interactive MultiXYPlot
+    type=InteractivePeakAnnotator/View/Track/MultiXYPlot
+    urlTemplates+=json:{"url":"coverage.bigWig", "name": "volvox_positive", "color": "#235"}
+    urlTemplates+=json:{"storeClass": "JBrowse/Store/SeqFeature/REST", "baseUrl":"http://127.0.0.1:5000", "name": "joint_peaks", "color": "red", "lineWidth": 5, "noCache": true, "query": {"name": "joint_peaks.bigWig"}}
+    storeClass=MultiBigWig/Store/SeqFeature/MultiBigWig
+    storeConf=json:{"storeClass": "InteractivePeakAnnotator/Store/SeqFeature/Features"}
 
 This is much like a normal bigwig track but with a few exceptions. First is the urlTemplates, instead of a path or url you will add new json objects with some information on the bigwig. It is important to notice it is '+=' for urlTemplates not an '='. These json objects can be thought of as mini track configurations for the bigwig inside. For the second urlTemplate you even define a diffrent storeClass, the new one being for a REST file. This along with noCache being true, is what makes it so that the model is updated immediatly. The REST store class makes it so that jbrowse asks a outside api in order to get the sequence information and the noCache means that jbrowse wont store the information locally, making it so that once the model updates on the server side it will update on the user side. 
 
@@ -119,6 +119,33 @@ There is not much here but this is where the function sendPost() is defined. sen
 
 restAPI.py
 This is an api that meets the requeirments of jbrowse in order to use the rest store class. Inside there are several functions but the only one that is really needed is the get_model() function. This is the funcion that parses the bigwig on the server side and sends a json inside a json with the form of {'features': [{ "start": XXX, "end": YYY, "score": ZZZ}, ... ]}. You can have any amount of { "start": XXX, "end": YYY, "score": ZZZ} inside of the list.
+
+## Feature walkThrough
+
+This section will be a walkthrough of a user interacting with PeakLearner, and what happens in the code. This will go through some of the features of peakLearner. This is accurat as of may 7th 2020 or just around the commit 39ffb94f66d732cbddce0105bf202ca30a24fc37.
+
+First Load:
+This is assuming that you have set up jbrowse as defined above. When the page is first loaded the server will start loading the pages and running the code to start and run jbrowse. The code that handles this can be found in the "send_Head()" method inside of "ourServer.py". 
+Once jbrowse is served it will began to inizalize its dependencies. First will be the plugins defined in jbrowse_conf.json. Each plugin will print to the console when they are inizalized. The three plugins that should print is "MultiBigWig", "WiggleHighligher", and "InteractivePeakAnnotator". If another plugin is added you will need to do three things. First place the plugin in to the plugins folder, next you will need to add the plugins name in to jbrowse_conf.json and finally type "npm run build" in to the terminal. 
+Next jbrowse will load in the tracks in tracks.conf. Each track will be saved under the unique name you write in [tracks.<name>]. Each track will be inizalized seperatly meaning if one fails to find its data, or is set up incorectly it should not effect the other tracks from loading. If a track fails to load instead jbrowse will show an error where the track should be and print to the console more about the error. If anything goes wrong jbrowse will instead print to an error screen at the bottom of this screen will be a description of what went wrong. If you get a screen that says "Jbrowse is on the web..." it should confirm you have run ./setup.sh but the issue is that jbrowse could not find a data foulder or the foulder you directed it towords for data. If everything has been completed without error it will bring you to a screen with all of the tracks. 
+
+Navigation:
+Moving through the tracks will cause jbrowse to call a reDraw() of each track being moved which sends more get requests to be sent to the server, this is again handled by the "send_Head()" method. reDraw() is function that is built in to jbrowse and has not been modified. NOTE if any of your tacks are InteractivePeakAnnotator track moving through the track will also send get requests to the "get_model()" method inside of the restAPI.py file. This method will grab the name of the approprite model file from the query and then parse through the range given by jbrowse. It then grabs all of the non zero sections of the model that overlap with the given range. After that it rearanges the the information in to that of what jbrowse expects, a json object with one key called label that maps to a list of jsons with a start end and score.
+
+NOTE Below this point everything only applies to the InteractivePeakAnnotator tracks
+
+Adding a Label:
+Adding a new label is started by clicking the builtin highlight button. This will allow a user to click and drag a highlight on to a track. Any interactivePeakAnnotator track will have been inizalized with a listner for any highlights. This listner will grab this highlight and create a new "feature" and store it in localStorage. This will also rais a flag that makes it so that the label can be edited untill the user exits the highlight tool. Once the user exits the highlight tool the lisner will grab all of the labels from localStorage and compile it in to a json to send to the server. 
+NOTE all of the code for adding a label is in the "main.js" file of the InteractivePeakAnnotator plugin.
+
+Editing a Label: 
+A user can edit a label after they have added the highlight but before they have left the highlight tool. To change the type of the label click inside of it. It will cycle through "unknown", "Peak", "No Peak", "Peak Start", and "Peak End". This is done inside of the "MultiXYPlot.js" file inside of InteractivePeakAnnotator. 
+OnHighlightClick() will grab the labels from local storage and has an array of the types of labels listed above. When a label is clicked the method goes through these labels to find the one that has been clicked. It then increments the number stored inisde of this json, that is keyed to the tracks name. If the label is new and has not been clicked before, this method will add a key to the json of the label under the tracks name. With muiltiple Tracks being adding labels too this will resualt in the json having a key to each track corrisponding to a number representing the type. An example of this is below:
+    {"start": XXX, "end": YYY, "ref": ZZZ, "track1": i, "track2": j, "track3": k}
+The color is determend by highlightColot() and indecatorColor() which are both in "MultiXYPlot.js". Both of these grab the track type from the label json and use that as an index in a color list.
+
+Removing a Label:
+
 
 ## Refrences
 
