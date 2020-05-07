@@ -118,9 +118,15 @@ This is an api that meets the requeirments of jbrowse in order to use the rest s
 ## Refrences
 
 Jbrowse Documentation               https://jbrowse.org/docs/installation.html
+
 gmod wiki                           http://gmod.org/wiki/JBrowse
+
 Jbrowse git                         https://github.com/GMOD/jbrowse/
+
 PeakLearner git                     https://github.com/yf6666/PeakLearner-1.1
+
 MultiBigWig git                     https://github.com/elsiklab/multibigwig
+
 WiggleHighlighter git               https://github.com/cmdcolin/wigglehighlighter/issues/1
+
 InteractivePeakAnnotator git        https://github.com/cmdcolin/interactivepeakannotator
