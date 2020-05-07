@@ -8,6 +8,9 @@ import json as simplejson
 # this is used to parse the bigwigs
 import bbi
 
+# finding path of correct model
+import os, sys
+
 #api set up, initalize flask
 app = Flask(__name__)
 CORS(app)
@@ -72,12 +75,17 @@ def get_model(refseq):
     start = int(request.args.get('start'))
     end = int(request.args.get('end')) - 1
     json = {'features': []}
-
-    file_path = '/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaks.bigWig'
     
-    for entry in bbi.fetch_intervals(file_path, 'chr1', start, end):
-        inter = { "start": entry[1], "end": entry[2], "score": entry[3]}
-        json['features'].append(inter)
+    script_dir = os.path.abspath(os.path.dirname(sys.argv[0])) #<-- absolute dir the script is in
+    rel_path = "data/" + request.args.get('name')
+    abs_file_path = os.path.join(script_dir, rel_path)
+    
+    try:
+        for entry in bbi.fetch_intervals(str(abs_file_path), 'chr1', start, end):
+            inter = { "start": entry[1], "end": entry[2], "score": entry[3]}
+            json['features'].append(inter)
+    except:
+        json = {'features' : []}
     
     return simplejson.dumps(json)
 

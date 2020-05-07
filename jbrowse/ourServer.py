@@ -32,7 +32,6 @@ def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=16*1024):
             break
         outfile.write(buf)
 
-
 BYTE_RANGE_RE = re.compile(r'bytes=(\d+)-(\d+)?$')
 def parse_byte_range(byte_range):
     '''Returns the two numbers in 'bytes=123-456' or throws ValueError.
@@ -160,15 +159,31 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         # NOTE: model is where the api is expecting it
         
         # checks to see what state we are in, true model or fake model
-        if os.path.exists('/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaksFAKE.bigWig'):
-            # this is if the model is currently ture
-            os.rename(r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaks.bigWig', r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/true_joint_peaks.bigWig') # joint_peaks -> true_joint_peaks
-            os.rename(r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaksFAKE.bigWig', r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaks.bigWig') # joint_peaksFake -> joint_peaks
+        
+        bcell91True = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/bcell_McGill0091True.bigWig"
+        bcell322True = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/bcell_McGill0322True.bigWig"
+        kidney22True = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/kidneyCancer_McGill0022True.bigWig"
+        kidney23True = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/kidney_McGill0023True.bigWig"
+        
+        bcell91Peaks = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/bcell_McGill0091Peaks.bigWig"
+        bcell322Peaks = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/bcell_McGill0322Peaks.bigWig"
+        kidney22Peaks = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/kidneyCancer_McGill0022Peaks.bigWig"
+        kidney23Peaks = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/kidney_McGill0023Peaks.bigWig"
+        
+        
+        if os.path.exists(bcell91True):
+            # this is if the model is currently true
+            # NOTE might need an r' infront of the variables
+            os.rename( bcell91True, bcell91Peaks)
+            os.rename( bcell322True, bcell322Peaks)
+            os.rename( kidney22True, kidney22Peaks)
+            os.rename( kidney23True, kidney23Peaks)
         else:
-            # this is if the model is currently false
-            os.rename(r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaks.bigWig',r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaksFAKE.bigWig') # joint_peaks -> joint_peaksFAKE
-            os.rename(r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/true_joint_peaks.bigWig',r'/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/joint_peaks.bigWig') # true_joint_peaks -> joint_peaks
-            
+            os.rename( bcell91Peaks, bcell91True)
+            os.rename( bcell322Peaks, bcell322True)
+            os.rename( kidney22Peaks, kidney22True)
+            os.rename( kidney23Peaks, kidney23True)
+
         ############################################
 
         #write a response containing the optimal model and send it back to the browser
