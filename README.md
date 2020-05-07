@@ -2,7 +2,12 @@
 The initial version of the technical demo
 
 
-# Server
+## ToDo
+    1. True Positive Vs False Positive matrix
+                This is used to calculate the best model, and if one isnt found then send to the cluster to generate a new one. This should be done inside of the "do_Post()" methond inside ourServer.py. This is the function that handles the incoming labels from the browser. 
+    2. 
+
+## Server
 
 To run the server, install all necessary dependencies and run the following command:
 	./ourServer.py
@@ -24,7 +29,7 @@ The server also handles post requests that send in labels and return back to the
 
 All of this code can be found in the jbrowse/ourServer.py file.
 
-# Database
+## Database
 The database is a nonrelational database using A combination of BerkeleyDB and code from Dr. Toby Hocking 
 at Northern Arizona University. The code modified to create our database can be found at
 https://github.com/tdhock/SegAnnDB
@@ -35,7 +40,7 @@ To access the files use commands like
 	db.put()	
 	
 	
-# Jbrowse
+## Jbrowse
 
 index:
 1. Setup
@@ -43,7 +48,7 @@ index:
 3. Architecture (plugins, functions etc)
 4. Refrences
 
-## Setup
+### Setup
 
 First clone the repository found at "https://github.com/yf6666/PeakLearner-1.1". cd in to "PeakLearner-1.1/jbrowse". To inizalize jbrowse you will need to run a script and create a directory inside of jbrowse. first run setup.sh, to run this type in to the terminal "./setup.sh". This may take several minutes, as this makes sure that all nessassary dependencies of jbrowse. This will include downloading perl and nodejs dependencies, as well as some test data called "volvox". Before running the next script create a directory called "data" inside the main jbrowse directory, ie "../PeakLearner-1.1/jbrowse/data".
 
@@ -53,7 +58,7 @@ First clone the repository found at "https://github.com/yf6666/PeakLearner-1.1".
 4. run "./setup.sh"
 5. create a directory inside of jbrowse named data, ie "../PeakLearner-1.1/jbrowse/data"
 
-## Terminology/ About jbrowse
+### Terminology/ About jbrowse
 
 To have jbrowse show some information a tracks.conf or trackList.json file inside of "../PeakLearner-1.1/jbrowse/data" needs to be created. When first designing this the Gnomes team primarily used the tracks.conf method, so some of the resources and how to use them will be primarly focused on that. Below is an example of a tracks.conf file followed by a breakdown of some of its terms
 
@@ -84,7 +89,7 @@ type: This is a designation of what kind of track the file is. It determines how
 
 key: is the name that will actually be displayed in the browser
 
-## Architecture (plugins, functions etc)
+### Architecture (plugins, functions etc)
 
 Before getting in to anything specific first it is important to understand the plugins that build up to make PeakLearner. There are three plugins: MultiBigWig, WiggleHighlighter, and InteractivePeakAnotator. Each of these can be found inside of "jbrowse/plugins" along with some other plugins that ship with basic jbrowse. MultiBigWig is the basis of PeakLearner, it allows for multiple bigwig files to be shown on the same track. WiggleHighlighter extends this and set up some ability to show highlights on top of the bigwigs. Finally InteractivePeakAnotator wich handles most of what is important to adding removing labels, and will be primarily the focus for the rest of this read me. 
 
