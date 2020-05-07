@@ -4,8 +4,8 @@ The initial version of the technical demo
 
 ## ToDo
     1. True Positive Vs False Positive matrix
-                This is used to calculate the best model, and if one isnt found then send to the cluster to generate a new one. This should be done inside of the "do_Post()" methond inside ourServer.py. This is the function that handles the incoming labels from the browser. 
-    2. 
+                This is used to calculate the best model, and if one isnt found then send to the cluster to generate a new one. This should be done inside of the "send_Post()" method inside ourServer.py. This is the function that handles the incoming labels from the browser. 
+    2. Connect to the Cluster. This will also be done inside of the send_post function inside of the ourServer.py file. There was a code stub immediately after adding data to the database where a presumptive cluster call could be made.
 
 ## Server
 
@@ -19,11 +19,11 @@ Some of the important packages that must be installed first include:
 	bsddb3
 	http.server
 
-
 The server handles get requests in the same manner as the python SimpleHTTPServer.
 The server uses code copied from https://github.com/danvk/RangeHTTPServer to handle range requests.
 The code was copied instead of just called directly because it had to be modified in order to work.
-coddrectly with JBrowse to send back parts of the data files instead of the entire file. 
+correctly with JBrowse to send back parts of the data files instead of the entire file.
+This rangeRequestHandler is implemented in ourServer.py
 
 The server also handles post requests that send in labels and return back to the browser a model.
 
@@ -39,6 +39,7 @@ To access the files use commands like
 	db.get() 	or
 	db.put()	
 	
+	Currently there is a database to store the labels. Each label is stored in an array of labels as a value in a json object. These are stored on a per track level as to not confuse the labels across tracks. Each track has a single array of labels for it. There was also a plan of storing all model filenames and error counts as a second database to save time on having to communicate with the cluster. 
 	
 ## Jbrowse
 
@@ -145,6 +146,7 @@ OnHighlightClick() will grab the labels from local storage and has an array of t
 The color is determend by highlightColot() and indecatorColor() which are both in "MultiXYPlot.js". Both of these grab the track type from the label json and use that as an index in a color list.
 
 Removing a Label:
+Removing a label can be done by clicking on the label at any time after the highlight tool has been closed. 
 
 
 ## Refrences
