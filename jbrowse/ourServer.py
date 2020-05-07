@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-
 #These are needed to handle range requests
 import os
 import re
@@ -8,7 +7,7 @@ import BaseHTTPServer
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 
 #These are needed to handle the database
-import db
+#import db
 
 #these are needed to handle our post requests
 import json as simplejson
@@ -33,7 +32,6 @@ def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=16*1024):
             break
         outfile.write(buf)
 
-
 BYTE_RANGE_RE = re.compile(r'bytes=(\d+)-(\d+)?$')
 def parse_byte_range(byte_range):
     '''Returns the two numbers in 'bytes=123-456' or throws ValueError.
@@ -50,7 +48,6 @@ def parse_byte_range(byte_range):
     if last and last < first:
         raise ValueError('Invalid byte range %s' % byte_range)
     return first, last
-
 
 class RangeRequestHandler(SimpleHTTPRequestHandler):
     def send_head(self):
@@ -115,8 +112,6 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
         #print a few tests to make sure it is what is expected
         print(jsondata)
-#        allLabelsArray = jsondata["test"]
-#        print(allLabelsArray)
 
         #put the labels we got into our database
 #        testDB = db.testDB
@@ -133,52 +128,71 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         #this model is just a placeholder for now
         #get an optimal Model and turn it into a JSON object here
         model = simplejson.dumps({'model': 'myModel.bigWig', 'errors':'1'})
-
-
+        
+        
+        
         #This next block is our simulation of the cluster and using Dr. Hockings R code
         ############################################
 
         # Define command and arguments
-        command = 'Rscript'
-        path2script = '../PeakSegDisk-master/R/PeakSegFPOP_dir.R'
+        #command = 'Rscript'
+        #path2script = '../PeakSegDisk-master/R/PeakSegFPOP_dir.R'
 
         # the function we want to run has 2 arguments
         #a path to the coverage data we are observing
         #penatly > 0
-        args = ['path/to/coverageData', '1']
+        #args = ['path/to/coverageData', '1']
 
         # Build subprocess command
-        cmd = [command, path2script] + args
+        #cmd = [command, path2script] + args
 
         # check_output will run the command and store to result
-        newModel = subprocess.check_output(cmd, universal_newlines=True)
+        #newModel = subprocess.check_output(cmd, universal_newlines=True)
 
-        print('The new model we got from R:', newModel)
+        #print('The new model we got from R:', newModel)
         ############################################
-        #For now, in this section we will always send back a specific model which we will write to here
-        script_dir = os.path.dirname(__file__) #<-- absolute dir the script is in
-        rel_path = "data/tracks.conf"
-        abs_file_path = os.path.join(script_dir, rel_path)
-
-        with open(abs_file_path, 'r') as file:
-            # read a list of lines into data
-            data = file.readlines()
-
-
-        # now change the line, note that you have to add a newline
-        fakemodel1 = 'urlTemplates+=json:{"url":"joint_peaks.bigWig", "name": "joint peaks", "color": "#235", "lineWidth":"3"}\n'
-        fakemodel2 ='urlTemplates+=json:{"url":"coverage.bigWig", "name": "Coverage", "color": "#a54"}\n'
-        print(data[7])
-        print(data[7] == fakemodel2)
-        if data[7] == fakemodel2:
-            data[7] = fakemodel1 
+        
+        # code to simulate getting a new model
+        # NOTE: this is for the demo, how it will actually work is 
+        # NOTE: the appropriate model will be handed back by the
+        # NOTE: database and the server can make it so the correct
+        # NOTE: model is where the api is expecting it
+        
+        # checks to see what state we are in, true model or fake model
+        
+        bcell91True = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/bcell_McGill0091True.bigWig"
+        bcell322True = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/bcell_McGill0322True.bigWig"
+        kidney22True = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/kidneyCancer_McGill0022True.bigWig"
+        kidney23True = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/kidney_McGill0023True.bigWig"
+        
+        bcell91Peaks = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/bcell_McGill0091Peaks.bigWig"
+        bcell322Peaks = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/bcell_McGill0322Peaks.bigWig"
+        kidney22Peaks = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/kidneyCancer_McGill0022Peaks.bigWig"
+        kidney23Peaks = "/home/jacob/Documents/School/Capstone/PeakLearner-1.1/jbrowse/data/kidney_McGill0023Peaks.bigWig"
+        
+        '''
+        nameList = []
+        for entry, in jsondata:
+            entry.pop("start", None)
+            entry.pop("end", None)
+            entry.pop("ref", None)
+            print(entry)
+        print(jsondata)
+        '''
+        
+        if os.path.exists(bcell91True):
+            # this is if the model is currently true
+            # NOTE might need an r' infront of the variables
+            os.rename( bcell91True, bcell91Peaks)
+            os.rename( bcell322True, bcell322Peaks)
+            os.rename( kidney22True, kidney22Peaks)
+            os.rename( kidney23True, kidney23Peaks)
         else:
-            data[7] = fakemodel2 
+            os.rename( bcell91Peaks, bcell91True)
+            os.rename( bcell322Peaks, bcell322True)
+            os.rename( kidney22Peaks, kidney22True)
+            os.rename( kidney23Peaks, kidney23True)
 
-        # and write everything back
-        with open(abs_file_path, 'w') as file:
-            file.writelines( data )        
-        #model = do something with the parser and the trackhub       
         ############################################
 
         #write a response containing the optimal model and send it back to the browser
@@ -193,7 +207,7 @@ try:
     print ('Started httpserver on port ', PORT_NUMBER)
     #Wait forever for incoming http requests
     server.serve_forever()
-    
+
 except KeyboardInterrupt:
     #This is the way to close the server, by hitting control + c
     print ('^C received, shutting down the web server')

@@ -16,11 +16,14 @@ function (
             {
                 onHighlightClick: function (feature, track) 
                 {
+                  // grab known labels and
                   var features = JSON.parse(localStorage.getItem('ipaFeatures'));
                   var highlightFlag = parseInt(localStorage.getItem('highlightFlag'));
+                  // uses highlightFlag to determine if editing or removing
                   if(highlightFlag === 1)
                   {
                        var states = ['unknown', 'peak', 'nopeak', 'peakStart', 'peakEnd'];
+                       // loops through known labels for the label clicked
                        features.forEach(f => 
                        {
                            if (f.ref === feature.get('ref') &&
@@ -29,17 +32,20 @@ function (
                            {
                                if (f[track.name]) 
                                {
+                                   // increments the track type
                                    f[track.name] = (f[track.name] + 1) % states.length;
                                } 
                                else 
                                {
+                                   // if the track has no type set to "Peak"
                                    f[track.name] = 1;
                                }
                            }
-                       });
+                       }); 
                    }
                    else
                    {
+                     // loop through labels removing clicked one
                      features = features.filter(function (f)
                      {
                         if (f.start !== feature.get('start')) 
@@ -47,27 +53,31 @@ function (
                            return f;
                         }
                      });
+                     // json of information of removed label
                      var removeJSON = {
                         'name' : track.name,
                         'ref' : feature.get('ref'),
                         'start' : feature.get('start'),
                         'end' : feature.get('end')
-                     }
+                     };
                      console.log("removing label: ", removeJSON);
-                     sendPost(removeJSON);
+                     sendPost(removeJSON)
                    }
+                   // redraw to update model
                    track.redraw();
                    localStorage.setItem('ipaFeatures', JSON.stringify(features));
                 },
                 
                 highlightColor: function (feature, track) 
                 {
+                    // determins the color of the see through part of the label
                     var states = {0: 'rgba(100,100,100,.4)', 1: '#0f05', 2: '#ff05', 3: 'rgba(255,0,0,.4)', 4: 'rgba(255,150,0,.4)'};
                     return states[feature.get(track.name) || 0];
                 },
                 
                 indicatorColor: function (feature, track) 
                 {
+                    // determins the color of the bar at the bottom of the label
                     var states = {0: '#f00', 1: '#0f0', 2: '#ff0', 3: '#d3034f', 4: '#d30303'};
                     return states[feature.get(track.name) || 0];
                 }

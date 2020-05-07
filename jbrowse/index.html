@@ -23,24 +23,23 @@
             window.electronRequire = require;
             delete window.require;
         }
-
-
+    
 	function sendPost(jsonToSend) {
 		 $.ajax({
 		        type: 'POST',
 		        url: '/',
 		        dataType: 'json',
-			data: JSON.stringify({'first':'John', 'last':'Doe'}),
-			data: JSON.stringify(jsonToSend),
+			    data: JSON.stringify({'first':'John', 'last':'Doe'}),
+			    data: JSON.stringify(jsonToSend),
 		        contentType : 'application/json',
-		        success: function(data) {
+		    success: function(data) {
 				console.log('POST sent successfully')
-            			console.log(data)
+                //console.log(data)
 				//It will be assumed that information about our model will be in this data object
 				//Do something with the model info here
         		},
-			error: function(xhr, textStatus, errorCode){
-				alert('Something went wrong with that POST request. Refer to the console logs for details.') 
+			error: function(xhr, textStatus, errorCode) {
+				//alert('Something went wrong with that POST request. Refer to the console logs for details.') 
 				console.log(xhr)
 				console.log(textStatus)
 				console.log(errorCode)
