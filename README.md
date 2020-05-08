@@ -161,9 +161,34 @@ The very first thiing is assigning this specific bigwig to the REST store class,
 
 restAPI.py
 "get_model()" is the funciton that handles an incomming call to the path "feature/<refSeq>". First the method parses the query information to get the start and end of the information being asked for. Followed by finding the refseq which is misleading as that is the chromasom the information is comming from. And finally the queary also has the information about what the name of the model should be. Using the name of the model and the files position it creates the appropriate path name for the model in question. It then uses a python library called "bbi" to fetch all of the non zero ranges of bases that overlap with the range requested. This gives the correct information but it is not in the correct format of what jbrowse expects. The loop takes the information from the information that "bbi" gives and converts it in to the right format. 
+	
+## Travis-CI
+The .travis.yml file in the top-level directory is configuration file for running integration tests on Travis-CI. A block in the yml file corresponds to each phase of the build:
+```
+language: python
+version:
+  - "2.7"
+```
+Since some of our dependencies rely on Python 2.7, that is the version we use for testing.
+```
+before_install:
+  ...
+```
+In this phase, we install slurm-llnl (the scheduling software Monsoon uses) and any other dependencies.
+```
+script:
+  python tests/cluster_tests/clusterTest.py
+```
+Testing scripts go in this block.
+```
+branches:
+  - test-branch
+notifications:
+  ...
+```
+When a new commit is pushed to a specified branch (in this case test-branch), a Travis build is triggered. Specify email or slack notifications in the next block.
 
-
-# Refrences
+# References
 
 Jbrowse Documentation               https://jbrowse.org/docs/installation.html
 
