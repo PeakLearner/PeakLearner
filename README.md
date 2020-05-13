@@ -31,7 +31,8 @@ All of this code can be found in the jbrowse/ourServer.py file.
 
 A video of the server setup can be found here: https://drive.google.com/file/d/1q0bEv5baiAuYGZEeP7WNdubQVjJ0ogZR/view?usp=sharing
 
-A complete virtual box image of the machine the video was recorded on can be found here:
+A complete virtual box image of the machine the video was recorded on can be found here: https://drive.google.com/file/d/1QVz-z85XmyEDXnfCEMHLMFvcm9zjvtKi/view?usp=sharing
+
 To use the image, unzip the file. Then download virtualbox. Lastly click add and point the system at the folder that was unzipped to set up the machine. Just in case it is needed, the password is "password" for all passwords.
 
 ## Database
