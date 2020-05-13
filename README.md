@@ -32,6 +32,7 @@ All of this code can be found in the jbrowse/ourServer.py file.
 A video of the server setup can be found here: https://drive.google.com/file/d/1q0bEv5baiAuYGZEeP7WNdubQVjJ0ogZR/view?usp=sharing
 
 A complete virtual box image of the machine the video was recorded on can be found here:
+To use the image, unzip the file. Then download virtualbox. Lastly click add and point the system at the folder that was unzipped to set up the machine. 
 
 ## Database
 The database is a nonrelational database using A combination of BerkeleyDB and code from Dr. Toby Hocking 
