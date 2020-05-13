@@ -57,6 +57,8 @@ index:
 
 ### Setup
 
+Here is a link to a video explaining how to  setup jbrowse: https://youtu.be/BW01vmZbUok
+
 First clone the repository found at "https://github.com/yf6666/PeakLearner-1.1". cd in to "PeakLearner-1.1/jbrowse". To inizalize jbrowse you will need to run a script and create a directory inside of jbrowse. first run setup.sh, to run this type in to the terminal "./setup.sh". This may take several minutes, as this makes sure that all nessassary dependencies of jbrowse. This will include downloading perl and nodejs dependencies, as well as some test data called "volvox". Before running the next script create a directory called "data" inside the main jbrowse directory, ie "../PeakLearner-1.1/jbrowse/data".
 
 1. clone repository from "https://github.com/yf6666/PeakLearner-1.1"
