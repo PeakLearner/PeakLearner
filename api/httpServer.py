@@ -1,22 +1,9 @@
-#!/usr/bin/python
-
-#These are needed to handle range requests
+import http.server as server
 import os
 import re
-import BaseHTTPServer
-from SimpleHTTPServer import SimpleHTTPRequestHandler
-
-#These are needed to handle the database
-#import db
-
-#these are needed to handle our post requests
 import json as simplejson
 from io import BytesIO
-
-#these are needed to run R scripts
-import subprocess
-
-PORT_NUMBER = 8081
+from threading import Thread, Event
 
 #https://github.com/danvk/RangeHTTPServer
 #see link above for original code which we copied here to properly extend
@@ -49,11 +36,12 @@ def parse_byte_range(byte_range):
         raise ValueError('Invalid byte range %s' % byte_range)
     return first, last
 
-class RangeRequestHandler(SimpleHTTPRequestHandler):
+
+class RangeRequestHandler(server.SimpleHTTPRequestHandler):
     def send_head(self):
         if 'Range' not in self.headers:
             self.range = None
-            return SimpleHTTPRequestHandler.send_head(self)
+            return server.SimpleHTTPRequestHandler.send_head(self)
         try:
             self.range = parse_byte_range(self.headers['Range'])
         except ValueError as e:
@@ -94,7 +82,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
     def copyfile(self, source, outputfile):
         if not self.range:
-            return SimpleHTTPRequestHandler.copyfile(self, source, outputfile)
+            return server.SimpleHTTPRequestHandler.copyfile(self, source, outputfile)
 
         # SimpleHTTPRequestHandler uses shutil.copyfileobj, which doesn't let
         # you stop the copying before the end of the file.
@@ -110,40 +98,33 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         jsondata = simplejson.loads(body)
 
-        #print a few tests to make sure it is what is expected
+        # print a few tests to make sure it is what is expected
         print(jsondata)
 
-        #put the labels we got into our database
-#        testDB = db.testDB
-#        for label in allLabelsArray:
-#            print(label)
-#            print("label above")
-#            key_name = 'start' + str(label)
-#            key = 'b' + key_name
-#            testDB.put(key,str(label))
-#
-#        print("database test")
-#        print(testDB.get(b'starta'))
+        # put the labels we got into our database
+        #        testDB = db.testDB
+        #        for label in allLabelsArray:
+        #            print(label)
+        #            print("label above")
+        #            key_name = 'start' + str(label)
+        #            key = 'b' + key_name
+        #            testDB.put(key,str(label))
+        #
+        #        print("database test")
+        #        print(testDB.get(b'starta'))
 
-        #this model is just a placeholder for now
-        #get an optimal Model and turn it into a JSON object here
-        model = simplejson.dumps({'model': 'myModel.bigWig', 'errors':'1'})
+        # this model is just a placeholder for now
+        # get an optimal Model and turn it into a JSON object here
+        model = simplejson.dumps({'model': 'myModel.bigWig', 'errors': '1'})
 
-        #write a response containing the optimal model and send it back to the browser
+        # write a response containing the optimal model and send it back to the browser
         response = BytesIO()
         response.write(model)
         self.wfile.write(response.getvalue())
 
-try:
-    #Create a web server and define the handler to manage the
-    #incoming requests
-    server = BaseHTTPServer.HTTPServer(('', PORT_NUMBER), RangeRequestHandler)
-    print ('Started httpserver on port ', PORT_NUMBER)
-    #Wait forever for incoming http requests
-    server.serve_forever()
 
-except KeyboardInterrupt:
-    #This is the way to close the server, by hitting control + c
-    print('^C received, shutting down the web server')
-    server.socket.close()
-
+def httpserver(port, path):
+    os.chdir(path[0])
+    http_server = server.HTTPServer(('', port), RangeRequestHandler)
+    print("Started HTTP server on port", port)
+    http_server.serve_forever()

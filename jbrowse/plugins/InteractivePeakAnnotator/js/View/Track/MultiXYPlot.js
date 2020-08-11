@@ -10,11 +10,11 @@ function (
 ) {
     return declare([ XYPlot],
      {
-        _defaultConfig: function () 
+        _defaultConfig: function ()
         {
-            return Util.deepUpdate(dojo.clone(this.inherited(arguments)), 
+            return Util.deepUpdate(dojo.clone(this.inherited(arguments)),
             {
-                onHighlightClick: function (feature, track) 
+                onHighlightClick: function (feature, track)
                 {
                   // grab known labels and
                   var features = JSON.parse(localStorage.getItem('ipaFeatures'));
@@ -22,35 +22,35 @@ function (
                   // uses highlightFlag to determine if editing or removing
                   if(highlightFlag === 1)
                   {
-                       // this is wear we define the types of labels, to create a new kind of 
+                       // this is wear we define the types of labels, to create a new kind of
                        // label add to this list and the two down below for determining the color
                        var states = ['unknown', 'peak', 'nopeak', 'peakStart', 'peakEnd'];
                        // loops through known labels for the label clicked
-                       features.forEach(f => 
+                       features.forEach(f =>
                        {
                            if (f.ref === feature.get('ref') &&
                                f.start === feature.get('start') &&
-                               f.end === feature.get('end')) 
+                               f.end === feature.get('end'))
                            {
-                               if (f[track.name]) 
+                               if (f[track.name])
                                {
                                    // increments the track type
                                    f[track.name] = (f[track.name] + 1) % states.length;
-                               } 
-                               else 
+                               }
+                               else
                                {
                                    // if the track has no type set to "Peak"
                                    f[track.name] = 1;
                                }
                            }
-                       }); 
+                       });
                    }
                    else
                    {
                      // loop through labels removing clicked one
                      features = features.filter(function (f)
                      {
-                        if (f.start !== feature.get('start')) 
+                        if (f.start !== feature.get('start'))
                         {
                            return f;
                         }
@@ -69,16 +69,16 @@ function (
                    track.redraw();
                    localStorage.setItem('ipaFeatures', JSON.stringify(features));
                 },
-                
-                highlightColor: function (feature, track) 
+
+                highlightColor: function (feature, track)
                 {
                     // determins the color of the see through part of the label
                     // to add new type of label add type to this list
                     var states = {0: 'rgba(100,100,100,.4)', 1: '#0f05', 2: '#ff05', 3: 'rgba(255,0,0,.4)', 4: 'rgba(255,150,0,.4)'};
                     return states[feature.get(track.name) || 0];
                 },
-                
-                indicatorColor: function (feature, track) 
+
+                indicatorColor: function (feature, track)
                 {
                     // determins the color of the bar at the bottom of the label
                     // to add new type of label add type to this list
