@@ -100,13 +100,8 @@ class RangeRequestHandler(server.SimpleHTTPRequestHandler):
         decode = body.decode()
         json_val = json.loads(decode)
 
-        print("Json Val")
-        print(json_val)
-        print('\n')
-
         # Sends data to TrackHandler
         output = TrackHandler.jsonInput(json_val)
-        print(output)
 
         self.send_response(200)
         self.end_headers()

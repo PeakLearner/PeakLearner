@@ -80,7 +80,6 @@ def get_model(refseq):
 
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
 
-
     # this will need to be reworked depending on
     rel_path = "data/" + request.args.get('name')
     abs_file_path = os.path.join(script_dir, rel_path)
