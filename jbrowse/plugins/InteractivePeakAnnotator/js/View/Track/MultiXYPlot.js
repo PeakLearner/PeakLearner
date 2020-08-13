@@ -15,13 +15,14 @@ function (
                     {
                         onHighlightClick: function (feature, track) {
                             // grab known labels and
-                            var features = JSON.parse(localStorage.getItem('ipaFeatures'));
-                            var highlightFlag = parseInt(localStorage.getItem('highlightFlag'));
+                            let features = JSON.parse(localStorage.getItem('ipaFeatures'));
+                            // eslint-disable-next-line radix
+                            const highlightFlag = parseInt(localStorage.getItem('highlightFlag'));
                             // uses highlightFlag to determine if editing or removing
                             if (highlightFlag === 1) {
                                 // this is wear we define the types of labels, to create a new kind of
                                 // label add to this list and the two down below for determining the color
-                                var states = ['unknown', 'peak', 'nopeak', 'peakStart', 'peakEnd'];
+                                const states = ['unknown', 'peak', 'nopeak', 'peakStart', 'peakEnd'];
                                 // loops through known labels for the label clicked
                                 features.forEach(f => {
                                     if (f.ref === feature.get('ref') &&
@@ -38,6 +39,7 @@ function (
                                 });
                             } else {
                                 // loop through labels removing clicked one
+                                // eslint-disable-next-line consistent-return
                                 features = features.filter(function (f) {
                                     if (f.start !== feature.get('start')) {
                                         return f;
@@ -50,8 +52,8 @@ function (
                                     'start': feature.get('start'),
                                     'end': feature.get('end')
                                 };
-                                console.log('removing label: ', removeJSON);
-                                sendPost(removeJSON);
+                                // eslint-disable-next-line no-undef
+                                sendPost('remove', removeJSON);
                             }
                             // redraw to update model
                             track.redraw();
@@ -61,14 +63,20 @@ function (
                         highlightColor: function (feature, track) {
                             // determins the color of the see through part of the label
                             // to add new type of label add type to this list
-                            var states = {0: 'rgba(100,100,100,.4)', 1: '#0f05', 2: '#ff05', 3: 'rgba(255,0,0,0.4)', 4: 'rgba(255,150,0,0.4)'};
+                            const states = {
+                                0: 'rgba(100,100,100,.4)',
+                                1: '#0f05',
+                                2: '#ff05',
+                                3: 'rgba(255,0,0,0.4)',
+                                4: 'rgba(255,150,0,0.4)'
+                            };
                             return states[feature.data[track.name] || 0];
                         },
 
                         indicatorColor: function (feature, track) {
                             // determins the color of the bar at the bottom of the label
                             // to add new type of label add type to this list
-                            var states = {0: '#f00', 1: '#0f0', 2: '#ff0', 3: '#d3034f', 4: '#d30303'};
+                            const states = {0: '#f00', 1: '#0f0', 2: '#ff0', 3: '#d3034f', 4: '#d30303'};
                             return states[feature.data[track.name] || 0];
                         }
                     });

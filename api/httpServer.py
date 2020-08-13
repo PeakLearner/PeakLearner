@@ -1,12 +1,15 @@
 import http.server as server
 import os
 import re
-import json as simplejson
-from io import BytesIO
-from threading import Thread, Event
+import json
+import api.TrackHandler as TrackHandler
+import threading
 
 #https://github.com/danvk/RangeHTTPServer
 #see link above for original code which we copied here to properly extend
+
+
+
 def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=16*1024):
     '''Like shutil.copyfileobj, but only copy a range of the streams.
     Both start and stop are inclusive.
@@ -90,41 +93,28 @@ class RangeRequestHandler(server.SimpleHTTPRequestHandler):
         copy_byte_range(source, outputfile, start, stop)
 
     def do_POST(self):
-        print('Got a post')
         # first parse out the infomation we got from the post
         content_length = int(self.headers['Content-Length'])
         body = self.rfile.read(content_length)
+        # need to decode as the body is a byte string
+        decode = body.decode()
+        json_val = json.loads(decode)
+
+        print("Json Val")
+        print(json_val)
+        print('\n')
+
+        # Sends data to TrackHandler
+        output = TrackHandler.jsonInput(json_val)
+        print(output)
+
         self.send_response(200)
         self.end_headers()
-        jsondata = simplejson.loads(body)
-
-        # print a few tests to make sure it is what is expected
-        print(jsondata)
-
-        # put the labels we got into our database
-        #        testDB = db.testDB
-        #        for label in allLabelsArray:
-        #            print(label)
-        #            print("label above")
-        #            key_name = 'start' + str(label)
-        #            key = 'b' + key_name
-        #            testDB.put(key,str(label))
-        #
-        #        print("database test")
-        #        print(testDB.get(b'starta'))
-
-        # this model is just a placeholder for now
-        # get an optimal Model and turn it into a JSON object here
-        model = simplejson.dumps({'model': 'myModel.bigWig', 'errors': '1'})
-
-        # write a response containing the optimal model and send it back to the browser
-        response = BytesIO()
-        response.write(model)
-        self.wfile.write(response.getvalue())
 
 
 def httpserver(port, path):
-    os.chdir(path[0])
-    http_server = server.HTTPServer(('', port), RangeRequestHandler)
+    os.chdir(path)
+    handler = RangeRequestHandler
+    http_server = server.HTTPServer(('', port), handler)
     print("Started HTTP server on port", port)
     http_server.serve_forever()

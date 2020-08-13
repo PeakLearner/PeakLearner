@@ -79,11 +79,14 @@ def get_model(refseq):
     json = {'features': []}
 
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
+
+
+    # this will need to be reworked depending on
     rel_path = "data/" + request.args.get('name')
     abs_file_path = os.path.join(script_dir, rel_path)
 
     try:
-        for entry in bbi.fetch_intervals(str(abs_file_path), 'chr1', start, end):
+        for entry in bbi.fetch_intervals(str(abs_file_path), refseq, start, end):
             inter = {"start": entry[1], "end": entry[2], "score": entry[3]}
             json['features'].append(inter)
     except:

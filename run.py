@@ -27,12 +27,14 @@ if save:
     with open(configFile, 'w') as cfg:
         config.write(cfg)
 
-#get ports from config
+# get ports from config
 httpServerPort = int(config['http']['port'])
 httpServerPath = config['http']['path']
 
-#start servers
-httpServer = threading.Thread(target=httpServer.httpserver, args=(httpServerPort, (httpServerPath, )))
+httpArgs = (httpServerPort, httpServerPath)
+
+# start servers
+httpServer = threading.Thread(target=httpServer.httpserver, args=httpArgs)
 restServer = threading.Thread(target=restAPI.app.run)
 
 try:
