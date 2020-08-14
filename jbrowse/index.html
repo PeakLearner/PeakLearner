@@ -36,9 +36,6 @@
 
         let output = JSON.stringify({'command': command, 'tracks': request['tracks'], 'args': args });
 
-        console.log("Output")
-        console.log(output)
-
         $.ajax('/', {
             data: output,
             type: 'POST',

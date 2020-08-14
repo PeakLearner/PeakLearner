@@ -24,7 +24,7 @@ def jsonInput(data):
 
 def commands(command):
     command_list = {
-        'add': addLabel,
+        'save': addLabel,
         'remove': removeLabel,
     }
 
@@ -32,23 +32,27 @@ def commands(command):
 
 
 def addLabel(data, tracks):
-    data = data[0]
-
     for track in tracks:
-        # A highlight which labels were not messed with will have no value
-        outputVal = 0
-        if track in data.keys():
-            outputVal = data[track]
-
-        lineToOutput = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end']) + ' ' + str(outputVal) + '\n'
 
         script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
 
         rel_path = '/data/' + track + '_Labels.bedGraph'
 
-        # this could be runtime expensive saving here instead of just sending label data to the model itself for storage
-        with open(script_dir + rel_path, 'a') as f:
-            f.write(lineToOutput)
+        file_output = []
+
+        for feature in data:
+            # A feature which labels were not messed with will have no value
+            outputVal = 0
+            if track in feature.keys():
+                outputVal = feature[track]
+
+            file_output.append(feature['ref'] + ' ' + str(feature['start']) +
+                               ' ' + str(feature['end']) + ' ' + str(outputVal) + '\n')
+
+        # this could be "runtime expensive" saving here instead of just sending label data to the model itself for
+        # storage
+        with open(script_dir + rel_path, 'w') as f:
+            f.writelines(file_output)
 
 
 def removeLabel(data, tracks):

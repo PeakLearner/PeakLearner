@@ -28,7 +28,7 @@ function (
                     var labelsJSON = JSON.parse(localStorage.getItem('ipaFeatures'));
                     console.log('sending new labels: ', labelsJSON[labelsJSON.length - 1]);
                     // eslint-disable-next-line no-undef
-                    sendPost('add', labelsJSON);
+                    sendPost('save', labelsJSON);
                 }
             });
         }
