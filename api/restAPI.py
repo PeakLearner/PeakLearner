@@ -11,37 +11,38 @@ import bbi
 # finding path of correct model
 import os, sys
 
-#api set up, initalize flask
+# api set up, initalize flask
 app = Flask(__name__)
 CORS(app)
 
 '''
     ================== overview of code  ==================
-    
+
     This is the code for the REST api that enables the model to
         be updated upon getting a new label. This api needs to 
         be a REST api becuase that is how jbrowse requiers it to
         use the REST store class. If you want to know more about
         store classes you can find more in the jbrowse readme 
         or in the overview for the interactivePeakAnnottor
-        
+
     there are 4 functions in this api and most of them are purly
         becuase jbrowse needs certain functions to exist for it
         to run properly. The only one that is very important is
         get_model(). this is responsible for handing off the
         approprite information to the browser.
-        
+
     For more information about the jbrowse rest api requierments
         you can go to https://jbrowse.org/docs/data_formats.html
-        
+
     This api was based of of one by hexylena on github, you can
         that repository here https://github.com/hexylena/JBrowse-REST-API-Example
-    
+
     ================== end of overview  ===================
 '''
 
+
 # used for getting the chrom sizes of a refrence sequence
-# currently is not used 
+# currently is not used
 @app.route('/refSeqs.json')
 def ref_seqs():
     featList = []
@@ -64,8 +65,9 @@ def ref_seqs():
 # curently is not used
 @app.route('/stats/global')
 def get_stats():
-    featList = { 'featureDensity' : 0.2 }
+    featList = {'featureDensity': 0.2}
     return simplejson.dumps(featList)
+
 
 # used to get a list of all non zero features in the range requested
 # the features are the non zero sections of the model
@@ -75,19 +77,22 @@ def get_model(refseq):
     start = int(request.args.get('start'))
     end = int(request.args.get('end')) - 1
     json = {'features': []}
-    
-    script_dir = os.path.abspath(os.path.dirname(sys.argv[0])) #<-- absolute dir the script is in
+
+    script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
+
+    # this will need to be reworked depending on
     rel_path = "data/" + request.args.get('name')
     abs_file_path = os.path.join(script_dir, rel_path)
-    
+
     try:
-        for entry in bbi.fetch_intervals(str(abs_file_path), 'chr1', start, end):
-            inter = { "start": entry[1], "end": entry[2], "score": entry[3]}
+        for entry in bbi.fetch_intervals(str(abs_file_path), refseq, start, end):
+            inter = {"start": entry[1], "end": entry[2], "score": entry[3]}
             json['features'].append(inter)
     except:
-        json = {'features' : []}
-    
+        json = {'features': []}
+
     return simplejson.dumps(json)
+
 
 # this is to help allow cors communication
 # currently is probably redundant with the flask cors we imported
@@ -98,5 +103,4 @@ def apply_caching(response):
     response.headers["Access-Control-Allow-Headers"] = "Origin, X-Requested-With, Content-Type, Accept"
     return response
 
-# starts the api when the code is run
-app.run()
+

@@ -23,28 +23,33 @@
             window.electronRequire = require;
             delete window.require;
         }
-    
-	function sendPost(jsonToSend) {
-		 $.ajax({
-		        type: 'POST',
-		        url: '/',
-		        dataType: 'json',
-			    data: JSON.stringify({'first':'John', 'last':'Doe'}),
-			    data: JSON.stringify(jsonToSend),
-		        contentType : 'application/json',
-		    success: function(data) {
-				console.log('POST sent successfully')
-                //console.log(data)
-				//It will be assumed that information about our model will be in this data object
-				//Do something with the model info here
-        		},
-			error: function(xhr, textStatus, errorCode) {
-				//alert('Something went wrong with that POST request. Refer to the console logs for details.') 
-				console.log(xhr)
-				console.log(textStatus)
-				console.log(errorCode)
-			}
-  		 });
+
+	function sendPost(command, args)
+    {
+        // gets the GET request value for current tracks
+        let request = {};
+        const pairs = location.search.substring(1).split('&');
+        for (let i = 0; i < pairs.length; i++) {
+            const pair = pairs[i].split('=');
+            request[pair[0]] = pair[1];
+        }
+
+        let output = JSON.stringify({'command': command, 'tracks': request['tracks'], 'args': args });
+
+        $.ajax('/', {
+            data: output,
+            type: 'POST',
+            timeout: 1000,
+            success: function (data, status, xhr)
+            {
+                //this is response data
+            },
+            error: function( jqXhr, textStatus, errorMessage )
+            {
+              console.log('Error: ' + errorMessage );
+            }
+
+        });
 	}
     </script>
     <style>

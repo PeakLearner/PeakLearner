@@ -7,6 +7,7 @@ function (
     JBrowsePlugin
 ) {
     return declare(JBrowsePlugin, {
+        // eslint-disable-next-line no-unused-vars
         constructor: function (args) {
             console.log('InteractivePeakAnnotator plugin starting');
             // set up listiner for the globalHighlightChanged event
@@ -20,15 +21,14 @@ function (
                     const regions = JSON.parse(localStorage.getItem('ipaFeatures') || '[]');
                     regions.push(region);
                     localStorage.setItem('ipaFeatures', JSON.stringify(regions));
-                }
-                else
-                {
-                  // flag set to removing
-                  localStorage.setItem('highlightFlag', 0);
-                  // grab labels and send to server
-                  var labelsJSON = JSON.parse(localStorage.getItem('ipaFeatures'));
-                  console.log("sending new labels: ", labelsJSON[labelsJSON.length - 1]);
-                  sendPost(labelsJSON);
+                } else {
+                    // flag set to removing
+                    localStorage.setItem('highlightFlag', 0);
+                    // grab labels and send to server
+                    var labelsJSON = JSON.parse(localStorage.getItem('ipaFeatures'));
+                    console.log('sending new labels: ', labelsJSON[labelsJSON.length - 1]);
+                    // eslint-disable-next-line no-undef
+                    sendPost('save', labelsJSON);
                 }
             });
         }
