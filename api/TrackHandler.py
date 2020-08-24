@@ -19,7 +19,9 @@ def jsonInput(data):
     # if no more splits, then raw_tracks must be the last track, so add it
     tracks.append(raw_tracks)
 
-    return commands(command)(args, tracks)
+    commandOutput = commands(command)(args, tracks)
+
+    return commandOutput
 
 
 def commands(command):
@@ -31,6 +33,7 @@ def commands(command):
     return command_list.get(command, None)
 
 
+# Adds Label to label file
 def addLabel(data, tracks):
     for track in tracks:
 
@@ -55,6 +58,7 @@ def addLabel(data, tracks):
             f.writelines(file_output)
 
 
+# Removes label from label file
 def removeLabel(data, tracks):
 
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
