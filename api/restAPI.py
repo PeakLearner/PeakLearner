@@ -94,13 +94,6 @@ def get_model(refseq):
     return simplejson.dumps(json)
 
 
-# this is to help allow cors communication
-# currently is probably redundant with the flask cors we imported
-# curently is not used
-@app.after_request
-def apply_caching(response):
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "Origin, X-Requested-With, Content-Type, Accept"
-    return response
+
 
 
