@@ -1,7 +1,7 @@
 language: python
 
 python:
-    - 2.7
+    - 3.8
 
 before_install:
   - python --version
@@ -15,17 +15,3 @@ before_install:
 #  - sudo /usr/sbin/create-munge-key
   - sudo service munge start
   - cd jbrowse
-
-script:
-  - python tests/cluster_tests/clusterTest.py
-
-env:
-  global:
-  - NOKOGIRI_USE_SYSTEM_LIBRARIES=true  # do we need this?
-
-branches:
-    only:
-        test-branch
-
-notifications:
-  slack: capstoneteam2019-2020:99sHd15zMUNsTJEWiIUvlrF3
