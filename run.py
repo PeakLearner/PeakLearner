@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 import configparser
 import threading
 from api import httpServer, restAPI
@@ -37,10 +35,18 @@ httpArgs = (httpServerPort, httpServerPath)
 httpServer = threading.Thread(target=httpServer.httpserver, args=httpArgs)
 restServer = threading.Thread(target=restAPI.app.run)
 
-try:
+
+def startServer():
     httpServer.start()
     restServer.start()
 
-except KeyboardInterrupt:
+
+def joinServer():
     httpServer.join()
     restServer.join()
+
+
+try:
+    startServer()
+except KeyboardInterrupt:
+    joinServer()

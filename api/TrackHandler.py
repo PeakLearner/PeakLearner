@@ -32,7 +32,7 @@ def commands(command):
 
     return command_list.get(command, None)
 
-
+# TODO: Make this insert in a sorted fashion
 # Adds Label to label file
 def addLabel(data, tracks):
     for track in tracks:
@@ -92,7 +92,31 @@ def removeLabel(data, tracks):
     return data
 
 
-def debug(printVal, name):
-    print('\n-' + name + '--------')
-    print(printVal)
-    print('-End Debug----------\n')
+# gets labels in range
+def getLabels(path, refseq, start, end):
+    output = []
+
+    with open(path, 'r') as f:
+
+        current_line = f.readline()
+
+        while not current_line =='':
+            lineVals = current_line.split()
+
+            lineStart = int(lineVals[1])
+
+            lineEnd = int(lineVals[2])
+
+            # If a label covers the full query
+            coverQuery = ((lineStart < start) and (lineEnd > end))
+
+            # The rest of the possible label combinations
+            restQuery = ((lineStart >= start) or (lineEnd <= end))
+
+            if lineVals[0] == refseq and (coverQuery or restQuery):
+                output.append({"ref": refseq, "start": lineStart,
+                               "end": lineEnd, "label": lineVals[3]})
+
+            current_line = f.readline()
+
+    return output

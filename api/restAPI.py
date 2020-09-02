@@ -1,4 +1,4 @@
-# These are for handaling api calls
+# These are for handling api calls
 from flask import Flask, request, Response
 from flask_cors import CORS
 
@@ -10,6 +10,8 @@ import bbi
 
 # finding path of correct model
 import os, sys
+
+import api.TrackHandler as TrackHandler
 
 # api set up, initalize flask
 app = Flask(__name__)
@@ -93,7 +95,31 @@ def get_model(refseq):
 
     return simplejson.dumps(json)
 
+@app.route('/labels/<refseq>')
+def get_labels(refseq):
+    start = int(request.args.get('start'))
+    end = int(request.args.get('end')) - 1
+    json = {'features': []}
+
+    script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
+
+    # this will need to be reworked depending on
+    rel_path = "data/" + request.args.get('name')
+    abs_file_path = os.path.join(script_dir, rel_path)
+
+    for label in TrackHandler.getLabels(abs_file_path, refseq, start, end):
+        json['features'].append(label)
+
+    return simplejson.dumps(json)
 
 
+# this is to help allow cors communication
+# currently is probably redundant with the flask cors we imported
+# curently is not used
+@app.after_request
+def apply_caching(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Origin, X-Requested-With, Content-Type, Accept"
+    return response
 
 
