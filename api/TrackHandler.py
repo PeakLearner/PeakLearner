@@ -28,11 +28,12 @@ def commands(command):
     command_list = {
         'save': addLabel,
         'remove': removeLabel,
+        'update': updateLabel,
     }
 
     return command_list.get(command, None)
 
-# TODO: Make this insert in a sorted fashion
+
 # Adds Label to label file
 def addLabel(data, tracks):
     for track in tracks:
@@ -43,14 +44,32 @@ def addLabel(data, tracks):
 
         file_output = []
 
-        for feature in data:
-            # A feature which labels were not messed with will have no value
-            outputVal = 0
-            if track in feature.keys():
-                outputVal = feature[track]
+        default_val = 'unknown'
 
-            file_output.append(feature['ref'] + ' ' + str(feature['start']) +
-                               ' ' + str(feature['end']) + ' ' + str(outputVal) + '\n')
+        added = False
+
+        # read labels in besides one to delete
+        with open(script_dir + rel_path, 'r') as f:
+
+            current_line = f.readline()
+            line_to_append = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end']) + ' ' + default_val + '\n'
+
+            while not current_line == '':
+                lineVals = current_line.split()
+
+                current_line_ref = lineVals[0]
+                current_line_start = int(lineVals[1])
+
+                if not (current_line_ref < data['ref'] or current_line_start < data['start']):
+                    file_output.append(line_to_append)
+                    added = True
+
+                file_output.append(current_line)
+                current_line = f.readline()
+
+            if not added:
+                file_output.append(line_to_append)
+
 
         # this could be "runtime expensive" saving here instead of just sending label data to the model itself for
         # storage
@@ -63,31 +82,55 @@ def removeLabel(data, tracks):
 
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
 
-    # this should only really be done to one track but the current system completely deletes the highlights
-    # remove this for loop and change track in rel_path to data['name'] to only delete from one track
-    for track in tracks:
+    rel_path = '/data/' + data['name'] + '_Labels.bedGraph'
 
-        rel_path = '/data/' + track + '_Labels.bedGraph'
+    output = []
 
-        output = []
+    line_to_check = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end'])
 
-        line_to_check = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end'])
+    # read labels in besides one to delete
+    with open(script_dir + rel_path, 'r') as f:
 
-        # read labels in besides one to delete
-        with open(script_dir + rel_path, 'r') as f:
+        current_line = f.readline()
+
+        while not current_line == '':
+
+            if current_line.find(line_to_check) == -1:
+                output.append(current_line)
 
             current_line = f.readline()
 
-            while not current_line == '':
+    # write labels after one to delete is gone
+    with open(script_dir + rel_path, 'w') as f:
+        f.writelines(output)
 
-                if current_line.find(line_to_check) == -1:
-                    output.append(current_line)
 
-                current_line = f.readline()
+def updateLabel(data, tracks):
+    script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
 
-        # write labels after one to delete is gone
-        with open(script_dir + rel_path, 'w') as f:
-            f.writelines(output)
+    rel_path = '/data/' + data['name'] + '_Labels.bedGraph'
+
+    output = []
+
+    line_to_check = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end'])
+
+    # read labels in besides one to delete
+    with open(script_dir + rel_path, 'r') as f:
+
+        current_line = f.readline()
+
+        while not current_line == '':
+
+            if not current_line.find(line_to_check) <= -1:
+                output.append(line_to_check + ' ' + data['label'])
+            else:
+                output.append(current_line)
+
+            current_line = f.readline()
+
+    # write labels after one to delete is gone
+    with open(script_dir + rel_path, 'w') as f:
+        f.writelines(output)
 
     return data
 
