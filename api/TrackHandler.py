@@ -26,7 +26,7 @@ def jsonInput(data):
 
 def commands(command):
     command_list = {
-        'save': addLabel,
+        'add': addLabel,
         'remove': removeLabel,
         'update': updateLabel,
     }
@@ -36,45 +36,43 @@ def commands(command):
 
 # Adds Label to label file
 def addLabel(data, tracks):
-    for track in tracks:
+    script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
 
-        script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
+    rel_path = '/data/' + data['name'] + '_Labels.bedGraph'
 
-        rel_path = '/data/' + track + '_Labels.bedGraph'
+    file_output = []
 
-        file_output = []
+    default_val = 'unknown'
 
-        default_val = 'unknown'
+    added = False
 
-        added = False
+    # read labels in besides one to delete
+    with open(script_dir + rel_path, 'r') as f:
 
-        # read labels in besides one to delete
-        with open(script_dir + rel_path, 'r') as f:
+        current_line = f.readline()
+        line_to_append = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end']) + ' ' + default_val + '\n'
 
-            current_line = f.readline()
-            line_to_append = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end']) + ' ' + default_val + '\n'
+        while not current_line == '':
+            lineVals = current_line.split()
 
-            while not current_line == '':
-                lineVals = current_line.split()
+            current_line_ref = lineVals[0]
+            current_line_start = int(lineVals[1])
 
-                current_line_ref = lineVals[0]
-                current_line_start = int(lineVals[1])
-
-                if not (current_line_ref < data['ref'] or current_line_start < data['start']):
-                    file_output.append(line_to_append)
-                    added = True
-
-                file_output.append(current_line)
-                current_line = f.readline()
-
-            if not added:
+            if not (current_line_ref < data['ref'] or current_line_start < data['start']):
                 file_output.append(line_to_append)
+                added = True
+
+            file_output.append(current_line)
+            current_line = f.readline()
+
+        if not added:
+            file_output.append(line_to_append)
 
 
-        # this could be "runtime expensive" saving here instead of just sending label data to the model itself for
-        # storage
-        with open(script_dir + rel_path, 'w') as f:
-            f.writelines(file_output)
+    # this could be "runtime expensive" saving here instead of just sending label data to the model itself for
+    # storage
+    with open(script_dir + rel_path, 'w') as f:
+        f.writelines(file_output)
 
 
 # Removes label from label file
@@ -122,7 +120,7 @@ def updateLabel(data, tracks):
         while not current_line == '':
 
             if not current_line.find(line_to_check) <= -1:
-                output.append(line_to_check + ' ' + data['label'])
+                output.append(line_to_check + ' ' + data['label'] + '\n')
             else:
                 output.append(current_line)
 
@@ -139,7 +137,9 @@ def updateLabel(data, tracks):
 def getLabels(path, refseq, start, end):
     output = []
 
-    with open(path, 'r') as f:
+    rel_path = path + '_Labels.bedGraph'
+
+    with open(rel_path, 'r') as f:
 
         current_line = f.readline()
 
