@@ -1,25 +1,14 @@
 import os
 import sys
+import api.HubParse as hubParse
 
 
 def jsonInput(data):
     command = data['command']
     # for some reason data['args'] is a list containing a dict
     args = data['args']
-    raw_tracks = data['tracks']
-    split = '%2C'
-    tracks = []
 
-    # process tracks in GET request for storage of labels
-    while not (raw_tracks.find('%2C') == -1):
-        find = raw_tracks.find('%2C')
-        current = raw_tracks[0:find]
-        tracks.append(current)
-        raw_tracks = raw_tracks[(find + len(split)):]
-    # if no more splits, then raw_tracks must be the last track, so add it
-    tracks.append(raw_tracks)
-
-    commandOutput = commands(command)(args, tracks)
+    commandOutput = commands(command)(args)
 
     return commandOutput
 
@@ -29,13 +18,14 @@ def commands(command):
         'add': addLabel,
         'remove': removeLabel,
         'update': updateLabel,
+        'newHub': addNewHub,
     }
 
     return command_list.get(command, None)
 
 
 # Adds Label to label file
-def addLabel(data, tracks):
+def addLabel(data):
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
 
     rel_path = '/data/' + data['name'] + '_Labels.bedGraph'
@@ -45,6 +35,8 @@ def addLabel(data, tracks):
     default_val = 'unknown'
 
     added = False
+
+    hubParse.test()
 
     # read labels in besides one to delete
     with open(script_dir + rel_path, 'r') as f:
@@ -76,7 +68,7 @@ def addLabel(data, tracks):
 
 
 # Removes label from label file
-def removeLabel(data, tracks):
+def removeLabel(data):
 
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
 
@@ -103,7 +95,7 @@ def removeLabel(data, tracks):
         f.writelines(output)
 
 
-def updateLabel(data, tracks):
+def updateLabel(data):
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
 
     rel_path = '/data/' + data['name'] + '_Labels.bedGraph'
@@ -129,8 +121,6 @@ def updateLabel(data, tracks):
     # write labels after one to delete is gone
     with open(script_dir + rel_path, 'w') as f:
         f.writelines(output)
-
-    return data
 
 
 # gets labels in range
@@ -163,3 +153,7 @@ def getLabels(path, refseq, start, end):
             current_line = f.readline()
 
     return output
+
+
+def addNewHub(data):
+    print(data)
