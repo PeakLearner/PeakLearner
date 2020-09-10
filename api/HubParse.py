@@ -2,7 +2,8 @@ import requests
 import sys
 
 
-def newHub(url):
+def parse(url):
+    # TODO: Add error handling
     hubReq = requests.get(url, allow_redirects=True)
     file = ""
     path = ""
@@ -85,7 +86,7 @@ def readLines(lines):
 def main():
     if len(sys.argv) != 2:
         return
-    hub = newHub(sys.argv[1])
+    hub = parse(sys.argv[1])
 
 if __name__ == "__main__":
     main()

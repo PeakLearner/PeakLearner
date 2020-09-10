@@ -1,6 +1,7 @@
 import os
 import sys
 import api.HubParse as hubParse
+import api.UCSCtoPeakLearner as UCSCtoPeakLearner
 
 
 def jsonInput(data):
@@ -36,13 +37,11 @@ def addLabel(data):
 
     added = False
 
-    hubParse.test()
-
     # read labels in besides one to delete
     with open(script_dir + rel_path, 'r') as f:
 
         current_line = f.readline()
-        line_to_append = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end']) + ' ' + default_val + '\n'
+        line_to_append = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end']) + ' ' + default_val
 
         while not current_line == '':
             lineVals = current_line.split()
@@ -51,7 +50,7 @@ def addLabel(data):
             current_line_start = int(lineVals[1])
 
             if not (current_line_ref < data['ref'] or current_line_start < data['start']):
-                file_output.append(line_to_append)
+                file_output.append(line_to_append + '\n')
                 added = True
 
             file_output.append(current_line)
@@ -65,6 +64,8 @@ def addLabel(data):
     # storage
     with open(script_dir + rel_path, 'w') as f:
         f.writelines(file_output)
+
+    return data
 
 
 # Removes label from label file
@@ -94,6 +95,8 @@ def removeLabel(data):
     with open(script_dir + rel_path, 'w') as f:
         f.writelines(output)
 
+    return data
+
 
 def updateLabel(data):
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
@@ -121,6 +124,8 @@ def updateLabel(data):
     # write labels after one to delete is gone
     with open(script_dir + rel_path, 'w') as f:
         f.writelines(output)
+
+    return data
 
 
 # gets labels in range
@@ -156,4 +161,6 @@ def getLabels(path, refseq, start, end):
 
 
 def addNewHub(data):
-    print(data)
+    hub = hubParse.parse(data)
+    # Add a way to configure hub here somehow instead of just loading everything
+    return UCSCtoPeakLearner.convert(hub)

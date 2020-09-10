@@ -103,8 +103,16 @@ class RangeRequestHandler(server.SimpleHTTPRequestHandler):
         # Sends data to TrackHandler
         output = TrackHandler.jsonInput(json_val)
 
-        self.send_response(200)
-        self.end_headers()
+        # TODO: Add better error handling
+        if output:
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(output).encode('utf8'))
+        else:
+            self.send_response(400, 'No Output')
+            self.end_headers()
+
 
 
 def httpserver(port, path):
