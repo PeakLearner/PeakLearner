@@ -1,1 +1,3 @@
-samtools
+From pip:
+    samtools
+    pybbi
