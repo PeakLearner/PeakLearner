@@ -1,4 +1,3 @@
 [submodule "jbrowse"]
 	path = jbrowse
 	url = https://github.com/deltarod/jbrowse.git
-	branch = PeakLearner
