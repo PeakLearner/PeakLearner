@@ -80,10 +80,8 @@ def get_model(refseq):
     end = int(request.args.get('end')) - 1
     json = {'features': []}
 
-    script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
-
-    # this will need to be reworked depending on
-    rel_path = "data/" + request.args.get('name')
+    script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
+    rel_path = 'data/' + request.args.get('name')
     abs_file_path = os.path.join(script_dir, rel_path)
 
     try:
@@ -95,6 +93,7 @@ def get_model(refseq):
 
     return simplejson.dumps(json)
 
+
 @app.route('/labels/<refseq>')
 def get_labels(refseq):
     start = int(request.args.get('start'))
@@ -102,24 +101,11 @@ def get_labels(refseq):
     json = {'features': []}
 
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
-
-    # this will need to be reworked depending on
-    rel_path = "data/" + request.args.get('name')
+    rel_path = 'data/' + request.args.get('name')
     abs_file_path = os.path.join(script_dir, rel_path)
 
-    for label in TrackHandler.getLabels(abs_file_path, refseq, start, end):
-        json['features'].append(label)
+    json['features'] = TrackHandler.getLabels(abs_file_path, refseq, start, end)
 
     return simplejson.dumps(json)
-
-
-# this is to help allow cors communication
-# currently is probably redundant with the flask cors we imported
-# curently is not used
-@app.after_request
-def apply_caching(response):
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "Origin, X-Requested-With, Content-Type, Accept"
-    return response
 
 

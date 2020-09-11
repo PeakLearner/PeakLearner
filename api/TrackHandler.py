@@ -19,7 +19,7 @@ def commands(command):
         'add': addLabel,
         'remove': removeLabel,
         'update': updateLabel,
-        'newHub': addNewHub,
+        'parseHub': parseHub,
     }
 
     return command_list.get(command, None)
@@ -28,8 +28,8 @@ def commands(command):
 # Adds Label to label file
 def addLabel(data):
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
-
-    rel_path = '/data/' + data['name'] + '_Labels.bedGraph'
+    rel_path = 'data/' + data['name'] + '_Labels.bedGraph'
+    abs_path = os.path.join(script_dir, rel_path)
 
     file_output = []
 
@@ -37,11 +37,18 @@ def addLabel(data):
 
     added = False
 
+    line_to_append = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end']) + ' ' + default_val + '\n'
+
+    if not os.path.exists(abs_path):
+        with open(abs_path, 'w') as new:
+            print("New label file created at %s" % abs_path)
+            new.write(line_to_append)
+            return data
+
     # read labels in besides one to delete
-    with open(script_dir + rel_path, 'r') as f:
+    with open(abs_path, 'r') as f:
 
         current_line = f.readline()
-        line_to_append = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end']) + ' ' + default_val
 
         while not current_line == '':
             lineVals = current_line.split()
@@ -50,7 +57,7 @@ def addLabel(data):
             current_line_start = int(lineVals[1])
 
             if not (current_line_ref < data['ref'] or current_line_start < data['start']):
-                file_output.append(line_to_append + '\n')
+                file_output.append(line_to_append)
                 added = True
 
             file_output.append(current_line)
@@ -62,7 +69,7 @@ def addLabel(data):
 
     # this could be "runtime expensive" saving here instead of just sending label data to the model itself for
     # storage
-    with open(script_dir + rel_path, 'w') as f:
+    with open(abs_path, 'w') as f:
         f.writelines(file_output)
 
     return data
@@ -70,17 +77,16 @@ def addLabel(data):
 
 # Removes label from label file
 def removeLabel(data):
-
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
-
-    rel_path = '/data/' + data['name'] + '_Labels.bedGraph'
+    rel_path = 'data/' + data['name'] + '_Labels.bedGraph'
+    abs_path = os.path.join(script_dir, rel_path)
 
     output = []
 
     line_to_check = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end'])
 
     # read labels in besides one to delete
-    with open(script_dir + rel_path, 'r') as f:
+    with open(abs_path, 'r') as f:
 
         current_line = f.readline()
 
@@ -92,7 +98,7 @@ def removeLabel(data):
             current_line = f.readline()
 
     # write labels after one to delete is gone
-    with open(script_dir + rel_path, 'w') as f:
+    with open(abs_path, 'w') as f:
         f.writelines(output)
 
     return data
@@ -100,15 +106,15 @@ def removeLabel(data):
 
 def updateLabel(data):
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
-
-    rel_path = '/data/' + data['name'] + '_Labels.bedGraph'
+    rel_path = 'data/' + data['name'] + '_Labels.bedGraph'
+    abs_path = os.path.join(script_dir, rel_path)
 
     output = []
 
     line_to_check = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end'])
 
     # read labels in besides one to delete
-    with open(script_dir + rel_path, 'r') as f:
+    with open(abs_path, 'r') as f:
 
         current_line = f.readline()
 
@@ -122,7 +128,7 @@ def updateLabel(data):
             current_line = f.readline()
 
     # write labels after one to delete is gone
-    with open(script_dir + rel_path, 'w') as f:
+    with open(abs_path, 'w') as f:
         f.writelines(output)
 
     return data
@@ -134,11 +140,14 @@ def getLabels(path, refseq, start, end):
 
     rel_path = path + '_Labels.bedGraph'
 
+    if not os.path.exists(rel_path):
+        return output
+
     with open(rel_path, 'r') as f:
 
         current_line = f.readline()
 
-        while not current_line =='':
+        while not current_line == '':
             lineVals = current_line.split()
 
             lineStart = int(lineVals[1])
@@ -160,7 +169,7 @@ def getLabels(path, refseq, start, end):
     return output
 
 
-def addNewHub(data):
+def parseHub(data):
     hub = hubParse.parse(data)
     # Add a way to configure hub here somehow instead of just loading everything
     return UCSCtoPeakLearner.convert(hub)
