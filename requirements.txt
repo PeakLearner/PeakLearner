@@ -1,4 +1,5 @@
-From pip:
-    samtools
-    pybbi
-    python3-pands
+conda requirements:
+    numpy
+    pandas
+    requests
+    multiprocessing

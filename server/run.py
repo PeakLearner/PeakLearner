@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 
 
-def startOperation(remoteServer, useSlurm):
+def startOperation(remoteServer, useSlurm, location, modelOutput):
     testURL = 'https://rcdata.nau.edu/genomic-ml/PeakSegFPOP/labels/H3K4me3_TDH_ENCODE/samples/aorta/ENCFF115HTK/coverage.bigWig'
-    problemsLocation = 'commands/genomes/hg19/problems.bed'
+    problemsLocation = '%sproblems.bed' % location
 
     problems = pd.read_csv(problemsLocation, sep='\t')
     problems.columns = ['chrom', 'problemStart', 'problemEnd']
@@ -21,6 +21,12 @@ def startOperation(remoteServer, useSlurm):
             os.makedirs(outputPath)
         except OSError:
             return
+
+    def startModelThreads(row):
+        print(row)
+
+    threads = []
+
 
     def startBenchmark(args):
         chrom = args['chrom']
@@ -36,7 +42,7 @@ def startOperation(remoteServer, useSlurm):
 
         os.system('%s %s' % (command, commandArgs))
 
-    problems.apply(startBenchmark, axis=1)
+
 
 
 def main():
@@ -55,7 +61,8 @@ def main():
         config.add_section('slurm')
         config['remoteServer']['url'] = '127.0.0.1:5000'
         config['slurm']['useSlurm'] = 'true'
-
+        config['slurm']['filesLocation'] = ''
+        config['slurm']['modelOutput'] = ''
         save = True
 
     # If a section was missing, save that to the config
@@ -65,8 +72,10 @@ def main():
 
     peakLearnerWebServer = config['remoteServer']['url']
     useSlurm = config['slurm']['useSlurm'] == 'true'
+    location = config['slurm']['filesLocation']
+    modelOutput = config['slurm']['modelOutput']
 
-    startOperation(peakLearnerWebServer, useSlurm)
+    startOperation(peakLearnerWebServer, useSlurm, location, modelOutput)
 
 
 if __name__ == '__main__':
