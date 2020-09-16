@@ -60,6 +60,8 @@ def createConf(path, dataPath, refSeqPath, tracks):
                     else:
                         parent['children'].append(track)
 
+    # TODO: Add gene tracks here
+
     # Output track list into tracks.conf format
     for track in trackList:
         confFile.append('[tracks.%s]\n' % track['track'])

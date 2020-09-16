@@ -1,3 +1,4 @@
 From pip:
     samtools
     pybbi
+    python3-pands
