@@ -19,6 +19,7 @@ def commands(command):
         'add': addLabel,
         'remove': removeLabel,
         'update': updateLabel,
+        'getLabels': getLabels,
         'parseHub': parseHub,
     }
 
@@ -65,7 +66,6 @@ def addLabel(data):
 
         if not added:
             file_output.append(line_to_append)
-
 
     # this could be "runtime expensive" saving here instead of just sending label data to the model itself for
     # storage
@@ -134,11 +134,13 @@ def updateLabel(data):
     return data
 
 
-# gets labels in range
-def getLabels(path, refseq, start, end):
-    output = []
+def getLabels(data):
+    rel_path = 'data/' + data['name'] + '_Labels.bedGraph'
+    refseq = data['ref']
+    start = data['start']
+    end = data['end']
 
-    rel_path = path + '_Labels.bedGraph'
+    output = []
 
     if not os.path.exists(rel_path):
         return output

@@ -1,6 +1,6 @@
 import configparser
 import threading
-from api import httpServer, restAPI
+from api import httpServer
 
 
 configFile = 'PeakLearner.cfg'
@@ -33,17 +33,14 @@ httpArgs = (httpServerPort, httpServerPath)
 
 # start servers
 httpServer = threading.Thread(target=httpServer.httpserver, args=httpArgs)
-restServer = threading.Thread(target=restAPI.app.run)
 
 
 def startServer():
     httpServer.start()
-    restServer.start()
 
 
 def joinServer():
     httpServer.join()
-    restServer.join()
 
 
 try:

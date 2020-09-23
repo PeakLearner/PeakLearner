@@ -61,7 +61,7 @@ def main():
         config.add_section('slurm')
         config['remoteServer']['url'] = '127.0.0.1:5000'
         config['slurm']['useSlurm'] = 'true'
-        config['slurm']['filesLocation'] = ''
+        config['slurm']['filesLocation'] = 'data/'
         config['slurm']['modelOutput'] = ''
         save = True
 

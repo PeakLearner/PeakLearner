@@ -1,5 +1,5 @@
-conda requirements:
-    numpy
-    pandas
-    requests
-    multiprocessing
+flask
+flask_cors
+numpy
+pandas
+requests
