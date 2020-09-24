@@ -1,6 +1,7 @@
 import os
 import tempfile
 import requests
+import api.TrackHandler as th
 import gzip
 
 
@@ -9,7 +10,7 @@ def convert(data):
     # Will need to add a way to add additional folder depth for userID once authentication is added
     hub = data['hub']
     # Needs someway to configure this
-    dataPath = 'data/'
+    dataPath = th.dataPath
 
     path = hub + '/'
 
