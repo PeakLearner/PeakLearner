@@ -20,7 +20,7 @@ def getJob(data):
     output = {}
 
     # If ID field
-    if data['id']:
+    if data['id'] is not None:
         for job in jobs:
             if job['id'] == data['id']:
                 output = job
@@ -41,10 +41,10 @@ def getJob(data):
 
 def updateJob(data):
     global jobs, jobIds
-    if not data['id']:
+    if data['id'] is None:
         return
 
-    if not data['status']:
+    if data['status'] is None:
         return
 
     newJobList = []
@@ -61,7 +61,7 @@ def removeJob(data):
     global jobs
     global jobIds
 
-    if not data['id']:
+    if data['id'] is None:
         return
 
     newJobList = []
