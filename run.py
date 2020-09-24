@@ -1,6 +1,6 @@
 import configparser
 import threading
-from api import httpServer, TrackHandler
+from api import httpServer, TrackHandler, PLConfig
 
 
 configFile = 'PeakLearner.cfg'
@@ -44,10 +44,10 @@ if save:
 httpServerPort = int(config['http']['port'])
 httpServerPath = config['http']['path']
 
-TrackHandler.slurmUrl = config['slurm']['url']
-TrackHandler.slurmUser = config['slurm']['user']
-TrackHandler.slurmPass = config['slurm']['pass']
-TrackHandler.dataPath = config['data']['path']
+PLConfig.slurmUrl = config['slurm']['url']
+PLConfig.slurmUser = config['slurm']['user']
+PLConfig.slurmPass = config['slurm']['pass']
+PLConfig.dataPath = config['data']['path']
 
 httpArgs = (httpServerPort, httpServerPath)
 

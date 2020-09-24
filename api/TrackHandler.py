@@ -2,8 +2,7 @@ import os
 import sys
 import api.HubParse as hubParse
 import api.UCSCtoPeakLearner as UCSCtoPeakLearner
-
-slurmUrl = slurmUser = slurmPass = dataPath = ''
+import api.PLConfig as cfg
 
 
 def jsonInput(data):
@@ -32,7 +31,7 @@ def commands(command):
 # Adds Label to label file
 def addLabel(data):
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
-    rel_path = dataPath + data['name'] + '_Labels.bedGraph'
+    rel_path = cfg.dataPath + data['name'] + '_Labels.bedGraph'
     abs_path = os.path.join(script_dir, rel_path)
 
     file_output = []
@@ -81,7 +80,7 @@ def addLabel(data):
 # Removes label from label file
 def removeLabel(data):
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
-    rel_path = dataPath + data['name'] + '_Labels.bedGraph'
+    rel_path = cfg.dataPath + data['name'] + '_Labels.bedGraph'
     abs_path = os.path.join(script_dir, rel_path)
 
     output = []
@@ -109,7 +108,7 @@ def removeLabel(data):
 
 def updateLabel(data):
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))  # <-- absolute dir the script is in
-    rel_path = dataPath + data['name'] + '_Labels.bedGraph'
+    rel_path = cfg.dataPath + data['name'] + '_Labels.bedGraph'
     abs_path = os.path.join(script_dir, rel_path)
 
     output = []
@@ -138,7 +137,7 @@ def updateLabel(data):
 
 
 def getLabels(data):
-    rel_path = dataPath + data['name'] + '_Labels.bedGraph'
+    rel_path = cfg.dataPath + data['name'] + '_Labels.bedGraph'
     refseq = data['ref']
     start = data['start']
     end = data['end']
