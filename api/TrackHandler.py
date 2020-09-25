@@ -27,6 +27,7 @@ def commands(command):
         'getJob': jh.getJob,
         'updateJob': jh.updateJob,
         'removeJob': jh.removeJob,
+        'getAllJobs': jh.getAllJobs,
     }
 
     return command_list.get(command, None)

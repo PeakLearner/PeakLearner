@@ -117,6 +117,6 @@ class RangeRequestHandler(server.SimpleHTTPRequestHandler):
 def httpserver(port, path):
     os.chdir(path)
     handler = RangeRequestHandler
-    http_server = server.HTTPServer(('', port), handler)
+    http_server = server.ThreadingHTTPServer(('', port), handler)
     print("Started HTTP server on port", port)
     http_server.serve_forever()

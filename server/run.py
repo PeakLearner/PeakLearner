@@ -7,9 +7,18 @@ import configparser
 def startOperation(remoteServer, useSlurm, location, modelOutput):
     query = {'command': 'getJob', 'args': {}}
 
-    output = requests.post(remoteServer, json=query)
+    job = requests.post(remoteServer, json=query)
 
-    print(output)
+    if 'hub' in job:
+        newHub(job)
+
+
+def labelUpdate(data):
+    print("Label Update", data)
+
+
+def newHub(data):
+    print("New Hub", data)
 
 
 def main():

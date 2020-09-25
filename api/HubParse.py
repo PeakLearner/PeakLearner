@@ -5,16 +5,15 @@ import sys
 def parse(url):
     # TODO: Add error handling
     hubReq = requests.get(url, allow_redirects=True)
-    file = ""
     path = ""
     if url.find('/'):
         vals = url.rsplit('/', 1)
         path = vals[0]
-        file = vals[1]
 
     lines = hubReq.text.split('\n')
 
     hub = readLines(lines)
+
     if hub['genomesFile']:
         hub['genomesFile'] = loadGenome(hub, path)
 
@@ -30,7 +29,7 @@ def loadGenome(hub, path):
 
     output = readLines(lines)
 
-    if output['trackDb']:
+    if output['trackDb'] is not None:
         output['trackDb'] = loadTrackDb(output, path)
 
     return output

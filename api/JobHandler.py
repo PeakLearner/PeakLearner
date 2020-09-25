@@ -1,5 +1,12 @@
+import threading
+
+jobLock = threading.Lock()
 jobs = []
+
+historyLock = threading.Lock()
 jobHistory = []
+
+idLock = threading.Lock()
 jobIds = 0
 
 
@@ -7,9 +14,14 @@ jobIds = 0
 def addJob(data):
     global jobs, jobIds
 
+    idLock.acquire()
     job = {'status': 'new', 'id': jobIds, 'data': data}
     jobIds = jobIds + 1
+    idLock.release()
+
+    jobLock.acquire()
     jobs.append(job)
+    jobLock.release()
 
     #TODO: Call slurm server here
 
@@ -32,6 +44,9 @@ def getJob(data):
         for job in jobs:
             if job['status'] == 'new':
                 output = job
+                # If new job is fetched, that job is now being processed so update jobs to reflect that
+                updateJob({'id': job['id'], 'status': 'Processing'})
+                break
 
         if not output:
             return
@@ -49,12 +64,16 @@ def updateJob(data):
 
     newJobList = []
 
+    jobLock.acquire()
+
     for job in jobs:
         if job['id'] == data['id']:
             job['status'] = data['status']
         newJobList.append(job)
 
     jobs = newJobList
+
+    jobLock.release()
 
 
 def removeJob(data):
@@ -66,12 +85,22 @@ def removeJob(data):
 
     newJobList = []
 
+    jobLock.acquire()
+
     for job in jobs:
         # If job to delete, move it to history
         if job['id'] == data['id']:
+            historyLock.acquire()
             jobHistory.append(job)
+            historyLock.release()
         # If not job to delete, re add to job list
         else:
             newJobList.append(job)
 
     jobs = newJobList
+
+    jobLock.release()
+
+
+def getAllJobs(data):
+    return jobs
