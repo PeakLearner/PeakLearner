@@ -3,3 +3,4 @@
 /.idea/
 /server/commands/genomes/
 /server/PeakLearnerSlurm.cfg
+/server/data/

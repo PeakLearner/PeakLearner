@@ -3,18 +3,17 @@ import sys
 import tempfile
 import requests
 import gzip
-import numpy as np
 import pandas as pd
 
 
 def generateProblems(genome, path):
     ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/' + genome + '/database/'
 
-    genomePath = 'genomes/' + genome + '/'
+    genomePath = '%sgenomes/%s/' % (path, genome)
 
-    if not os.path.exists(path + genomePath):
+    if not os.path.exists(genomePath):
         try:
-            os.makedirs(path + genomePath)
+            os.makedirs(genomePath)
         except OSError:
             return
 
