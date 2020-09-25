@@ -28,7 +28,6 @@ def addJob(data):
 
 # Will get job either by ID or next new job
 def getJob(data):
-    global jobs, jobIds
     output = {}
 
     # If ID field
@@ -55,32 +54,35 @@ def getJob(data):
 
 
 def updateJob(data):
-    global jobs, jobIds
-    if 'id' in data:
+    global jobs
+
+    if 'id' not in data:
         return
 
-    if 'status' in data:
+    if 'status' not in data:
         return
 
     newJobList = []
+    added = False
 
     jobLock.acquire()
 
     for job in jobs:
         if job['id'] == data['id']:
             job['status'] = data['status']
+            added = True
         newJobList.append(job)
 
-    jobs = newJobList
+    if added:
+        jobs = newJobList
 
     jobLock.release()
 
 
 def removeJob(data):
     global jobs
-    global jobIds
 
-    if 'id' in data:
+    if 'id' not in data:
         return
 
     newJobList = []
