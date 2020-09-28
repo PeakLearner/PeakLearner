@@ -23,7 +23,7 @@ def commands(command):
         'update': updateLabel,
         'getLabels': getLabels,
         'parseHub': parseHub,
-        'getProblem': getProblem,
+        'getProblems': getProblems,
         'getModel': getModel,
         'getJob': jh.getJob,
         'updateJob': jh.updateJob,
@@ -164,17 +164,18 @@ def getLabels(data):
 
             lineEnd = int(lineVals[2])
 
-            # If a label covers the full query
-            coverQuery = ((lineStart < start) and (lineEnd > end))
+            if lineVals[0] == refseq:
 
-            # The rest of the possible label combinations
-            restQuery = ((lineStart >= start) or (lineEnd <= end))
+                lineIfStartIn = (lineStart >= start) and (lineStart <= end)
+                lineIfEndIn = (lineEnd >= start) and (lineEnd <= end)
+                wrap = (lineStart < start) and (lineEnd > end)
 
-            if lineVals[0] == refseq and (coverQuery or restQuery):
-                output.append({"ref": refseq, "start": lineStart,
-                               "end": lineEnd, "label": lineVals[3]})
+                if lineIfStartIn or lineIfEndIn or wrap:
+                    output.append({"ref": refseq, "start": lineStart,
+                                   "end": lineEnd, "label": lineVals[3]})
 
             current_line = f.readline()
+
 
     return output
 
@@ -186,9 +187,44 @@ def parseHub(data):
     return UCSCtoPeakLearner.convert(hub)
 
 
-def getProblem(data):
-    print(data)
+def getProblems(data):
+    if 'genome' not in data:
+        return
 
+    rel_path = '%sgenomes/%s/%s' % (cfg.dataPath, data['genome'], 'problems.bed')
+    refseq = data['ref']
+    start = data['start']
+    end = data['end']
+
+    output = []
+
+    if not os.path.exists(rel_path):
+        return output
+
+    with open(rel_path, 'r') as f:
+
+        current_line = f.readline()
+
+        while not current_line == '':
+            lineVals = current_line.split()
+
+            lineStart = int(lineVals[1])
+
+            lineEnd = int(lineVals[2])
+
+            if lineVals[0] == refseq:
+
+                lineIfStartIn = (lineStart >= start) and (lineStart <= end)
+                lineIfEndIn = (lineEnd >= start) and (lineEnd <= end)
+                wrap = (lineStart < start) and (lineEnd > end)
+
+                if lineIfStartIn or lineIfEndIn or wrap:
+                    output.append({"ref": refseq, "start": lineStart,
+                                   "end": lineEnd})
+
+            current_line = f.readline()
+
+    return output
 
 def getModel(data):
     print(data)

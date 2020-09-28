@@ -15,7 +15,7 @@ def addJob(data):
     global jobs, jobIds
 
     idLock.acquire()
-    job = {'status': 'new', 'id': jobIds, 'data': data}
+    job = {'status': 'New', 'id': jobIds, 'data': data}
     jobIds = jobIds + 1
     idLock.release()
 
@@ -41,7 +41,7 @@ def getJob(data):
             return
     else:
         for job in jobs:
-            if job['status'] == 'new':
+            if job['status'] == 'New':
                 output = job
                 # If new job is fetched, that job is now being processed so update jobs to reflect that
                 updateJob({'id': job['id'], 'status': 'Processing'})
@@ -64,6 +64,10 @@ def updateJob(data):
 
     newJobList = []
     added = False
+
+    if data['status'] == 'Done':
+        removeJob(data)
+        return
 
     jobLock.acquire()
 

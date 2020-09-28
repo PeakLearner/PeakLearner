@@ -57,6 +57,8 @@ def labelUpdate(data):
 
     problems = problemReq.json()
 
+    # TODO: Do something with the label being updated, and the problem area (contig) related to that label
+
     print("Label Update", problems, data)
 
 
