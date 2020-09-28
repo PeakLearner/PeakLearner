@@ -2,7 +2,6 @@ import os
 import sys
 import requests
 import configparser
-import commands.generateProblems as gp
 
 
 def startOperation(remoteServer, useSlurm, directory):
@@ -54,14 +53,11 @@ def newHub(data, directory):
     # If multiple genomes, this will not work
     genome = genomesFile['genome']
 
-    # TODO: Move generateProblems to web server side
-    gp.generateProblems(genome, directory)
-
     newHubConfig(newDataFolder, genome)
 
 
 def newHubConfig(directory, genome):
-    configFile = '%strack.cfg' % directory
+    configFile = '%shub.cfg' % directory
     config = configparser.ConfigParser()
     config.read(configFile)
     configSections = config.sections()

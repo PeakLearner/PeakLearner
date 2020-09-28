@@ -22,8 +22,9 @@ def commands(command):
         'remove': removeLabel,
         'update': updateLabel,
         'getLabels': getLabels,
-        'getModel': getModel,
         'parseHub': parseHub,
+        'getProblem': getProblem,
+        'getModel': getModel,
         'getJob': jh.getJob,
         'updateJob': jh.updateJob,
         'removeJob': jh.removeJob,
@@ -183,6 +184,10 @@ def parseHub(data):
     # Add a way to configure hub here somehow instead of just loading everything
     jh.addJob(hub)
     return UCSCtoPeakLearner.convert(hub)
+
+
+def getProblem(data):
+    print(data)
 
 
 def getModel(data):

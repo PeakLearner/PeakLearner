@@ -3,6 +3,7 @@ import tempfile
 import requests
 import gzip
 import api.PLConfig as cfg
+import api.generateProblems as gp
 
 
 # All this should probably be done asynchronously
@@ -28,12 +29,15 @@ def convert(data):
 
     refSeqPath = downloadGenome(genome, dataPath)
 
-    createConf(path, dataPath, refSeqPath, genomesFile['trackDb'])
+    # Generate problems for this genome
+    gp.generateProblems(genome, dataPath)
+
+    createTrackConf(path, dataPath, refSeqPath, genomesFile['trackDb'])
 
     return dataPath + hub
 
 
-def createConf(path, dataPath, refSeqPath, tracks):
+def createTrackConf(path, dataPath, refSeqPath, tracks):
     trackPath = dataPath + path + 'tracks.conf'
     confFile = []
     superList = []
@@ -90,13 +94,11 @@ def createConf(path, dataPath, refSeqPath, tracks):
                         ' "lineWidth": 5,' \
                         ' "noCache": true,' \
                         ' "query": {"name": "%s%s"}}\n' % (peaks['shortLabel'], path, track['track'])
-            confFile.append(outputStr)
+            # confFile.append(outputStr)
 
         confFile.append('storeClass=MultiBigWig/Store/SeqFeature/MultiBigWig\n')
         # Needs some way to specify default baseUrl
-        confFile.append('storeConf=json:{"storeClass": "PeakLearnerBackend/Store/SeqFeature/Features", '
-                        '"baseUrl": "http://127.0.0.1:5000", '
-                        '"name": "%s%s"}\n' % (path, track['track']))
+        confFile.append('storeConf=json:{"storeClass": "PeakLearnerBackend/Store/SeqFeature/Features"}\n')
         confFile.append('\n')
 
     with open(trackPath, 'w') as conf:
