@@ -1,10 +1,14 @@
 import os
 import sys
+import json
 import requests
 import configparser
 
+remoteServer = defaultDir = ''
+useSlurm = False
 
-def startOperation(remoteServer, useSlurm, directory):
+
+def startOperation():
     query = {'command': 'getJob', 'args': {}}
 
     # TODO: Add error handling
@@ -14,9 +18,9 @@ def startOperation(remoteServer, useSlurm, directory):
         return
 
     # Initialize Directory
-    if not os.path.exists(directory):
+    if not os.path.exists(defaultDir):
         try:
-            os.makedirs(directory)
+            os.makedirs(defaultDir)
         except OSError:
             return
 
@@ -29,18 +33,36 @@ def startOperation(remoteServer, useSlurm, directory):
         requests.post(remoteServer, json=reset)
 
         if 'hub' in jobData:
-            newHub(jobData, directory)
+            newHub(jobData)
         else:
-            labelUpdate(jobData, useSlurm, directory)
+            labelUpdate(jobData)
 
 
-def labelUpdate(data, useSlurm, directory):
-    print("Label Update", data)
+def labelUpdate(data):
+    configFile = '%shub.cfg' % defaultDir
+    config = configparser.ConfigParser()
+    config.read(configFile)
+
+    genome = config['general']['genome']
+
+    data['genome'] = genome
+
+    problemQuery = {'command': 'getProblems', 'args': data}
+
+    problemReq = requests.post(remoteServer, json=problemQuery)
+
+    # Maybe add some sort of feedback saying label is outside of a problem region
+    if problemReq.status_code == 204:
+        return
+
+    problems = problemReq.json()
+
+    print("Label Update", problems, data)
 
 
-def newHub(data, directory):
+def newHub(data):
 
-    newDataFolder = '%s%s/' % (directory, data['hub'])
+    newDataFolder = '%s%s/' % (defaultDir, data['hub'])
 
     if not os.path.exists(newDataFolder):
         try:
@@ -53,11 +75,11 @@ def newHub(data, directory):
     # If multiple genomes, this will not work
     genome = genomesFile['genome']
 
-    newHubConfig(newDataFolder, genome)
+    newHubConfig(genome)
 
 
-def newHubConfig(directory, genome):
-    configFile = '%shub.cfg' % directory
+def newHubConfig(genome):
+    configFile = '%shub.cfg' % defaultDir
     config = configparser.ConfigParser()
     config.read(configFile)
     configSections = config.sections()
@@ -76,6 +98,7 @@ def newHubConfig(directory, genome):
 
 
 def main():
+    global remoteServer, useSlurm, defaultDir
     configFile = 'PeakLearnerSlurm.cfg'
 
     config = configparser.ConfigParser()
@@ -103,11 +126,11 @@ def main():
         with open(configFile, 'w') as cfg:
             config.write(cfg)
 
-    peakLearnerWebserver = "%s:%s" % (config['remoteServer']['url'], config['remoteServer']['port'])
+    remoteServer = "%s:%s" % (config['remoteServer']['url'], config['remoteServer']['port'])
     useSlurm = config['slurm']['useSlurm'] == 'true'
-    directory = config['slurm']['filesLocation']
+    defaultDir = config['slurm']['filesLocation']
 
-    startOperation(peakLearnerWebserver, useSlurm, directory)
+    startOperation()
 
 
 if __name__ == '__main__':
