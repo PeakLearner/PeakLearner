@@ -58,8 +58,8 @@ def createNanProblems(args):
 
 
 def createProblems(group):
-    chrom = group['chrom'][0]
-    bases = group['bases'][0]
+    chrom = group['chrom'].iloc[0]
+    bases = group['bases'].iloc[0]
     problemStart = [0, ]
     gapEnd = group['gapEnd'].tolist()
     problemEnd = group['gapStart'].tolist()
