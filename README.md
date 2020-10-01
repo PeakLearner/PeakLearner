@@ -28,6 +28,9 @@ UCSCToPeakLearner: A custom dropdown menu which can take a hub.txt file, parse, 
 
 Interactive Labeling: A user can create, modify, and delete labels for a given track. These labels are then stored on the webserver
 
+## Contributing
+Follow the [Contributing Guide](CONTRIBUTING.md)!
+
 
 # References
 
