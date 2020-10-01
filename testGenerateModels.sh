@@ -1,1 +1,0 @@
-Rscript api/GenerateModels.R testdata/interactive_aorta_ENCFF115HTKCoverage.bigWig 5 0 10

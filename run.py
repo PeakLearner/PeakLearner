@@ -1,6 +1,6 @@
 import configparser
 import threading
-from api import httpServer, restAPI
+from api import httpServer, TrackHandler
 
 
 configFile = 'PeakLearner.cfg'
@@ -20,6 +20,21 @@ if 'http' not in configSections:
 
     save = True
 
+if 'data' not in configSections:
+    config.add_section('data')
+    config['data']['path'] = 'data/'
+
+    save = True
+
+if 'slurm' not in configSections:
+    config.add_section('slurm')
+    config['slurm']['url'] = 'slurm.url'
+    config['slurm']['user'] = 'user'
+    # TODO: use tokens, passwords are insecure
+    config['slurm']['pass'] = 'pass'
+
+    save = True
+
 # If a section was missing, save that to the config
 if save:
     with open(configFile, 'w') as cfg:
@@ -29,21 +44,23 @@ if save:
 httpServerPort = int(config['http']['port'])
 httpServerPath = config['http']['path']
 
+TrackHandler.slurmUrl = config['slurm']['url']
+TrackHandler.slurmUser = config['slurm']['user']
+TrackHandler.slurmPass = config['slurm']['pass']
+TrackHandler.dataPath = config['data']['path']
+
 httpArgs = (httpServerPort, httpServerPath)
 
 # start servers
 httpServer = threading.Thread(target=httpServer.httpserver, args=httpArgs)
-restServer = threading.Thread(target=restAPI.app.run)
 
 
 def startServer():
     httpServer.start()
-    restServer.start()
 
 
 def joinServer():
     httpServer.join()
-    restServer.join()
 
 
 try:

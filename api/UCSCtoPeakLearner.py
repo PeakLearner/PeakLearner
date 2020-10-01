@@ -1,6 +1,7 @@
 import os
 import tempfile
 import requests
+import api.TrackHandler as th
 import gzip
 
 
@@ -9,7 +10,7 @@ def convert(data):
     # Will need to add a way to add additional folder depth for userID once authentication is added
     hub = data['hub']
     # Needs someway to configure this
-    dataPath = 'data/'
+    dataPath = th.dataPath
 
     path = hub + '/'
 
@@ -59,6 +60,8 @@ def createConf(path, dataPath, refSeqPath, tracks):
                         parent['children'].append(track)
                     else:
                         parent['children'].append(track)
+
+    # TODO: Add gene tracks here
 
     # Output track list into tracks.conf format
     for track in trackList:

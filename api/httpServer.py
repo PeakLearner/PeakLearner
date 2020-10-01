@@ -3,7 +3,6 @@ import os
 import re
 import json
 import api.TrackHandler as TrackHandler
-import threading
 
 #https://github.com/danvk/RangeHTTPServer
 #see link above for original code which we copied here to properly extend
@@ -54,6 +53,7 @@ class RangeRequestHandler(server.SimpleHTTPRequestHandler):
 
         # Mirroring SimpleHTTPServer.py here
         path = self.translate_path(self.path)
+
         f = None
         ctype = self.guess_type(path)
         try:
@@ -93,7 +93,7 @@ class RangeRequestHandler(server.SimpleHTTPRequestHandler):
         copy_byte_range(source, outputfile, start, stop)
 
     def do_POST(self):
-        # first parse out the infomation we got from the post
+        # first parse out the information we got from the post
         content_length = int(self.headers['Content-Length'])
         body = self.rfile.read(content_length)
         # need to decode as the body is a byte string
@@ -103,6 +103,8 @@ class RangeRequestHandler(server.SimpleHTTPRequestHandler):
         # Sends data to TrackHandler
         output = TrackHandler.jsonInput(json_val)
 
+        print("URL:", TrackHandler.slurmUrl)
+
         # TODO: Add better error handling
         if output:
             self.send_response(200)
@@ -110,7 +112,7 @@ class RangeRequestHandler(server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(output).encode('utf8'))
         else:
-            self.send_response(400, 'No Output')
+            self.send_response(204)
             self.end_headers()
 
 

@@ -1,3 +1,5 @@
 /PeakLearner.cfg
 /api/__pycache__/
 /.idea/
+/server/commands/genomes/
+/server/PeakLearnerSlurm.cfg
