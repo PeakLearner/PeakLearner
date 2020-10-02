@@ -50,6 +50,8 @@ def generateProblems(genome, path):
 
     output.to_csv(outputFile, sep='\t', index=False, header=False)
 
+    return outputFile
+
 
 def createNanProblems(args):
     data = {'chrom': args['chrom'], 'problemStart': [0], 'problemEnd': args['bases']}

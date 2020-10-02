@@ -10,7 +10,7 @@ useSlurm = False
 
 
 def startOperation():
-    # TODO: Multiple jobs per run
+    # TODO: Multiple jobs per run (If taking the route of cron jobs)
     query = {'command': 'getJob', 'args': {}}
 
     # TODO: Add error handling

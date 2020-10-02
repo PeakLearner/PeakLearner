@@ -2,6 +2,7 @@ import os
 import tempfile
 import requests
 import gzip
+import json
 import api.PLConfig as cfg
 import api.generateProblems as gp
 
@@ -13,12 +14,12 @@ def convert(data):
     # Needs someway to configure this
     dataPath = cfg.dataPath
 
-    path = hub + '/'
+    hubPath = '%s%s/' % (dataPath, hub)
 
     # Initialize Directory
-    if not os.path.exists(dataPath + path):
+    if not os.path.exists(hubPath):
         try:
-            os.makedirs(dataPath + path)
+            os.makedirs(hubPath)
         except OSError:
             return
 
@@ -27,24 +28,36 @@ def convert(data):
     # This will need to be updated if there are multiple genomes in file
     genome = genomesFile['genome']
 
-    refSeqPath = downloadGenome(genome, dataPath)
+    includes = []
+
+    genePaths = downloadGeneTracks(genome, dataPath)
+
+    includes.extend(genePaths)
 
     # Generate problems for this genome
-    gp.generateProblems(genome, dataPath)
+    problems = gp.generateProblems(genome, dataPath)
 
-    createTrackConf(path, dataPath, refSeqPath, genomesFile['trackDb'])
+    problemPath = generateProblemTrack(problems)
 
-    return dataPath + hub
+    includes.append(problemPath)
+
+    refSeqPath = downloadRefSeq(genome, dataPath, includes)
+
+    createTrackListJson(hubPath, refSeqPath, genomesFile['trackDb'])
+
+    # Removing last character as having the / at the end breaks trackList includes
+    return hubPath[:-1]
 
 
-def createTrackConf(path, dataPath, refSeqPath, tracks):
-    trackPath = dataPath + path + 'tracks.conf'
-    confFile = []
+def createTrackListJson(path, refSeqPath, tracks):
+    trackPath = '%strackList.json' % path
+
+    config = {'include': ['../%s' % refSeqPath], 'tracks': []}
+
     superList = []
     trackList = []
 
-    confFile.append('[GENERAL]\n')
-    confFile.append('refSeqs=../%s\n\n' % refSeqPath)
+    # TODO: Add genes
 
     # Load the track list into something which can be converted
     for track in tracks:
@@ -65,50 +78,44 @@ def createTrackConf(path, dataPath, refSeqPath, tracks):
                     else:
                         parent['children'].append(track)
 
-    # TODO: Add gene tracks here
-
-    # Output track list into tracks.conf format
     for track in trackList:
-        confFile.append('[tracks.%s]\n' % track['track'])
-        confFile.append('key=%s\n' % track['shortLabel'])
-        confFile.append('type=InteractivePeakAnnotator/View/Track/MultiXYPlot\n')
+        trackFile = {'label': track['track'], 'key': track['shortLabel'],
+                     'type': 'InteractivePeakAnnotator/View/Track/MultiXYPlot',
+                     'urlTemplates': []}
 
-        coverage = peaks = None
+        categories = 'Data'
+        for category in track['longLabel'].split(' | ')[:-1]:
+            categories = categories + ' / %s' % category
+
+        trackFile['category'] = categories
+
+        coverage = None
         for child in track['children']:
             file = child['bigDataUrl'].rsplit('/', 1)
             if 'coverage' in file[1]:
                 coverage = child
-            else:
-                peaks = child
 
+        # Add Data Url to config
         if coverage is not None:
-            confFile.append(
-                'urlTemplates+=json:{"url":"%s", "name":"%s", "color": "#235"}\n'
-                % (coverage['bigDataUrl'], coverage['shortLabel']))
-        if peaks is not None:
-            # Probably needs a way to configure baseUrl
-            outputStr = 'urlTemplates+=json:{"storeClass": "JBrowse/Store/SeqFeature/REST",' \
-                        ' "baseUrl":"http://127.0.0.1:5000",' \
-                        ' "name": "%s",' \
-                        ' "color": "red",' \
-                        ' "lineWidth": 5,' \
-                        ' "noCache": true,' \
-                        ' "query": {"name": "%s%s"}}\n' % (peaks['shortLabel'], path, track['track'])
-            # confFile.append(outputStr)
+            trackFile['urlTemplates'].append(
+                {"url": coverage['bigDataUrl'], "name": coverage['shortLabel'], "color": "#235"}
+            )
 
-        confFile.append('storeClass=MultiBigWig/Store/SeqFeature/MultiBigWig\n')
-        # Needs some way to specify default baseUrl
-        confFile.append('storeConf=json:{"storeClass": "PeakLearnerBackend/Store/SeqFeature/Features"}\n')
-        confFile.append('\n')
+        trackFile['storeClass'] = 'MultiBigWig/Store/SeqFeature/MultiBigWig'
+        trackFile['storeConf'] = {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Features'}
+
+        config['tracks'].append(trackFile)
 
     with open(trackPath, 'w') as conf:
-        conf.writelines(confFile)
+        json.dump(config, conf)
 
 
-def downloadGenome(genome, path):
+def downloadRefSeq(genome, path, includes):
     ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/'
 
     genomePath = 'genomes/' + genome + '/'
+
+    includes = formatIncludes(includes, path + genomePath)
 
     if not os.path.exists(path + genomePath):
         try:
@@ -140,4 +147,109 @@ def downloadGenome(genome, path):
         # Normal Fasta file no longer needed
         os.remove(path + genomeFaPath)
 
-    return genomeFaiPath
+    genomeConfigPath = '%strackList.json' % genomePath
+
+    if not os.path.exists(path + genomeConfigPath):
+        with open(path + genomeConfigPath, 'w') as genomeCfg:
+            genomeFile = genomeFaiPath.rsplit('/', 1)[1]
+            output = {'refSeqs': genomeFile, 'include': includes}
+            json.dump(output, genomeCfg)
+
+    return genomeConfigPath
+
+
+def downloadGeneTracks(genome, path):
+    ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/'
+
+    genomePath = '%sgenomes/%s/' % (path, genome)
+
+    genesPath = '%sgenes/' % genomePath
+
+    if not os.path.exists(genesPath):
+        try:
+            os.makedirs(genesPath)
+        except OSError:
+            return
+
+    genesUrl = "%s%s/database/" % (ucscUrl, genome)
+
+    genes = ['ensGene', 'knownGene', 'ncbiRefSeq', 'refGene', 'ccdsGene']
+
+    getDbFiles('trackDb', genesUrl, genesPath)
+
+    outputPath = []
+
+    for gene in genes:
+        getDbFiles(gene, genesUrl, genesPath)
+
+        geneTrackPath = '%s%s/' % (genomePath, gene)
+
+        if not os.path.exists(geneTrackPath):
+            print("Assembling gene", gene)
+            try:
+                os.makedirs(geneTrackPath)
+            except OSError:
+                return
+
+            generateTrack = "bin/ucsc-to-json.pl -q --in %s --out %s --track %s" % (genesPath, geneTrackPath, gene)
+
+            # This will use Jbrowse perl files to generate a track for that specific gene
+            os.system(generateTrack)
+
+            addGeneCategory(geneTrackPath, 'Reference / Genes')
+
+            print("Gene assembled", gene)
+
+        outputPath.append('%strackList.json' % geneTrackPath)
+
+    return outputPath
+
+
+def generateProblemTrack(path):
+    trackFolder = '%s/' % path.rsplit('.', 1)[0]
+
+    if not os.path.exists(trackFolder):
+        try:
+            os.makedirs(trackFolder)
+        except OSError:
+            return
+
+        command = 'bin/flatfile-to-json.pl --bed %s --out %s --trackLabel Problems' % (path, trackFolder)
+
+        # Will generate a jbrowse track using the problems.bed flatfile
+        os.system(command)
+
+        addGeneCategory(trackFolder, 'Reference')
+
+    return '%strackList.json' % trackFolder
+
+
+def getDbFiles(name, url, output):
+    files = ['%s.txt.gz' % name, '%s.sql' % name]
+
+    for file in files:
+        if not os.path.exists(output + file):
+            with requests.get(url + file, allow_redirects=True) as r:
+                open(output + file, 'w+b').write(r.content)
+
+
+def addGeneCategory(genePath, label):
+    confFile = '%strackList.json' % genePath
+
+    conf = json.loads(open(confFile, 'r').read())
+
+    # Only one track in these confs
+    if 'category' not in conf['tracks'][0]:
+        conf['tracks'][0]['category'] = label
+
+    with open(confFile, 'w') as newConfFile:
+        json.dump(conf, newConfFile)
+
+
+def formatIncludes(includes, prePath):
+    output = []
+
+    for include in includes:
+        output.append(include.replace(prePath, ''))
+
+    return output

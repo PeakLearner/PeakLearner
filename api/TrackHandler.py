@@ -1,5 +1,4 @@
 import os
-import sys
 import api.HubParse as hubParse
 import api.UCSCtoPeakLearner as UCSCtoPeakLearner
 import api.PLConfig as cfg
