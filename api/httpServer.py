@@ -103,8 +103,6 @@ class RangeRequestHandler(server.SimpleHTTPRequestHandler):
         # Sends data to TrackHandler
         output = TrackHandler.jsonInput(json_val)
 
-        print("URL:", TrackHandler.slurmUrl)
-
         # TODO: Add better error handling
         if output:
             self.send_response(200)
@@ -116,10 +114,9 @@ class RangeRequestHandler(server.SimpleHTTPRequestHandler):
             self.end_headers()
 
 
-
 def httpserver(port, path):
     os.chdir(path)
     handler = RangeRequestHandler
-    http_server = server.HTTPServer(('', port), handler)
+    http_server = server.ThreadingHTTPServer(('', port), handler)
     print("Started HTTP server on port", port)
     http_server.serve_forever()
