@@ -3,6 +3,7 @@ import api.HubParse as hubParse
 import api.UCSCtoPeakLearner as UCSCtoPeakLearner
 import api.PLConfig as cfg
 import api.JobHandler as jh
+import api.ModelHandler as mh
 
 
 def jsonInput(data):
@@ -23,11 +24,11 @@ def commands(command):
         'getLabels': getLabels,
         'parseHub': parseHub,
         'getProblems': getProblems,
-        'getModel': getModel,
         'getJob': jh.getJob,
         'updateJob': jh.updateJob,
         'removeJob': jh.removeJob,
         'getAllJobs': jh.getAllJobs,
+        'getModel': mh.getModel,
     }
 
     return command_list.get(command, None)
@@ -77,8 +78,6 @@ def addLabel(data):
     with open(rel_path, 'w') as f:
         f.writelines(file_output)
 
-    jh.addJob(data)
-
     return data
 
 
@@ -105,8 +104,6 @@ def removeLabel(data):
     # write labels after one to delete is gone
     with open(rel_path, 'w') as f:
         f.writelines(output)
-
-    jh.addJob(data)
 
     return data
 
@@ -135,8 +132,6 @@ def updateLabel(data):
     # write labels after one to delete is gone
     with open(rel_path, 'w') as f:
         f.writelines(output)
-
-    jh.addJob(data)
 
     return data
 
@@ -174,7 +169,6 @@ def getLabels(data):
                                    "end": lineEnd, "label": lineVals[3]})
 
             current_line = f.readline()
-
 
     return output
 
@@ -224,7 +218,3 @@ def getProblems(data):
             current_line = f.readline()
 
     return output
-
-
-def getModel(data):
-    print(data)

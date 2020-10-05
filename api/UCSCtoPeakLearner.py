@@ -43,21 +43,20 @@ def convert(data):
 
     refSeqPath = downloadRefSeq(genome, dataPath, includes)
 
-    createTrackListJson(hubPath, refSeqPath, genomesFile['trackDb'])
+    createTrackListJson(hubPath, hub, refSeqPath, genomesFile['trackDb'])
 
     # Removing last character as having the / at the end breaks trackList includes
     return hubPath[:-1]
 
 
-def createTrackListJson(path, refSeqPath, tracks):
+def createTrackListJson(path, hub, refSeqPath, tracks):
     trackPath = '%strackList.json' % path
 
+    # Include here provides the required assembly, as well as generated genes
     config = {'include': ['../%s' % refSeqPath], 'tracks': []}
 
     superList = []
     trackList = []
-
-    # TODO: Add genes
 
     # Load the track list into something which can be converted
     for track in tracks:
@@ -79,7 +78,7 @@ def createTrackListJson(path, refSeqPath, tracks):
                         parent['children'].append(track)
 
     for track in trackList:
-        trackFile = {'label': track['track'], 'key': track['shortLabel'],
+        trackFile = {'label': "%s/%s" % (hub, track['track']), 'key': track['shortLabel'],
                      'type': 'InteractivePeakAnnotator/View/Track/MultiXYPlot',
                      'urlTemplates': []}
 
@@ -89,20 +88,28 @@ def createTrackListJson(path, refSeqPath, tracks):
 
         trackFile['category'] = categories
 
-        coverage = None
+        # Determine which track is the coverage data
+        coverage = peaks = None
         for child in track['children']:
             file = child['bigDataUrl'].rsplit('/', 1)
             if 'coverage' in file[1]:
                 coverage = child
+            if 'joint_peaks' in file[1]:
+                peaks = child
 
         # Add Data Url to config
         if coverage is not None:
             trackFile['urlTemplates'].append(
-                {"url": coverage['bigDataUrl'], "name": coverage['shortLabel'], "color": "#235"}
+                {'url': coverage['bigDataUrl'], 'name': '%s/%s' % (hub, coverage['shortLabel']), 'color': '#235'}
+            )
+
+        if peaks is not None:
+            trackFile['urlTemplates'].append(
+                {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Model', 'name': '%s/%s' % (hub, peaks['shortLabel'])}
             )
 
         trackFile['storeClass'] = 'MultiBigWig/Store/SeqFeature/MultiBigWig'
-        trackFile['storeConf'] = {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Features'}
+        trackFile['storeConf'] = {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Labels'}
 
         config['tracks'].append(trackFile)
 
