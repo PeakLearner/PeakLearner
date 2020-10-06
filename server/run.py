@@ -3,7 +3,6 @@ import sys
 import json
 import requests
 import configparser
-import commands.GenerateModels as gm
 
 remoteServer = remoteDataDir = defaultDir = ''
 useSlurm = False
@@ -40,7 +39,7 @@ def startOperation():
         if 'hub' in jobData:
             newHub(jobData)
         else:
-            labelUpdate(jobData)
+            newModel(jobData)
 
 
 def checkForBigWigToBedGraph():
@@ -64,28 +63,8 @@ def checkForBigWigToBedGraph():
             open(bigWigScript, 'wb').write(r.content)
 
 
-def labelUpdate(data):
-    configFile = '%shub.cfg' % defaultDir
-    config = configparser.ConfigParser()
-    config.read(configFile)
-
-    genome = config['general']['genome']
-
-    data['genome'] = genome
-
-    problemQuery = {'command': 'getProblems', 'args': data}
-
-    problemReq = requests.post(remoteServer, json=problemQuery)
-
-    # Maybe add some sort of feedback saying label is outside of a problem region
-    if problemReq.status_code == 204:
-        return
-
-    problems = problemReq.json()
-
-    # TODO: Do something with the label being updated, and the problem area (contig) related to that label
-
-    print("Label Update", problems, data)
+def newModel(data):
+    print(data)
 
 
 def newHub(data):
@@ -98,107 +77,45 @@ def newHub(data):
         except OSError:
             return
 
-    # Hub specific config, don't need this to be globally
-    config = newHubConfig(data)
+    hubInfoArgs = {'command': 'getHubInfo', 'args': {'hub': data['hub']}}
 
-    problems = saveProblems(config)
+    hubRequest = requests.post(remoteServer, json=hubInfoArgs)
 
-    # Start model generation for each track
-    for track in config['tracks']:
-        coverage_url = config['tracks'][track]
-
-        trackFolder = '%s%s/' % (newDataFolder, track)
-
-        preprocessTrackModels(coverage_url, problems, trackFolder)
-
-
-def preprocessTrackModels(coverage, problems, output):
-
-    # TODO: thread this
-    if not useSlurm:
-        gm.generateModels(coverage, problems, output)
-    else:
-        # TODO: Convert this to an actual slurm job
-        # https://vsoch.github.io/lessons/sherlock-jobs/#python-submission
-        os.system('python3 commands/GenerateModels.py %s %s %s' % (coverage, problems, output))
-
-
-def saveProblems(config):
-    genome = config['general']['genome']
-
-    rel_path = 'genomes/%s/problems.bed' % genome
-
-    url = '%s/%s%s' % (remoteServer, remoteDataDir, rel_path)
-
-    localPath = '%s%s' % (defaultDir, rel_path)
-
-    if os.path.exists(localPath):
-        return localPath
-
-    file = requests.get(url, allow_redirects=True)
-
-    if file.status_code == 204:
-        print("No Genomes File with that Url")
+    if not hubRequest.status_code == 200:
         return
 
-    open(localPath, 'wb').write(file.content)
+    hub = hubRequest.json()
 
-    return localPath
+    problemsPath = getProblems(hub)
+
+    # TODO: Preliminary Model Generation
 
 
-def newHubConfig(data):
-    genomesFile = data['genomesFile']
-    genome = genomesFile['genome']
-    tracks = genomesFile['trackDb']
-    configFile = '%s%s/hub.cfg' % (defaultDir, data['hub'])
-    config = configparser.ConfigParser()
-    # Allows for uppercase keys
-    config.optionxform = str
-    config.read(configFile)
-    configSections = config.sections()
+def getProblems(hub):
 
-    save = False
+    genomePath = hub['genomePath']
 
-    if 'general' not in configSections:
-        config.add_section('general')
-        config['general']['genome'] = genome
+    genome = genomePath.split('/', 1)[-1]
 
-        save = True
+    genomeDataPath = '%s%s/' % (defaultDir, genome)
 
-    if 'tracks' not in configSections:
-        config.add_section('tracks')
+    if not os.path.exists(genomeDataPath):
+        try:
+            os.makedirs(genomeDataPath)
+        except OSError:
+            return
 
-        superList = []
-        trackList = []
+    problemsFilePath = '%sproblems.bed' % genomeDataPath
 
-        # Load the track list into something which can be converted
-        for track in tracks:
-            # Load super tracks so we can eliminate them
-            if 'superTrack' in track:
-                superList.append(track)
-                continue
+    problemsUrl = '%s/%s/problems.bed' % (remoteServer, genomePath)
 
-            # Python is pass by reference, so trackDb from JobHandler on web server already has children
-            if 'parent' in track:
-                for super in superList:
-                    if super['track'] == track['parent']:
-                        trackList.append(track)
-                        continue
+    # Download problems file for storage
+    if not os.path.exists(problemsFilePath):
+        with requests.get(problemsUrl) as r:
+            with open(problemsFilePath, 'wb') as f:
+                f.write(r.content)
 
-        for track in trackList:
-            name = track['track']
-            for child in track['children']:
-                file = child['bigDataUrl']
-                if 'coverage' in file:
-                    config['tracks'][name] = file
-
-        save = True
-
-    if save:
-        with open(configFile, 'w') as cfg:
-            config.write(cfg)
-
-    return config
+    return problemsFilePath
 
 
 def main():

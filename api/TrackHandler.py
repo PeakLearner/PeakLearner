@@ -1,4 +1,5 @@
 import os
+import json
 import api.HubParse as hubParse
 import api.UCSCtoPeakLearner as UCSCtoPeakLearner
 import api.PLConfig as cfg
@@ -24,6 +25,8 @@ def commands(command):
         'getLabels': getLabels,
         'parseHub': parseHub,
         'getProblems': getProblems,
+        'getGenome': getGenome,
+        'getHubInfo': getHubInfo,
         'getJob': jh.getJob,
         'updateJob': jh.updateJob,
         'removeJob': jh.removeJob,
@@ -78,6 +81,8 @@ def addLabel(data):
     with open(rel_path, 'w') as f:
         f.writelines(file_output)
 
+    mh.updateLabelErrors(data)
+
     return data
 
 
@@ -104,6 +109,8 @@ def removeLabel(data):
     # write labels after one to delete is gone
     with open(rel_path, 'w') as f:
         f.writelines(output)
+
+    mh.updateLabelErrors(data)
 
     return data
 
@@ -132,6 +139,8 @@ def updateLabel(data):
     # write labels after one to delete is gone
     with open(rel_path, 'w') as f:
         f.writelines(output)
+
+    mh.updateLabelErrors(data)
 
     return data
 
@@ -176,7 +185,7 @@ def getLabels(data):
 def parseHub(data):
     hub = hubParse.parse(data)
     # Add a way to configure hub here somehow instead of just loading everything
-    jh.addJob(hub)
+    jh.addJob({'hub': hub['hub']})
     return UCSCtoPeakLearner.convert(hub)
 
 
@@ -218,3 +227,47 @@ def getProblems(data):
             current_line = f.readline()
 
     return output
+
+
+def getGenome(data):
+    if 'hub' not in data:
+        return
+
+    dirs = data['hub'].split('/')
+
+    hub = dirs[0]
+
+    trackListPath = '%s/%s/trackList.json' % (cfg.dataPath, hub)
+
+    with open(trackListPath, 'r') as f:
+        trackList = json.load(f)
+
+        genomePath = trackList['include'][0].split('/')
+
+        genome = genomePath[-2]
+
+        return genome
+
+
+def getHubInfo(data):
+    if 'hub' not in data:
+        return
+
+    genome = getGenome(data)
+
+    genomePath = '%sgenomes/%s' % (cfg.dataPath, genome)
+
+    trackListPath = '%s%s/trackList.json' % (cfg.dataPath, data['hub'])
+
+    output = {'hub': data['hub'], 'genomePath': genomePath, 'tracks': []}
+
+    with open(trackListPath, 'r') as f:
+        trackList = json.load(f)
+
+        for track in trackList['tracks']:
+            trackLabel = track['label']
+            url = track['urlTemplates'][0]['url']
+
+            output['tracks'].append({'name': trackLabel, 'coverage': url})
+
+        return output
