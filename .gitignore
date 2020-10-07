@@ -5,3 +5,4 @@
 /server/PeakLearnerSlurm.cfg
 /server/data/
 /server/__pycache__/
+/server/commands/__pycache__/
