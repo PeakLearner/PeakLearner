@@ -43,6 +43,10 @@ def generateProblems(genome, path):
     frames = [nonNanOutput, nanOutput]
 
     output = pd.concat(frames, sort=False)
+
+    # Removes all entries with an _, not needed because these are genome "Fixes"
+    output = output[~output['chrom'].str.contains('_')]
+
     output['problemStart'] = output['problemStart'].astype(int)
     output['problemEnd'] = output['problemEnd'].astype(int)
 

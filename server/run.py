@@ -1,8 +1,8 @@
 import os
-import sys
-import json
 import requests
 import configparser
+import threading
+import commands.GenerateModels as gm
 
 remoteServer = remoteDataDir = defaultDir = ''
 useSlurm = False
@@ -26,8 +26,6 @@ def startOperation():
         except OSError:
             return
 
-    checkForBigWigToBedGraph()
-
     if job.status_code == 200:
         jobInfo = job.json()
         jobData = jobInfo['data']
@@ -40,27 +38,6 @@ def startOperation():
             newHub(jobData)
         else:
             newModel(jobData)
-
-
-def checkForBigWigToBedGraph():
-    # Initialize Directory
-    scriptDir = 'bin/'
-
-    if not os.path.exists(scriptDir):
-        try:
-            os.makedirs(scriptDir)
-        except OSError:
-            return
-
-    bigWigScript = '%s%s' % (scriptDir, 'bigWigToBedGraph')
-
-    if not os.path.exists(bigWigScript):
-        bigWigToBedGraphUrl = 'http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/bigWigToBedGraph'
-
-        r = requests.get(bigWigToBedGraphUrl, allow_redirects=True)
-
-        if r.status_code == 200:
-            open(bigWigScript, 'wb').write(r.content)
 
 
 def newModel(data):
@@ -88,7 +65,14 @@ def newHub(data):
 
     problemsPath = getProblems(hub)
 
-    # TODO: Preliminary Model Generation
+    for track in hub['tracks']:
+        trackUrl = track['coverage']
+        outputDir = '%s%s/' % (defaultDir, track['name'])
+
+        # Call to generateModels will need to be done in a slurm fashion
+        gmArgs = (trackUrl, problemsPath, outputDir)
+        threading.Thread(target=gm.generateModels, args=gmArgs)
+
 
 
 def getProblems(hub):
