@@ -67,7 +67,7 @@ def generateModels(coverageUrl, problemsPath, outputPath):
                 if sc.multithread:
                     modelThread = threading.Thread(target=os.system, args=(modelCommand,))
                     modelThread.start()
-                    problemThreads.append([problemCoveragePath, modelThread])
+                    problemThreads.append([problemCoveragePath, modelThread])   
                 else:
                     os.system(modelCommand)
 

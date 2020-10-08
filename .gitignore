@@ -6,3 +6,4 @@
 /server/data/
 /server/__pycache__/
 /server/commands/__pycache__/
+/server/utils/__pycache__/
