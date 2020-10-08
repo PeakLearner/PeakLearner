@@ -3,26 +3,27 @@ import requests
 import configparser
 import threading
 import commands.GenerateModels as gm
-
-remoteServer = remoteDataDir = defaultDir = ''
-useSlurm = False
+import utils.SlurmConfig as sc
 
 
 def startOperation():
+    if sc.useSlurm:
+        return
+
     # TODO: Multiple jobs per run (If taking the route of cron jobs)
     query = {'command': 'getJob', 'args': {}}
 
     # TODO: Add error handling
-    job = requests.post(remoteServer, json=query)
+    job = requests.post(sc.remoteServer, json=query)
 
     # No jobs available
     if job.status_code == 204:
         return
 
     # Initialize Directory
-    if not os.path.exists(defaultDir):
+    if not os.path.exists(sc.defaultDir):
         try:
-            os.makedirs(defaultDir)
+            os.makedirs(sc.defaultDir)
         except OSError:
             return
 
@@ -32,7 +33,7 @@ def startOperation():
 
         # Reset just loaded val, testing purposes only
         reset = {'command': 'updateJob', 'args': {'id': jobInfo['id'], 'status': 'New'}}
-        requests.post(remoteServer, json=reset)
+        requests.post(sc.remoteServer, json=reset)
 
         if 'hub' in jobData:
             newHub(jobData)
@@ -46,7 +47,7 @@ def newModel(data):
 
 def newHub(data):
 
-    newDataFolder = '%s%s/' % (defaultDir, data['hub'])
+    newDataFolder = '%s%s/' % (sc.defaultDir, data['hub'])
 
     if not os.path.exists(newDataFolder):
         try:
@@ -56,7 +57,7 @@ def newHub(data):
 
     hubInfoArgs = {'command': 'getHubInfo', 'args': {'hub': data['hub']}}
 
-    hubRequest = requests.post(remoteServer, json=hubInfoArgs)
+    hubRequest = requests.post(sc.remoteServer, json=hubInfoArgs)
 
     if not hubRequest.status_code == 200:
         return
@@ -67,12 +68,19 @@ def newHub(data):
 
     for track in hub['tracks']:
         trackUrl = track['coverage']
-        outputDir = '%s%s/' % (defaultDir, track['name'])
+        outputDir = '%s%s/' % (sc.defaultDir, track['name'])
 
         # Call to generateModels will need to be done in a slurm fashion
-        gmArgs = (trackUrl, problemsPath, outputDir)
-        threading.Thread(target=gm.generateModels, args=gmArgs)
-
+        if sc.useSlurm:
+            # TODO: Implement using slurm
+            print("Using Slurm")
+        else:
+            if sc.multithread:
+                gmArgs = (trackUrl, problemsPath, outputDir)
+                gmThread = threading.Thread(target=gm.generateModels, args=gmArgs)
+                gmThread.start()
+            else:
+                gm.generateModels(trackUrl, problemsPath, outputDir)
 
 
 def getProblems(hub):
@@ -81,7 +89,7 @@ def getProblems(hub):
 
     genome = genomePath.split('/', 1)[-1]
 
-    genomeDataPath = '%s%s/' % (defaultDir, genome)
+    genomeDataPath = '%s%s/' % (sc.defaultDir, genome)
 
     if not os.path.exists(genomeDataPath):
         try:
@@ -91,7 +99,7 @@ def getProblems(hub):
 
     problemsFilePath = '%sproblems.bed' % genomeDataPath
 
-    problemsUrl = '%s/%s/problems.bed' % (remoteServer, genomePath)
+    problemsUrl = '%s/%s/problems.bed' % (sc.remoteServer, genomePath)
 
     # Download problems file for storage
     if not os.path.exists(problemsFilePath):
@@ -103,41 +111,6 @@ def getProblems(hub):
 
 
 def main():
-    global remoteServer, remoteDataDir, useSlurm, defaultDir
-    configFile = 'PeakLearnerSlurm.cfg'
-
-    config = configparser.ConfigParser()
-    config.read(configFile)
-
-    configSections = config.sections()
-
-    save = False
-
-    # Setup a default config if doesn't exist
-    if 'remoteServer' not in configSections:
-        config.add_section('remoteServer')
-        config['remoteServer']['url'] = 'http://127.0.0.1'
-        config['remoteServer']['port'] = '8081'
-        config['remoteServer']['dataDir'] = 'data/'
-        save = True
-
-    if 'slurm' not in configSections:
-        config.add_section('slurm')
-        config['slurm']['useSlurm'] = 'true'
-        config['slurm']['filesLocation'] = 'data/'
-
-        save = True
-
-    # If a section was missing, save that to the config
-    if save:
-        with open(configFile, 'w') as cfg:
-            config.write(cfg)
-
-    remoteServer = "%s:%s" % (config['remoteServer']['url'], config['remoteServer']['port'])
-    useSlurm = config['slurm']['useSlurm'] == 'true'
-    defaultDir = config['slurm']['filesLocation']
-    remoteDataDir = config['remoteServer']['dataDir']
-
     startOperation()
 
 
