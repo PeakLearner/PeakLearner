@@ -19,9 +19,9 @@ def jsonInput(data):
 
 def commands(command):
     command_list = {
-        'add': addLabel,
-        'remove': removeLabel,
-        'update': updateLabel,
+        'addLabel': addLabel,
+        'removeLabel': removeLabel,
+        'updateLabel': updateLabel,
         'getLabels': getLabels,
         'parseHub': parseHub,
         'getProblems': getProblems,
@@ -66,7 +66,7 @@ def addLabel(data):
             current_line_ref = lineVals[0]
             current_line_start = int(lineVals[1])
 
-            if not (current_line_ref < data['ref'] or current_line_start < data['start']):
+            if not added and not (current_line_ref < data['ref'] or current_line_start < data['start']):
                 file_output.append(line_to_append)
                 added = True
 
@@ -81,7 +81,7 @@ def addLabel(data):
     with open(rel_path, 'w') as f:
         f.writelines(file_output)
 
-    mh.updateLabelErrors(data)
+    mh.newLabel(data)
 
     return data
 
@@ -110,7 +110,7 @@ def removeLabel(data):
     with open(rel_path, 'w') as f:
         f.writelines(output)
 
-    mh.updateLabelErrors(data)
+    mh.deleteLabel(data)
 
     return data
 
@@ -140,7 +140,7 @@ def updateLabel(data):
     with open(rel_path, 'w') as f:
         f.writelines(output)
 
-    mh.updateLabelErrors(data)
+    mh.updateModel(data)
 
     return data
 
@@ -237,7 +237,7 @@ def getGenome(data):
 
     hub = dirs[0]
 
-    trackListPath = '%s/%s/trackList.json' % (cfg.dataPath, hub)
+    trackListPath = '%s%s/trackList.json' % (cfg.dataPath, hub)
 
     with open(trackListPath, 'r') as f:
         trackList = json.load(f)
