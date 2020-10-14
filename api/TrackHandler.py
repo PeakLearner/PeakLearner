@@ -39,7 +39,7 @@ def commands(command):
 
 # Adds Label to label file
 def addLabel(data):
-    rel_path = cfg.dataPath + data['name'] + '_Labels.bedGraph'
+    rel_path = '%s%s_Labels.bedGraph' % (cfg.dataPath, data['name'])
 
     file_output = []
 
@@ -47,7 +47,7 @@ def addLabel(data):
 
     added = False
 
-    line_to_append = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end']) + ' ' + default_val + '\n'
+    line_to_append = '%s\t%d\t%d\t%s\n' % (data['ref'], data['start'], data['end'], default_val)
 
     if not os.path.exists(rel_path):
         with open(rel_path, 'w') as new:
@@ -88,11 +88,11 @@ def addLabel(data):
 
 # Removes label from label file
 def removeLabel(data):
-    rel_path = cfg.dataPath + data['name'] + '_Labels.bedGraph'
+    rel_path = '%s%s_Labels.bedGraph' % (cfg.dataPath, data['name'])
 
     output = []
 
-    line_to_check = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end'])
+    line_to_check = '%s\t%s\t%s' % (data['ref'], str(data['start']), str(data['end']))
 
     # read labels in besides one to delete
     with open(rel_path, 'r') as f:
@@ -116,11 +116,11 @@ def removeLabel(data):
 
 
 def updateLabel(data):
-    rel_path = cfg.dataPath + data['name'] + '_Labels.bedGraph'
+    rel_path = '%s%s_Labels.bedGraph' % (cfg.dataPath, data['name'])
 
     output = []
 
-    line_to_check = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end'])
+    line_to_check = '%s\t%s\t%s' % (data['ref'], str(data['start']), str(data['end']))
 
     # read labels in besides one to delete
     with open(rel_path, 'r') as f:
@@ -130,7 +130,7 @@ def updateLabel(data):
         while not current_line == '':
 
             if not current_line.find(line_to_check) <= -1:
-                output.append(line_to_check + ' ' + data['label'] + '\n')
+                output.append('%s\t%s\n' % (line_to_check, data['label']))
             else:
                 output.append(current_line)
 
@@ -140,13 +140,13 @@ def updateLabel(data):
     with open(rel_path, 'w') as f:
         f.writelines(output)
 
-    mh.updateModel(data)
+    mh.updateModels(data)
 
     return data
 
 
 def getLabels(data):
-    rel_path = cfg.dataPath + data['name'] + '_Labels.bedGraph'
+    rel_path = '%s%s_Labels.bedGraph' % (cfg.dataPath, data['name'])
     refseq = data['ref']
     start = data['start']
     end = data['end']
