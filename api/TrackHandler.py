@@ -26,12 +26,13 @@ def commands(command):
         'parseHub': parseHub,
         'getProblems': getProblems,
         'getGenome': getGenome,
-        'getHubInfo': getHubInfo,
+        'getTrackUrl': getTrackUrl,
         'getJob': jh.getJob,
         'updateJob': jh.updateJob,
         'removeJob': jh.removeJob,
         'getAllJobs': jh.getAllJobs,
         'getModel': mh.getModel,
+        'putModel': mh.putModel,
     }
 
     return command_list.get(command, None)
@@ -80,8 +81,6 @@ def addLabel(data):
     # storage
     with open(rel_path, 'w') as f:
         f.writelines(file_output)
-
-    mh.newLabel(data)
 
     return data
 
@@ -271,3 +270,22 @@ def getHubInfo(data):
             output['tracks'].append({'name': trackLabel, 'coverage': url})
 
         return output
+
+
+def getTrackUrl(data):
+    if 'hub' not in data:
+        return
+    if 'track' not in data:
+        return
+
+    dataLabel = '%s/%s' % (data['hub'], data['track'])
+
+    trackListPath = '%s%s/trackList.json' % (cfg.dataPath, data['hub'])
+
+    with open(trackListPath) as f:
+        trackList = json.load(f)
+        for track in trackList['tracks']:
+            if track['label'] == dataLabel:
+                out = track['urlTemplates'][0]['url']
+                return out
+    return

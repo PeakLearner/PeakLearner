@@ -15,7 +15,7 @@ if 'remoteServer' not in configSections:
     config.add_section('remoteServer')
     config['remoteServer']['url'] = 'http://127.0.0.1'
     config['remoteServer']['port'] = '8081'
-    config['remoteServer']['dataDir'] = 'data/'
+    config['remoteServer']['dataPath'] = 'data/'
     save = True
 
 if 'slurm' not in configSections:
@@ -23,7 +23,7 @@ if 'slurm' not in configSections:
     config['slurm']['useSlurm'] = 'True'
     config['slurm']['testing'] = 'False'
     config['slurm']['multithread'] = 'False'
-    config['slurm']['filesLocation'] = 'data/'
+    config['slurm']['dataPath'] = 'data/'
 
     save = True
 
@@ -36,5 +36,5 @@ remoteServer = "%s:%s" % (config['remoteServer']['url'], config['remoteServer'][
 useSlurm = config['slurm']['useSlurm'].lower() == 'true'
 testing = config['slurm']['testing'].lower() == 'true'
 multithread = config['slurm']['multithread'].lower() == 'true'
-defaultDir = config['slurm']['filesLocation']
-remoteDataDir = config['remoteServer']['dataDir']
+dataPath = config['slurm']['dataPath']
+remoteDataPath = config['remoteServer']['dataPath']

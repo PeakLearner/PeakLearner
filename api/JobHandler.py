@@ -20,7 +20,23 @@ def addJob(data):
     idLock.release()
 
     jobLock.acquire()
-    jobs.append(job)
+    if len(jobs) < 1:
+        jobs.append(job)
+    else:
+        exists = False
+        for currentJob in jobs:
+            currentData = currentJob['data']
+            sameProblem = data['problem'] == currentData['problem']
+            sameTrack = data['data']['name'] == currentData['data']['name']
+            samePenalty = data['penalty'] == currentData['penalty']
+
+            if samePenalty and sameProblem and sameTrack:
+                exists = True
+                break
+
+        if not exists:
+            jobs.append(job)
+
     jobLock.release()
 
     #TODO: Call slurm server here
