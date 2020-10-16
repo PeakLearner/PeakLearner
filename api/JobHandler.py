@@ -26,11 +26,21 @@ def addJob(data):
         exists = False
         for currentJob in jobs:
             currentData = currentJob['data']
+            if not currentData['type'] == data['type']:
+                continue
             sameProblem = data['problem'] == currentData['problem']
             sameTrack = data['data']['name'] == currentData['data']['name']
-            samePenalty = data['penalty'] == currentData['penalty']
 
-            if samePenalty and sameProblem and sameTrack:
+            if not sameProblem or not sameTrack:
+                continue
+
+            if data['type'] == 'model':
+                samePenalty = data['penalty'] == currentData['penalty']
+
+                if samePenalty:
+                    exists = True
+                    break
+            else:
                 exists = True
                 break
 
@@ -82,8 +92,7 @@ def updateJob(data):
     added = False
 
     if data['status'] == 'Done':
-        removeJob(data)
-        return
+        return removeJob(data)
 
     jobLock.acquire()
 
@@ -122,6 +131,8 @@ def removeJob(data):
     jobs = newJobList
 
     jobLock.release()
+
+    return data
 
 
 def getAllJobs(data):

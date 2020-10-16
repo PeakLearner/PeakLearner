@@ -2,10 +2,11 @@ import bbi
 import os
 import pandas as pd
 import requests
+import threading
 import utils.SlurmConfig as cfg
 
 
-def generateModel(data, jobId):
+def model(data, jobId):
     problem = data['problem']
     trackInfo = data['data']
     penalty = data['penalty']
@@ -20,6 +21,21 @@ def generateModel(data, jobId):
 
     coveragePath = getCoverageFile(trackInfo, problem, dataPath)
 
+    generateModel(coveragePath, data, penalty)
+
+    finishQuery = {'command': 'updateJob', 'args': {'id': jobId, 'status': 'Done'}}
+
+    r = requests.post(cfg.remoteServer, json=finishQuery)
+
+    if not r.status_code == 200:
+        print("Model Request Error", r.status_code)
+
+    if not cfg.testing:
+        os.remove(coveragePath)
+
+
+def generateModel(coveragePath, data, penalty):
+
     command = 'Rscript commands/GenerateModel.R %s %s' % (coveragePath, penalty)
 
     os.system(command)
@@ -27,17 +43,10 @@ def generateModel(data, jobId):
     modelPath = '%s_penalty=%d_segments.bed' % (coveragePath, penalty)
 
     if os.path.exists(modelPath):
-        sendModel(modelPath, data)
-
-    finishQuery = {'command': 'updateJob', 'args': {'id': jobId, 'status': 'Done'}}
-
-    r = requests.post(cfg.remoteServer, json=finishQuery)
-
-    if not r.status_code == 200:
-        print("Request Error", r.status_code)
+        sendModel(modelPath, data, penalty)
 
 
-def sendModel(modelPath, modelInfo):
+def sendModel(modelPath, modelInfo, penalty):
     modelData = []
 
     with open(modelPath) as model:
@@ -48,7 +57,7 @@ def sendModel(modelPath, modelInfo):
             data = model.readline()
 
     query = {'command': 'putModel',
-             'args': {'modelInfo': modelInfo, 'modelData': modelData}}
+             'args': {'modelInfo': modelInfo, 'penalty': penalty, 'modelData': modelData}}
 
     r = requests.post(cfg.remoteServer, json=query)
 
@@ -64,7 +73,8 @@ def getCoverageFile(trackInfo, problem, output):
 
     coveragePath = '%scoverage.bedGraph' % output
 
-    if hubInfo.status_code == 204:
+    if not hubInfo.status_code == 200:
+        print("GetCoverageFile Hub info Error", hubInfo.status_code)
         return
 
     coverageUrl = hubInfo.json()
@@ -107,5 +117,41 @@ def fixAndSaveCoverage(interval, outputPath, problem):
     return outputPath
 
 
-def pregenModels(data, jobId):
-    print(data)
+def pregen(data, jobId):
+    penalties = data['penalties']
+    trackInfo = data['data']
+    problem = data['problem']
+
+    dataPath = '%s%s/%s-%d-%d/' % (cfg.dataPath, trackInfo['name'], problem['ref'], problem['start'], problem['end'])
+    if not os.path.exists(dataPath):
+        try:
+            os.makedirs(dataPath)
+        except OSError:
+            return
+
+    coveragePath = getCoverageFile(data['data'], data['problem'], dataPath)
+
+    modelThreads = []
+
+    for penalty in penalties:
+        modelData = data
+        modelData['penalty'] = penalty
+
+        modelArgs = (coveragePath, modelData, penalty)
+
+        modelThread = threading.Thread(target=generateModel, args=modelArgs)
+        modelThread.start()
+        modelThreads.append(modelThread)
+
+    for thread in modelThreads:
+        thread.join()
+
+    finishQuery = {'command': 'updateJob', 'args': {'id': jobId, 'status': 'Done'}}
+
+    r = requests.post(cfg.remoteServer, json=finishQuery)
+
+    if not r.status_code == 200:
+        print("Job Finish Request Error", r.status_code)
+
+    if not cfg.testing:
+        os.remove(coveragePath)

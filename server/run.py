@@ -6,47 +6,49 @@ import commands.ModelGeneration as mg
 import utils.SlurmConfig as sc
 
 
-def startOperation():
+def startAllNewJobs():
     if sc.useSlurm:
         return
 
-    # TODO: Multiple jobs per run (If taking the route of cron jobs)
-    query = {'command': 'getJob', 'args': {}}
+    query = {'command': 'getAllJobs', 'args': {'id': 'New'}}
 
     # TODO: Add error handling
-    job = requests.post(sc.remoteServer, json=query)
+    jobs = requests.post(sc.remoteServer, json=query)
 
-    # No jobs available
-    if job.status_code == 204:
+    if jobs.status_code == 204:
         return
 
     # Initialize Directory
     if not os.path.exists(sc.dataPath):
         try:
-            os.makedirs(sc.defaultDir)
+            os.makedirs(sc.dataPath)
         except OSError:
             return
 
-    if job.status_code == 200:
-        jobInfo = job.json()
+    if jobs.status_code == 200:
+        infoForJobs = jobs.json()
 
-        data = jobInfo['data']
-        jobType = data['type']
+        for job in infoForJobs:
+            data = job['data']
+            jobType = data['type']
 
-        # TODO: Execute this via slurm
-        jobTypes(jobType)(data, jobInfo['id'])
+            # TODO: Execute this via slurm
+            jobTypes(jobType)(data, job['id'])
 
-        resetQuery = {'command': 'updateJob', 'args': {'id': jobInfo['id'], 'status': 'New'}}
-        requests.post(sc.remoteServer, json=resetQuery)
+            if sc.testing:
+                print("Reset")
+                resetQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'New'}}
+                requests.post(sc.remoteServer, json=resetQuery)
+
 
 
 def jobTypes(jobType):
     types = {
-        'model': mg.generateModel,
-        'pregen': mg.pregenModels,
+        'model': mg.model,
+        'pregen': mg.pregen,
     }
     return types.get(jobType, None)
 
 
 if __name__ == '__main__':
-    startOperation()
+    startAllNewJobs()

@@ -105,7 +105,8 @@ def createTrackListJson(path, hub, refSeqPath, tracks):
 
         if peaks is not None:
             trackFile['urlTemplates'].append(
-                {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Model', 'name': '%s/%s' % (hub, peaks['shortLabel'])}
+                {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Model', 'name': '%s/%s' % (hub, peaks['shortLabel']),
+                 'color': 'red', 'lineWidth': 5}
             )
 
         trackFile['storeClass'] = 'MultiBigWig/Store/SeqFeature/MultiBigWig'

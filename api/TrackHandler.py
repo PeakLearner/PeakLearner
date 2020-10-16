@@ -184,13 +184,12 @@ def getLabels(data):
 def parseHub(data):
     hub = hubParse.parse(data)
     # Add a way to configure hub here somehow instead of just loading everything
-    jh.addJob({'hub': hub['hub']})
     return UCSCtoPeakLearner.convert(hub)
 
 
 def getProblems(data):
     if 'genome' not in data:
-        return
+        data['genome'] = getGenome(data)
 
     rel_path = '%sgenomes/%s/%s' % (cfg.dataPath, data['genome'], 'problems.bed')
     refseq = data['ref']
@@ -230,7 +229,9 @@ def getProblems(data):
 
 def getGenome(data):
     if 'hub' not in data:
-        return
+        data['hub'] = data['name'].split('/')[-2]
+    if 'track' not in data:
+        data['track'] = data['name'].split('/')[-1]
 
     dirs = data['hub'].split('/')
 
@@ -250,7 +251,7 @@ def getGenome(data):
 
 def getHubInfo(data):
     if 'hub' not in data:
-        return
+        data['hub'] = data['name'].split('/')[-2]
 
     genome = getGenome(data)
 
@@ -274,9 +275,9 @@ def getHubInfo(data):
 
 def getTrackUrl(data):
     if 'hub' not in data:
-        return
+        data['hub'] = data['name'].split('/')[-2]
     if 'track' not in data:
-        return
+        data['track'] = data['name'].split('/')[-1]
 
     dataLabel = '%s/%s' % (data['hub'], data['track'])
 
