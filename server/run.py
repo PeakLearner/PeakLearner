@@ -35,17 +35,16 @@ def startAllNewJobs():
             # TODO: Execute this via slurm
             jobTypes(jobType)(data, job['id'])
 
-            if sc.testing:
-                print("Reset")
-                resetQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'New'}}
-                requests.post(sc.remoteServer, json=resetQuery)
-
+            if not sc.testing:
+                startJobQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'Processing'}}
+                requests.post(sc.remoteServer, json=startJobQuery)
 
 
 def jobTypes(jobType):
     types = {
         'model': mg.model,
-        'pregen': mg.pregen,
+        'pregen': mg.generateModels,
+        'gridSearch': mg.gridSearch
     }
     return types.get(jobType, None)
 

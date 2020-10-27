@@ -1,165 +1,85 @@
 import os
-import threading
+import PeakError
 import pandas as pd
 import api.TrackHandler as th
 import api.PLConfig as pl
 import api.JobHandler as jh
 
+summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors', 'penalty', 'numPeaks']
+modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
+
 
 def getModel(data):
-    problems = th.getProblems(data)
-
-    modelOutputs = []
-    trackPath = '%s%s/%s/' % (pl.dataPath, data['hub'], data['track'])
-    start = data['start']
-    end = data['end']
-    refseq = data['ref']
-
-    if not os.path.exists(trackPath):
-        print("Track Path", trackPath, "doesn't exist")
-        return modelOutputs
-
-    for problem in problems:
-        modelsPath = '%s%s-%d-%d/' % (trackPath, problem['ref'], problem['start'], problem['end'])
-
-        if not os.path.exists(modelsPath):
-            print("Models Path", modelsPath, "doesn't exist")
-            continue
-
-        modelSummaryPath = '%smodelSummary.txt' % modelsPath
-
-        if not os.path.exists(modelSummaryPath):
-            print("Model Summary Path", modelSummaryPath, "doesn't exist")
-            continue
-
-        try:
-            modelSummary = pd.read_csv(modelSummaryPath, sep='\t', header=None)
-        except pd.errors.EmptyDataError:
-            print("Model Summary", modelSummaryPath, "is empty")
-            continue
-
-        modelSummary.columns = ['penalty', 'labelError', 'numLabels', 'dataScale']
-
-        okScale = modelSummary[pl.minDisplayScale < modelSummary['dataScale']]
-
-        if okScale.size <= 0:
-            print("No models with good scale", modelSummaryPath)
-            continue
-
-        minLabelError = okScale[okScale['labelError'].min() == okScale['labelError']]
-
-        meanPenalties = minLabelError['penalty'].mean()
-
-        closestToMeanIndex = abs(minLabelError['penalty'] - meanPenalties).idxmin()
-
-        modelPenalty = modelSummary.iloc[closestToMeanIndex]['penalty'].astype(int)
-
-        modelPath = '%s%d_Model.bedGraph' % (modelsPath, modelPenalty)
-
-        if not os.path.exists(modelPath):
-            print("Model path", modelPath, "doesn't exist")
-            # TODO: Fall back on other models
-            continue
-
-        with open(modelPath) as model:
-            modelLine = model.readline()
-
-            while not modelLine == '':
-                lineVals = modelLine.split()
-                lineStart = int(lineVals[1])
-                lineEnd = int(lineVals[2])
-                lineLabel = lineVals[3]
-
-                lineIfStartIn = (lineStart >= start) and (lineStart <= end)
-                lineIfEndIn = (lineEnd >= start) and (lineEnd <= end)
-                wrap = (lineStart < start) and (lineEnd > end)
-
-                if (lineIfStartIn or lineIfEndIn or wrap) and lineLabel == 'peak':
-                    lineHeight = float(lineVals[4])
-                    modelOutputs.append({"ref": refseq, "start": lineStart,
-                                         "end": lineEnd, "score": lineHeight})
-
-                modelLine = model.readline()
-
-    return modelOutputs
-
-
-def deleteLabel(data):
-    return deleteLabelFromModelErrors(data)
-
-
-def deleteLabelFromModelErrors(data):
     data['hub'] = data['name'].split('/')[0]
 
     data['track'] = data['name'].split('/')[-1]
 
-    genome = th.getGenome(data)
-
-    data['genome'] = genome
-
-    # This is the problems that the label update is in
     problems = th.getProblems(data)
+
+    output = []
 
     for problem in problems:
         # data path, hub path, track path, problem path
         modelsPath = '%s%s/%s/%s-%s-%s/' % (pl.dataPath, data['hub'], data['track'],
                                             problem['ref'], problem['start'], problem['end'])
 
-        if not os.path.exists(modelsPath):
-            return
+        summaryPath = '%smodelSummary.txt' % modelsPath
 
-        files = os.listdir(modelsPath)
+        # Converter required because pandas will lose trailing 0's
+        try:
+            summary = pd.read_csv(summaryPath, sep='\t', header=None, converters={6: lambda x: str(x)})
+        except FileNotFoundError:
+            continue
 
-        summaryOutput = []
+        summary.columns = summaryColumns
 
-        for file in files:
+        minError = summary[summary['errors'] == summary['errors'].min()]
 
-            if '_Model' in file:
-                penalty = getPenalty(file)
-                errorFile = '%s%d_labelError.bedGraph' % (modelsPath, penalty)
+        if len(minError.index) > 1:
+            print("Multiple min")
 
-                if not os.path.exists(errorFile):
-                    return
+        penalty = minError['penalty'].iloc[0]
 
-                segmentOutput = []
+        minErrorModelPath = '%s%s_Model.bedGraph' % (modelsPath, penalty)
 
-                with open(errorFile) as errors:
-                    error = errors.readline()
+        model = loadModelFile(minErrorModelPath, data)
 
-                    while not error == '':
-                        errorVals = error.split()
+        output.extend(model)
 
-                        if not data['start'] == int(errorVals[1]):
-                            segmentOutput.append(error)
-                            error = errors.readline()
-                            continue
-
-                        if not data['end'] == int(errorVals[2]):
-                            segmentOutput.append(error)
-                            error = errors.readline()
-                            continue
-
-                        # Don't need to append to modelErrors because anything here is getting deleted
-
-                        error = errors.readline()
-
-                open(errorFile, 'w').writelines(segmentOutput)
-
-                penalty = getPenalty(file)
-
-                if len(segmentOutput) > 1:
-                    error, numLabels, dataLoss = calculateLabelFileOverallError(errorFile)
-
-                    summaryOutput.append('%d\t%f\t%d\t%f\n' % (penalty, error, numLabels, dataLoss))
-                else:
-                    summaryOutput.append('%d\t0\t0\t0\n' % penalty)
-
-        modelSummaryPath = '%s/modelSummary.txt' % modelsPath
-
-        open(modelSummaryPath, 'w').writelines(summaryOutput)
+    return output
 
 
-def updateModels(data):
+def loadModelFile(path, data):
+    refseq = data['ref']
+    start = data['start']
+    end = data['end']
+
+    output = []
+
+    with open(path) as model:
+        modelLine = model.readline()
+
+        while not modelLine == '':
+            lineVals = modelLine.split()
+            lineStart = int(lineVals[1])
+            lineEnd = int(lineVals[2])
+            lineLabel = lineVals[3]
+
+            lineIfStartIn = (lineStart >= start) and (lineStart <= end)
+            lineIfEndIn = (lineEnd >= start) and (lineEnd <= end)
+            wrap = (lineStart < start) and (lineEnd > end)
+
+            if (lineIfStartIn or lineIfEndIn or wrap) and lineLabel == 'peak':
+                lineHeight = float(lineVals[4])
+                output.append({"ref": refseq, "start": lineStart,
+                               "end": lineEnd, "score": lineHeight})
+
+            modelLine = model.readline()
+
+    return output
+
+
+def updateModelLabels(data, generate=True):
     data['hub'] = data['name'].split('/')[0]
 
     data['track'] = data['name'].split('/')[-1]
@@ -180,270 +100,141 @@ def updateModels(data):
 
         summaryOutput = []
 
+        labelQuery = {'name': data['name'], 'ref': problem['ref'], 'start': problem['start'], 'end': problem['end']}
+
+        labels = pd.DataFrame(th.getLabels(labelQuery))
+        labels.columns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
+
+        labels = labels[labels['annotation'] != 'unknown']
+
+        summaryPath = '%smodelSummary.txt' % modelsPath
+
         for file in files:
             # If the file is a model
             # TODO: Make this smarter, only update relative models and/or prune models
             if '_Model' in file:
+                penalty = getPenalty(file)
+
                 modelPath = '%s%s' % (modelsPath, file)
 
-                modelLabelData = getLabelModelData(modelPath, data)
+                model = pd.read_csv(modelPath, sep='\t', header=None)
 
-                # Error for current model data
-                correctData, incorrectData = calculateLabelDataError(modelLabelData, data)
-                errorFile = updateModelErrorFile(data, modelPath, correctData, incorrectData)
+                model.columns = modelColumns
 
-                error, numLabels, dataLoss = calculateLabelFileOverallError(errorFile)
+                peaks = model[model['annotation'] == 'peak']
 
-                print(error)
-
-                if error > 1:
+                if peaks.size < 1:
+                    os.remove(modelPath)
                     continue
 
-                summaryOutput.append('%d\t%f\t%d\t%f\n' % (getPenalty(file), error, numLabels, dataLoss))
+                error = PeakError.error(peaks, labels)
 
-        modelSummaryPath = '%s/modelSummary.txt' % modelsPath
+                summary = PeakError.summarize(error)
 
-        open(modelSummaryPath, 'w').writelines(summaryOutput)
+                summary['penalty'] = penalty
 
-        modelCheckArgs = (problem, data, modelsPath)
+                summary['numPeaks'] = len(peaks.index)
 
-        modelCheckThread = threading.Thread(target=checkGenerateNewModels, args=modelCheckArgs)
-        modelCheckThread.start()
+                summaryOutput.append(summary)
 
-    return data
+        try:
+            problemSummary = pd.concat(summaryOutput)
+        except ValueError:
+            submitPregenJob(problem, data)
+            continue
 
+        problemSummary = problemSummary.sort_values('penalty', ignore_index=True)
 
-def getLabelModelData(modelPath, data):
-    start = data['start']
-    end = data['end']
-    modelLabelData = []
+        problemSummary.to_csv(summaryPath, sep='\t', header=False, index=False)
 
-    with open(modelPath) as model:
-        modelData = model.readline()
-
-        found = False
-        while not modelData == '':
-            dataVals = modelData.split()
-
-            dataStart = int(dataVals[1])
-            dataEnd = int(dataVals[2])
-
-            lineIfStartIn = (dataStart >= start) and (dataStart <= end)
-            lineIfEndIn = (dataEnd >= start) and (dataEnd <= end)
-            wrap = (dataStart < start) and (dataEnd > end)
-
-            # If a data value from the model overlaps or is contained in a label
-            if lineIfStartIn or lineIfEndIn or wrap:
-                modelLabelData.append(dataVals)
-                found = True
-
-            # If data is currently being found, it won't get here
-            # This should only run if data has been found and data is no longer being found
-            elif found:
-                break
-
-            modelData = model.readline()
-
-    return modelLabelData
-
-
-def calculateLabelFileOverallError(modelErrorPath):
-    try:
-        df = pd.read_csv(modelErrorPath, sep='\t', header=None)
-    except pd.errors.EmptyDataError:
-        return 2, 0, 0
-
-    df.columns = ['ref', 'start', 'end', 'label', 'correct', 'incorrect']
-    dataLoss = df.apply(calculateModelSizeError, axis=1)
-    df['dataScale'] = dataLoss
-    errors = df.apply(calculateRowError, axis=1)
-    df['labelError'] = errors
-
-    knowns = df[df['label'] != 'unknown']
-
-    # If no knowns in list
-    if knowns.size < 1:
-        return 2, 0, 0
-
-    dataScale = knowns[knowns['label'] != 'peak']
-
-    if dataScale.size < 1:
-        dataScaleMean = 1
-    else:
-        dataScaleMean = dataScale['dataScale'].mean()
-
-    return knowns['labelError'].mean(), knowns['labelError'].size, dataScaleMean
-
-
-def calculateModelSizeError(row):
-    label = row['label']
-
-    if label == 'unknown':
-        return 0
-    if label == 'peak':
-        return 0
-    if label == 'noPeak':
-        return 1/(row['correct'] + row['incorrect'])
-    else:
-        return 1 / max(row['correct'], row['incorrect'])
-
-
-def calculateRowError(row):
-    label = row['label']
-
-    if label == 'unknown':
-        return 0
-    if label == 'noPeak':
-        if row['incorrect'] >= 1:
-            return 1
-        return 0
-    else:
-        if row['correct'] >= 1:
-            return 0
-        return 1
-
-
-def calculateLabelDataError(modelData, data):
-    label = data['label']
-    start = data['start']
-    end = data['end']
-
-    # Maybe rework correct/incorrect data to reflect total area for which that model lines width
-    correctData = incorrectData = 0
-
-    if label == 'unknown':
-        correctData = len(modelData)
-
-    # There has to be a better way to do this, multiple for loops because checking label time is constant time
-    # or 2N inside loop
-    elif label == 'peak':
-        for line in modelData:
-            if line[3] == 'peak':
-                correctData = correctData + 1
-            else:
-                incorrectData = incorrectData + 1
-    elif label == 'peakStart':
-        for line in modelData:
-            if line[3] == 'peak':
-                peakStart = int(line[1])
-                peakEnd = int(line[2])
-
-                # If the start is in the label but not the end
-                if peakStart > start and peakEnd > end:
-                    correctData = correctData + 1
-                else:
-                    incorrectData = incorrectData + 1
-            else:
-                incorrectData = incorrectData + 1
-    elif label == 'peakEnd':
-        for line in modelData:
-            if line[3] == 'peak':
-                peakStart = int(line[1])
-                peakEnd = int(line[2])
-
-                # If the end is in the label but not the start
-                if peakStart < start and peakEnd < end:
-                    correctData = correctData + 1
-                else:
-                    incorrectData = incorrectData + 1
-            else:
-                incorrectData = incorrectData + 1
-    # Any bad labels are classified as noPeak
-    else:
-        for line in modelData:
-            if line[3] == 'peak':
-                incorrectData = incorrectData + 1
-            else:
-                correctData = correctData + 1
-
-    return correctData, incorrectData
-
-
-def updateModelErrorFile(data, modelPath, correctData, incorrectData):
-    modelFile = modelPath.rsplit('/', 1)
-
-    modelErrorFile = '%s/%d_labelError.bedGraph' % (modelFile[0], getPenalty(modelFile[-1]))
-
-    line_to_put = '%s\t%d\t%d\t%s\t%d\t%d\n' % (data['ref'], data['start'], data['end'],
-                                                data['label'], correctData, incorrectData)
-
-    if not os.path.exists(modelErrorFile):
-        with open(modelErrorFile, 'w') as new:
-            print("New LabelErrorFile created at", modelErrorFile)
-            new.write(line_to_put)
-            return modelErrorFile
-
-    output = []
-
-    with open(modelErrorFile, 'r') as f:
-
-        current_line = f.readline()
-
-        added = False
-
-        while not current_line == '':
-            skip = False
-
-            if added:
-                output.append(current_line)
-                current_line = f.readline()
-                continue
-
-            lineVals = current_line.split()
-
-            start = int(lineVals[1])
-
-            # If the same label, update it (skip previous labels line)
-            if start == data['start']:
-                output.append(line_to_put)
-                added = skip = True
-
-            # If new label, add it
-            elif start > data['start']:
-                output.append(line_to_put)
-                added = True
-
-            if not skip:
-                output.append(current_line)
-
-            current_line = f.readline()
-
-        if not added:
-            output.append(line_to_put)
-
-    with open(modelErrorFile, 'w') as f:
-        f.writelines(output)
-
-    return modelErrorFile
+        if generate:
+            checkGenerateNewModels(problem, data, modelsPath)
 
 
 def getPenalty(filePath):
-    return int(filePath.rsplit('_', 1)[0])
+    return filePath.rsplit('_', 1)[0]
 
 
 def checkGenerateNewModels(problem, data, modelsPath):
     modelSummaryPath = '%s/modelSummary.txt' % modelsPath
 
+    if not os.path.exists(modelSummaryPath):
+        submitPregenJob(problem, data)
+        return
+
     try:
-        df = pd.read_csv(modelSummaryPath, sep='\t', header=None)
+        df = pd.read_csv(modelSummaryPath, sep='\t', header=None, converters={6: lambda x: str(x)})
     except pd.errors.EmptyDataError:
         # If no models to base errors off of, do pregen
         submitPregenJob(problem, data)
         return
 
-    df.columns = ['penalty', 'LabelError', 'numLabels', 'dataScale']
+    df.columns = summaryColumns
+    df = df.sort_values('penalty', ignore_index=True)
 
-    maxDataSize = df[df.dataScale == df.dataScale.max()]
+    minError = df[df['errors'] == df['errors'].min()]
 
-    maxDataSizeError = maxDataSize['dataScale'].iloc[0]
-    maxDataSizePenalty = maxDataSize['penalty'].iloc[0].item()
+    if len(minError.index) > 1:
+        # no need to generate new models if error is 0
+        if minError.iloc[0]['errors'] == 0:
+            return
+        else:
+            first = minError.iloc[0]
+            last = minError.iloc[-1]
 
-    if maxDataSizeError < pl.stopScaling:
-        submitOOMJob(problem, data, maxDataSizePenalty)
+            biggerFp = first['fp'] > last['fp']
+            smallerFn = first['fn'] < last['fn']
+
+            # Sanity check for bad labels, if the minimum is still the same values
+            # With little labels this could not generate new models
+            if biggerFp or smallerFn:
+                minPenalty = first['penalty']
+                maxPenalty = last['penalty']
+                submitGridSearch(problem, data, minPenalty, maxPenalty)
+
+            return
+
+    else:
+        index = minError.index[0]
+
+        model = minError.iloc[0]
+
+        if model['fp'] > model['fn']:
+            try:
+                above = df.iloc[index + 1]
+            except IndexError:
+                submitOOMJob(problem, data, model['penalty'], '*')
+                return
+
+            minPenalty = model['penalty']
+
+            maxPenalty = above['penalty']
+        else:
+            try:
+                below = df.iloc[index - 1]
+            except IndexError:
+                submitOOMJob(problem, data, model['penalty'], '/')
+                return
+
+            minPenalty = below['penalty']
+
+            maxPenalty = model['penalty']
+
+        submitGridSearch(problem, data, minPenalty, maxPenalty)
+
+        return
 
 
-def submitOOMJob(problem, data, penalty):
-    job = {'type': 'model', 'problem': problem, 'data': data, 'penalty': penalty * 10}
+def submitOOMJob(problem, data, penalty, type):
+    job = {'type': 'model', 'problem': problem, 'data': data}
+
+    if type == '*':
+        job['penalty'] = penalty * 10
+    elif type == '/':
+        job['penalty'] = penalty / 10
+    else:
+        print("Invalid OOM Job")
+        return
     jh.addJob(job)
 
 
@@ -452,12 +243,11 @@ def submitPregenJob(problem, data):
     jh.addJob(job)
 
 
-def getPrePenalties(problem, data):
-    genome = data['genome']
+def submitGridSearch(problem, data, minPenalty, maxPenalty, num=pl.gridSearchSize):
+    job = {'type': 'gridSearch', 'problem': problem, 'data': data,
+           'minPenalty': float(minPenalty), 'maxPenalty': float(maxPenalty), 'numModels': num}
 
-    # TODO: Make this actually learn based on previous data
-
-    return [100, 1000, 10000, 100000, 1000000]
+    jh.addJob(job)
 
 
 def putModel(data):
@@ -476,33 +266,19 @@ def putModel(data):
         except OSError:
             return
 
-    modelFilePath = '%s%d_Model.bedGraph' % (problemPath, penalty)
+    modelFilePath = '%s%s_Model.bedGraph' % (problemPath, penalty)
 
-    with open(modelFilePath, 'w') as model:
-        model.writelines(modelData)
+    with open(modelFilePath, 'w') as f:
+        f.writelines(modelData)
 
-    calculateNewModelLabelErrors(modelFilePath, problemPath, penalty, problem, trackInfo)
+    updateModelLabels(trackInfo, generate=False)
 
     return modelInfo
 
 
-def calculateNewModelLabelErrors(modelFilePath, problemPath, penalty, problem, trackInfo):
-    labelQuery = problem
-    labelQuery['name'] = '%s/%s' % (trackInfo['hub'], trackInfo['track'])
-    labels = th.getLabels(labelQuery)
+def getPrePenalties(problem, data):
+    genome = data['genome']
 
-    errorFile = ''
+    # TODO: Make this actually learn based on previous data
 
-    for label in labels:
-        modelData = getLabelModelData(modelFilePath, label)
-        correctData, incorrectData = calculateLabelDataError(modelData, label)
-        errorFile = updateModelErrorFile(label, modelFilePath, correctData, incorrectData)
-
-    error, numLabels, dataLoss = calculateLabelFileOverallError(errorFile)
-
-    modelSummary = '%d\t%f\t%d\t%f\n' % (penalty, error, numLabels, dataLoss)
-
-    modelSummaryPath = '%s/modelSummary.txt' % problemPath
-
-    with open(modelSummaryPath, 'a') as summary:
-        summary.write(modelSummary)
+    return [100, 1000, 10000, 100000, 1000000]

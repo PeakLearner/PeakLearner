@@ -1,5 +1,6 @@
 import bbi
 import os
+import numpy as np
 import pandas as pd
 import requests
 import threading
@@ -36,11 +37,11 @@ def model(data, jobId):
 
 def generateModel(coveragePath, data, penalty):
 
-    command = 'Rscript commands/GenerateModel.R %s %s' % (coveragePath, penalty)
+    command = 'Rscript commands/GenerateModel.R %s %f' % (coveragePath, penalty)
 
     os.system(command)
 
-    modelPath = '%s_penalty=%d_segments.bed' % (coveragePath, penalty)
+    modelPath = '%s_penalty=%f_segments.bed' % (coveragePath, penalty)
 
     if os.path.exists(modelPath):
         sendModel(modelPath, data, penalty)
@@ -48,6 +49,8 @@ def generateModel(coveragePath, data, penalty):
 
 def sendModel(modelPath, modelInfo, penalty):
     modelData = []
+
+    strPenalty = str(penalty)
 
     with open(modelPath) as model:
         data = model.readline()
@@ -57,7 +60,7 @@ def sendModel(modelPath, modelInfo, penalty):
             data = model.readline()
 
     query = {'command': 'putModel',
-             'args': {'modelInfo': modelInfo, 'penalty': penalty, 'modelData': modelData}}
+             'args': {'modelInfo': modelInfo, 'penalty': strPenalty, 'modelData': modelData}}
 
     r = requests.post(cfg.remoteServer, json=query)
 
@@ -81,7 +84,8 @@ def getCoverageFile(trackInfo, problem, output):
     if not os.path.exists(coveragePath):
         with bbi.open(coverageUrl) as coverage:
             try:
-                coverageInterval = coverage.fetch_intervals(problem['ref'], problem['start'], problem['end'], iterator=True)
+                coverageInterval = coverage.fetch_intervals(problem['ref'], problem['start'],
+                                                            problem['end'], iterator=True)
                 return fixAndSaveCoverage(coverageInterval, coveragePath, problem)
             except KeyError:
                 return
@@ -117,7 +121,7 @@ def fixAndSaveCoverage(interval, outputPath, problem):
     return outputPath
 
 
-def pregen(data, jobId):
+def generateModels(data, jobId, report=True):
     penalties = data['penalties']
     trackInfo = data['data']
     problem = data['problem']
@@ -127,6 +131,7 @@ def pregen(data, jobId):
         try:
             os.makedirs(dataPath)
         except OSError:
+            print("Os Error")
             return
 
     coveragePath = getCoverageFile(data['data'], data['problem'], dataPath)
@@ -146,12 +151,34 @@ def pregen(data, jobId):
     for thread in modelThreads:
         thread.join()
 
+    if report:
+
+        finishQuery = {'command': 'updateJob', 'args': {'id': jobId, 'status': 'Done'}}
+
+        r = requests.post(cfg.remoteServer, json=finishQuery)
+
+        if not r.status_code == 200:
+            print("Job Finish Request Error", r.status_code)
+
+    if not cfg.testing:
+        os.remove(coveragePath)
+
+
+def gridSearch(data, jobId):
+    minPenalty = data['minPenalty']
+    maxPenalty = data['maxPenalty']
+    numModels = data['numModels']
+    # Remove start and end of list because that is minPenalty/maxPenalty (already calculated)
+    data['penalties'] = np.linspace(minPenalty, maxPenalty, numModels + 2).tolist()[1:-1]
+
+    generateModels(data, jobId, report=False)
+
     finishQuery = {'command': 'updateJob', 'args': {'id': jobId, 'status': 'Done'}}
 
     r = requests.post(cfg.remoteServer, json=finishQuery)
 
     if not r.status_code == 200:
-        print("Job Finish Request Error", r.status_code)
+        print("Shotgun Job Finish Request Error", r.status_code)
 
-    if not cfg.testing:
-        os.remove(coveragePath)
+
+

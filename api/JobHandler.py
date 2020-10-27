@@ -16,14 +16,16 @@ def addJob(data):
 
     idLock.acquire()
     job = {'status': 'New', 'id': jobIds, 'data': data}
-    jobIds = jobIds + 1
     idLock.release()
 
     jobLock.acquire()
+    exists = False
     if len(jobs) < 1:
+        idLock.acquire()
+        jobIds = jobIds + 1
+        idLock.release()
         jobs.append(job)
     else:
-        exists = False
         for currentJob in jobs:
             currentData = currentJob['data']
             if not currentData['type'] == data['type']:
@@ -40,11 +42,21 @@ def addJob(data):
                 if samePenalty:
                     exists = True
                     break
+            elif data['type'] == 'gridSearch':
+                sameMinPenalty = data['minPenalty'] == currentData['minPenalty']
+                sameMaxPenalty = data['maxPenalty'] == currentData['maxPenalty']
+
+                if sameMinPenalty and sameMaxPenalty:
+                    exists = True
+                    break
             else:
                 exists = True
                 break
 
         if not exists:
+            idLock.acquire()
+            jobIds = jobIds + 1
+            idLock.release()
             jobs.append(job)
 
     jobLock.release()

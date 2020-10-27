@@ -109,7 +109,7 @@ def removeLabel(data):
     with open(rel_path, 'w') as f:
         f.writelines(output)
 
-    mh.deleteLabel(data)
+    mh.updateModelLabels(data)
 
     return data
 
@@ -139,7 +139,7 @@ def updateLabel(data):
     with open(rel_path, 'w') as f:
         f.writelines(output)
 
-    mh.updateModels(data)
+    mh.updateModelLabels(data)
 
     return data
 
@@ -229,7 +229,10 @@ def getProblems(data):
 
 def getGenome(data):
     if 'hub' not in data:
-        data['hub'] = data['name'].split('/')[-2]
+        try:
+            data['hub'] = data['name'].split('/')[-2]
+        except IndexError:
+            data['hub'] = ''
     if 'track' not in data:
         data['track'] = data['name'].split('/')[-1]
 
