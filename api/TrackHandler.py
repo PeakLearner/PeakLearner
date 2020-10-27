@@ -1,5 +1,6 @@
 import os
 import json
+import api.plLocks as locks
 import api.HubParse as hubParse
 import api.UCSCtoPeakLearner as UCSCtoPeakLearner
 import api.PLConfig as cfg
@@ -50,6 +51,10 @@ def addLabel(data):
 
     line_to_append = '%s\t%d\t%d\t%s\n' % (data['ref'], data['start'], data['end'], default_val)
 
+    lock = locks.getLock(data['name'])
+
+    lock.acquire()
+
     if not os.path.exists(rel_path):
         with open(rel_path, 'w') as new:
             print("New label file created at %s" % rel_path)
@@ -82,6 +87,8 @@ def addLabel(data):
     with open(rel_path, 'w') as f:
         f.writelines(file_output)
 
+    lock.release()
+
     return data
 
 
@@ -92,6 +99,10 @@ def removeLabel(data):
     output = []
 
     line_to_check = '%s\t%s\t%s' % (data['ref'], str(data['start']), str(data['end']))
+
+    lock = locks.getLock(data['name'])
+
+    lock.acquire()
 
     # read labels in besides one to delete
     with open(rel_path, 'r') as f:
@@ -111,6 +122,8 @@ def removeLabel(data):
 
     mh.updateModelLabels(data)
 
+    lock.release()
+
     return data
 
 
@@ -120,6 +133,10 @@ def updateLabel(data):
     output = []
 
     line_to_check = '%s\t%s\t%s' % (data['ref'], str(data['start']), str(data['end']))
+
+    lock = locks.getLock(data['name'])
+
+    lock.acquire()
 
     # read labels in besides one to delete
     with open(rel_path, 'r') as f:
@@ -141,6 +158,8 @@ def updateLabel(data):
 
     mh.updateModelLabels(data)
 
+    lock.release()
+
     return data
 
 
@@ -154,6 +173,10 @@ def getLabels(data):
 
     if not os.path.exists(rel_path):
         return output
+
+    lock = locks.getLock(data['name'])
+
+    lock.acquire()
 
     with open(rel_path, 'r') as f:
 
@@ -177,6 +200,8 @@ def getLabels(data):
                                    "end": lineEnd, "label": lineVals[3]})
 
             current_line = f.readline()
+
+    lock.release()
 
     return output
 

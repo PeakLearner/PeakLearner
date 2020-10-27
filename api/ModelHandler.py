@@ -1,5 +1,7 @@
 import os
 import PeakError
+import threading
+import api.plLocks as locks
 import pandas as pd
 import api.TrackHandler as th
 import api.PLConfig as pl
@@ -18,6 +20,10 @@ def getModel(data):
 
     output = []
 
+    lock = locks.getLock(data['name'])
+
+    lock.acquire()
+
     for problem in problems:
         # data path, hub path, track path, problem path
         modelsPath = '%s%s/%s/%s-%s-%s/' % (pl.dataPath, data['hub'], data['track'],
@@ -35,9 +41,8 @@ def getModel(data):
 
         minError = summary[summary['errors'] == summary['errors'].min()]
 
-        if len(minError.index) > 1:
-            print("Multiple min")
-
+        # Uses first penalty with min label error
+        # This will favor the model with the lowest penalty, given that summary is sorted
         penalty = minError['penalty'].iloc[0]
 
         minErrorModelPath = '%s%s_Model.bedGraph' % (modelsPath, penalty)
@@ -45,6 +50,8 @@ def getModel(data):
         model = loadModelFile(minErrorModelPath, data)
 
         output.extend(model)
+
+    lock.release()
 
     return output
 
@@ -86,6 +93,8 @@ def updateModelLabels(data, generate=True):
 
     # This is the problems that the label update is in
     problems = th.getProblems(data)
+
+    threads = []
 
     for problem in problems:
         # data path, hub path, track path, problem path
@@ -143,19 +152,23 @@ def updateModelLabels(data, generate=True):
             submitPregenJob(problem, data)
             continue
 
-        problemSummary = problemSummary.sort_values('penalty', ignore_index=True)
-
         problemSummary.to_csv(summaryPath, sep='\t', header=False, index=False)
 
         if generate:
-            checkGenerateNewModels(problem, data, modelsPath)
+            checkGenerateArgs = (problem, data, modelsPath)
+            cgThread = threading.Thread(target=checkGeneratePruneModels, args=checkGenerateArgs)
+            threads.append(cgThread)
+            cgThread.start()
+
+    for thread in threads:
+        thread.join()
 
 
 def getPenalty(filePath):
     return filePath.rsplit('_', 1)[0]
 
 
-def checkGenerateNewModels(problem, data, modelsPath):
+def checkGeneratePruneModels(problem, data, modelsPath):
     modelSummaryPath = '%s/modelSummary.txt' % modelsPath
 
     if not os.path.exists(modelSummaryPath):
@@ -170,7 +183,24 @@ def checkGenerateNewModels(problem, data, modelsPath):
         return
 
     df.columns = summaryColumns
-    df = df.sort_values('penalty', ignore_index=True)
+
+    df['floatPenalty'] = df['penalty'].astype(float)
+    df = df.sort_values('floatPenalty', ignore_index=True)
+
+    minErrorVal = df[df['errors'] == df['errors'].min()].iloc[0]['errors']
+
+    df['prune'] = df.apply(checkPrune, args=(minErrorVal,), axis=1)
+
+    pruned = df[df['prune']].apply(pruneModels, args=(modelsPath,), axis=1)
+
+    if len(pruned) > 1:
+        failed = ~pruned
+
+        if failed.any():
+            print("Failed to prune model")
+            return
+
+    df = df[~df['prune']]
 
     minError = df[df['errors'] == df['errors'].min()]
 
@@ -209,6 +239,10 @@ def checkGenerateNewModels(problem, data, modelsPath):
             minPenalty = model['penalty']
 
             maxPenalty = above['penalty']
+
+            # If the next model only has 1 more peak, not worth searching
+            if model['numPeaks'] + 1 >= above['numPeaks']:
+                return
         else:
             try:
                 below = df.iloc[index - 1]
@@ -220,18 +254,43 @@ def checkGenerateNewModels(problem, data, modelsPath):
 
             maxPenalty = model['penalty']
 
+            # If the previous model is only 1 peak away, not worth searching
+            if below['numPeaks'] + 1 >= model['numPeaks']:
+                return
+
         submitGridSearch(problem, data, minPenalty, maxPenalty)
 
         return
+
+
+def checkPrune(summary, minError):
+    # (df['errors']/df['regions'] > 0.5) & (df['regions'] > 3)
+    if summary['regions'] > 3:
+        errorRegionRatio = summary['errors']/summary['regions']
+
+        return errorRegionRatio > ((3/(2 * summary['regions'])) + (minError / summary['regions']))
+    return False
+
+
+def pruneModels(summary, modelsPath):
+    modelPath = '%s%s_Model.bedGraph' % (modelsPath, summary['penalty'])
+
+    if os.path.exists(modelPath):
+        try:
+            os.remove(modelPath)
+            return True
+        except OSError:
+            return False
+    return False
 
 
 def submitOOMJob(problem, data, penalty, type):
     job = {'type': 'model', 'problem': problem, 'data': data}
 
     if type == '*':
-        job['penalty'] = penalty * 10
+        job['penalty'] = float(penalty) * 10
     elif type == '/':
-        job['penalty'] = penalty / 10
+        job['penalty'] = float(penalty) / 10
     else:
         print("Invalid OOM Job")
         return
@@ -266,12 +325,18 @@ def putModel(data):
         except OSError:
             return
 
+    lock = locks.getLock(trackInfo['name'])
+
+    lock.acquire()
+
     modelFilePath = '%s%s_Model.bedGraph' % (problemPath, penalty)
 
     with open(modelFilePath, 'w') as f:
         f.writelines(modelData)
 
     updateModelLabels(trackInfo, generate=False)
+
+    lock.release()
 
     return modelInfo
 
