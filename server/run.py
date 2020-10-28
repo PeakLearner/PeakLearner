@@ -48,6 +48,7 @@ def createSlurmJob(job):
     jobString += '#SBATCH --c 1\n'
 
     jobString += 'module load anaconda3\n'
+    jobString += 'module load R\n'
 
     jobString += 'conda activate %s\n' % cfg.condaVenvPath
 

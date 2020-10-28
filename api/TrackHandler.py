@@ -163,7 +163,7 @@ def updateLabel(data):
     return data
 
 
-def getLabels(data):
+def getLabels(data, useLock=True):
     rel_path = '%s%s_Labels.bedGraph' % (cfg.dataPath, data['name'])
     refseq = data['ref']
     start = data['start']
@@ -174,9 +174,11 @@ def getLabels(data):
     if not os.path.exists(rel_path):
         return output
 
-    lock = locks.getLock(data['name'])
+    if useLock:
 
-    lock.acquire()
+        lock = locks.getLock(data['name'])
+
+        lock.acquire()
 
     with open(rel_path, 'r') as f:
 
@@ -201,7 +203,8 @@ def getLabels(data):
 
             current_line = f.readline()
 
-    lock.release()
+    if useLock:
+        lock.release()
 
     return output
 

@@ -47,6 +47,8 @@ def getModel(data):
 
         minErrorModelPath = '%s%s_Model.bedGraph' % (modelsPath, penalty)
 
+        # TODO: If no good model, do LOPART
+
         model = loadModelFile(minErrorModelPath, data)
 
         output.extend(model)
@@ -111,7 +113,8 @@ def updateModelLabels(data, generate=True):
 
         labelQuery = {'name': data['name'], 'ref': problem['ref'], 'start': problem['start'], 'end': problem['end']}
 
-        labels = pd.DataFrame(th.getLabels(labelQuery))
+        labels = pd.DataFrame(th.getLabels(labelQuery, useLock=False))
+
         labels.columns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
 
         labels = labels[labels['annotation'] != 'unknown']
@@ -119,8 +122,6 @@ def updateModelLabels(data, generate=True):
         summaryPath = '%smodelSummary.txt' % modelsPath
 
         for file in files:
-            # If the file is a model
-            # TODO: Make this smarter, only update relative models and/or prune models
             if '_Model' in file:
                 penalty = getPenalty(file)
 
@@ -156,7 +157,7 @@ def updateModelLabels(data, generate=True):
 
         if generate:
             checkGenerateArgs = (problem, data, modelsPath)
-            cgThread = threading.Thread(target=checkGeneratePruneModels, args=checkGenerateArgs)
+            cgThread = threading.Thread(target=checkGenerateModels, args=checkGenerateArgs)
             threads.append(cgThread)
             cgThread.start()
 
@@ -168,7 +169,7 @@ def getPenalty(filePath):
     return filePath.rsplit('_', 1)[0]
 
 
-def checkGeneratePruneModels(problem, data, modelsPath):
+def checkGenerateModels(problem, data, modelsPath):
     modelSummaryPath = '%s/modelSummary.txt' % modelsPath
 
     if not os.path.exists(modelSummaryPath):
@@ -186,21 +187,6 @@ def checkGeneratePruneModels(problem, data, modelsPath):
 
     df['floatPenalty'] = df['penalty'].astype(float)
     df = df.sort_values('floatPenalty', ignore_index=True)
-
-    minErrorVal = df[df['errors'] == df['errors'].min()].iloc[0]['errors']
-
-    df['prune'] = df.apply(checkPrune, args=(minErrorVal,), axis=1)
-
-    pruned = df[df['prune']].apply(pruneModels, args=(modelsPath,), axis=1)
-
-    if len(pruned) > 1:
-        failed = ~pruned
-
-        if failed.any():
-            print("Failed to prune model")
-            return
-
-    df = df[~df['prune']]
 
     minError = df[df['errors'] == df['errors'].min()]
 
@@ -261,27 +247,6 @@ def checkGeneratePruneModels(problem, data, modelsPath):
         submitGridSearch(problem, data, minPenalty, maxPenalty)
 
         return
-
-
-def checkPrune(summary, minError):
-    # (df['errors']/df['regions'] > 0.5) & (df['regions'] > 3)
-    if summary['regions'] > 3:
-        errorRegionRatio = summary['errors']/summary['regions']
-
-        return errorRegionRatio > ((3/(2 * summary['regions'])) + (minError / summary['regions']))
-    return False
-
-
-def pruneModels(summary, modelsPath):
-    modelPath = '%s%s_Model.bedGraph' % (modelsPath, summary['penalty'])
-
-    if os.path.exists(modelPath):
-        try:
-            os.remove(modelPath)
-            return True
-        except OSError:
-            return False
-    return False
 
 
 def submitOOMJob(problem, data, penalty, type):
