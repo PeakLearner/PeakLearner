@@ -1,52 +1,61 @@
 import os
 import requests
-import configparser
-import threading
 import commands.ModelGeneration as mg
-import utils.SlurmConfig as sc
+import utils.SlurmConfig as cfg
 
 
 def startAllNewJobs():
-    if sc.useSlurm:
-        return
-
     query = {'command': 'getAllJobs', 'args': {'id': 'New'}}
 
     # TODO: Add error handling
-    jobs = requests.post(sc.remoteServer, json=query)
+    jobs = requests.post(cfg.remoteServer, json=query)
 
     if jobs.status_code == 204:
-        return
+        return False
 
     # Initialize Directory
-    if not os.path.exists(sc.dataPath):
+    if not os.path.exists(cfg.dataPath):
         try:
-            os.makedirs(sc.dataPath)
+            os.makedirs(cfg.dataPath)
         except OSError:
-            return
+            return False
 
     if jobs.status_code == 200:
         infoForJobs = jobs.json()
 
         for job in infoForJobs:
-            data = job['data']
-            jobType = data['type']
-
-            # TODO: Execute this via slurm
-            jobTypes(jobType)(data, job['id'])
-
-            if not sc.testing:
-                startJobQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'Processing'}}
-                requests.post(sc.remoteServer, json=startJobQuery)
+            if job['status'].lower() == 'new':
+                if cfg.useSlurm:
+                    createSlurmJob(job)
+                else:
+                    mg.startJob(job['id'])
 
 
-def jobTypes(jobType):
-    types = {
-        'model': mg.model,
-        'pregen': mg.generateModels,
-        'gridSearch': mg.gridSearch
-    }
-    return types.get(jobType, None)
+def createSlurmJob(job):
+
+    jobName = 'PeakLearner-%d' % job['id']
+
+    jobString = '#!/bin/bash\n'
+
+    jobString += '#SBATCH --job-name=%s\n' % job['id']
+
+    jobString += '#SBATCH --output=%s%s/%s.txt\n' % (cfg.dataPath, cfg.slurmUser, jobName)
+    jobString += '#SBATCH --chdir=%s%s\n' % (cfg.dataPath, cfg.slurmUser)
+
+    # TODO: Make resource allocation better
+    jobString += '#SBATCH --time=1:00\n'
+    jobString += '#SBATCH --mem=1024\n'
+    jobString += '#SBATCH --c 1\n'
+
+    jobString += 'module load anaconda3\n'
+
+    jobString += 'conda activate %s\n' % cfg.condaVenvPath
+
+    jobString += 'srun python3 commands/ModelGeneration.py %s\n' % (job['id'])
+
+    command = 'sbatch %s' % jobString
+
+    os.system(command)
 
 
 if __name__ == '__main__':

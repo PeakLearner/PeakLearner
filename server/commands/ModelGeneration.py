@@ -1,5 +1,6 @@
 import bbi
 import os
+import sys
 import numpy as np
 import pandas as pd
 import requests
@@ -7,7 +8,8 @@ import threading
 import utils.SlurmConfig as cfg
 
 
-def model(data, jobId):
+def model(job):
+    data = job['data']
     problem = data['problem']
     trackInfo = data['data']
     penalty = data['penalty']
@@ -24,14 +26,14 @@ def model(data, jobId):
 
     generateModel(coveragePath, data, penalty)
 
-    finishQuery = {'command': 'updateJob', 'args': {'id': jobId, 'status': 'Done'}}
+    finishQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'Done'}}
 
     r = requests.post(cfg.remoteServer, json=finishQuery)
 
     if not r.status_code == 200:
         print("Model Request Error", r.status_code)
 
-    if not cfg.testing:
+    if not cfg.debug:
         os.remove(coveragePath)
 
 
@@ -66,6 +68,9 @@ def sendModel(modelPath, modelInfo, penalty):
 
     if not r.status_code == 200:
         print("Send Model Request Error", r.status_code)
+
+    if not cfg.debug:
+        os.remove(modelPath)
 
 
 def getCoverageFile(trackInfo, problem, output):
@@ -121,7 +126,8 @@ def fixAndSaveCoverage(interval, outputPath, problem):
     return outputPath
 
 
-def generateModels(data, jobId, report=True):
+def generateModels(job, report=True):
+    data = job['data']
     penalties = data['penalties']
     trackInfo = data['data']
     problem = data['problem']
@@ -153,27 +159,28 @@ def generateModels(data, jobId, report=True):
 
     if report:
 
-        finishQuery = {'command': 'updateJob', 'args': {'id': jobId, 'status': 'Done'}}
+        finishQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'Done'}}
 
         r = requests.post(cfg.remoteServer, json=finishQuery)
 
         if not r.status_code == 200:
             print("Job Finish Request Error", r.status_code)
 
-    if not cfg.testing:
+    if not cfg.debug:
         os.remove(coveragePath)
 
 
-def gridSearch(data, jobId):
+def gridSearch(job):
+    data = job['data']
     minPenalty = data['minPenalty']
     maxPenalty = data['maxPenalty']
     numModels = data['numModels']
     # Remove start and end of list because that is minPenalty/maxPenalty (already calculated)
     data['penalties'] = np.linspace(minPenalty, maxPenalty, numModels + 2).tolist()[1:-1]
 
-    generateModels(data, jobId, report=False)
+    generateModels(job, report=False)
 
-    finishQuery = {'command': 'updateJob', 'args': {'id': jobId, 'status': 'Done'}}
+    finishQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'Done'}}
 
     r = requests.post(cfg.remoteServer, json=finishQuery)
 
@@ -181,4 +188,35 @@ def gridSearch(data, jobId):
         print("Shotgun Job Finish Request Error", r.status_code)
 
 
+def startJob(jobId):
+    jobQuery = {'command': 'getJob', 'args': {'id': jobId}}
 
+    r = requests.post(cfg.remoteServer, json=jobQuery)
+
+    if not r.status_code == 200:
+        print("No job on server with job id", jobId)
+        return
+
+    job = r.json()
+
+    if not job['status'].lower() == 'new':
+        return
+
+    startJobWithType(job)
+
+
+def startJobWithType(job):
+    types = {
+        'model': model,
+        'pregen': generateModels,
+        'gridSearch': gridSearch
+    }
+
+    jobType = types.get(job['data']['type'], None)
+
+    jobType(job)
+
+
+if __name__ == '__main__':
+    if len(sys.argv) == 2:
+        startJob(sys.argv[2])

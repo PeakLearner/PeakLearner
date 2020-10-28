@@ -10,6 +10,12 @@ configSections = config.sections()
 
 save = False
 
+if 'general' not in configSections:
+    config.add_section('general')
+    config['general']['useSlurm'] = 'False'
+    config['general']['debug'] = 'False'
+    config['general']['multithread'] = 'False'
+
 # Setup a default config if doesn't exist
 if 'remoteServer' not in configSections:
     config.add_section('remoteServer')
@@ -20,10 +26,9 @@ if 'remoteServer' not in configSections:
 
 if 'slurm' not in configSections:
     config.add_section('slurm')
-    config['slurm']['useSlurm'] = 'True'
-    config['slurm']['testing'] = 'False'
-    config['slurm']['multithread'] = 'False'
     config['slurm']['dataPath'] = 'data/'
+    config['slurm']['username'] = 'slurmUser'
+    config['slurm']['anaconda3venvPath'] = '/'
 
     save = True
 
@@ -33,8 +38,10 @@ if save:
         config.write(cfg)
 
 remoteServer = "%s:%s" % (config['remoteServer']['url'], config['remoteServer']['port'])
-useSlurm = config['slurm']['useSlurm'].lower() == 'true'
-testing = config['slurm']['testing'].lower() == 'true'
-multithread = config['slurm']['multithread'].lower() == 'true'
+useSlurm = config['general']['useSlurm'].lower() == 'true'
+debug = config['general']['debug'].lower() == 'true'
+multithread = config['general']['multithread'].lower() == 'true'
 dataPath = config['slurm']['dataPath']
 remoteDataPath = config['remoteServer']['dataPath']
+slurmUser = config['slurm']['username']
+condaVenvPath = config['slurm']['anaconda3venvPath']
