@@ -16,11 +16,49 @@ def addJob(data):
 
     idLock.acquire()
     job = {'status': 'New', 'id': jobIds, 'data': data}
-    jobIds = jobIds + 1
     idLock.release()
 
     jobLock.acquire()
-    jobs.append(job)
+    exists = False
+    if len(jobs) < 1:
+        idLock.acquire()
+        jobIds = jobIds + 1
+        idLock.release()
+        jobs.append(job)
+    else:
+        for currentJob in jobs:
+            currentData = currentJob['data']
+            if not currentData['type'] == data['type']:
+                continue
+            sameProblem = data['problem'] == currentData['problem']
+            sameTrack = data['trackInfo']['name'] == currentData['trackInfo']['name']
+
+            if not sameProblem or not sameTrack:
+                continue
+
+            if data['type'] == 'model':
+                samePenalty = data['penalty'] == currentData['penalty']
+
+                if samePenalty:
+                    exists = True
+                    break
+            elif data['type'] == 'gridSearch':
+                sameMinPenalty = data['minPenalty'] == currentData['minPenalty']
+                sameMaxPenalty = data['maxPenalty'] == currentData['maxPenalty']
+
+                if sameMinPenalty and sameMaxPenalty:
+                    exists = True
+                    break
+            else:
+                exists = True
+                break
+
+        if not exists:
+            idLock.acquire()
+            jobIds = jobIds + 1
+            idLock.release()
+            jobs.append(job)
+
     jobLock.release()
 
     #TODO: Call slurm server here
@@ -66,8 +104,7 @@ def updateJob(data):
     added = False
 
     if data['status'] == 'Done':
-        removeJob(data)
-        return
+        return removeJob(data)
 
     jobLock.acquire()
 
@@ -106,6 +143,8 @@ def removeJob(data):
     jobs = newJobList
 
     jobLock.release()
+
+    return data
 
 
 def getAllJobs(data):

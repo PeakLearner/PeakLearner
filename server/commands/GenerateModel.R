@@ -1,9 +1,11 @@
-args <- commandArgs(trailingOnly = TRUE)
-coverage <- args[1]
-problems <- args[2]
-output <- args[3]
-problemStart <- args[4]
-problemEnd <- args[5]
+if(!require("PeakSegDisk"))
+{
+  install.packages("PeakSegDisk")
+}
 
-Sys.sleep(1)
+args <- commandArgs(trailingOnly = TRUE)
+path <- args[1]
+penalty <- args[2]
+
+model <- PeakSegDisk::PeakSegFPOP_file(path, penalty)
 

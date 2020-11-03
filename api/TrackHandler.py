@@ -1,8 +1,11 @@
 import os
+import json
+import api.plLocks as locks
 import api.HubParse as hubParse
 import api.UCSCtoPeakLearner as UCSCtoPeakLearner
 import api.PLConfig as cfg
 import api.JobHandler as jh
+import api.ModelHandler as mh
 
 
 def jsonInput(data):
@@ -17,17 +20,20 @@ def jsonInput(data):
 
 def commands(command):
     command_list = {
-        'add': addLabel,
-        'remove': removeLabel,
-        'update': updateLabel,
+        'addLabel': addLabel,
+        'removeLabel': removeLabel,
+        'updateLabel': updateLabel,
         'getLabels': getLabels,
         'parseHub': parseHub,
         'getProblems': getProblems,
-        'getModel': getModel,
+        'getGenome': getGenome,
+        'getTrackUrl': getTrackUrl,
         'getJob': jh.getJob,
         'updateJob': jh.updateJob,
         'removeJob': jh.removeJob,
         'getAllJobs': jh.getAllJobs,
+        'getModel': mh.getModel,
+        'putModel': mh.putModel,
     }
 
     return command_list.get(command, None)
@@ -35,7 +41,7 @@ def commands(command):
 
 # Adds Label to label file
 def addLabel(data):
-    rel_path = cfg.dataPath + data['name'] + '_Labels.bedGraph'
+    rel_path = os.path.join(cfg.dataPath, data['name'] + '_Labels.bedGraph')
 
     file_output = []
 
@@ -43,7 +49,11 @@ def addLabel(data):
 
     added = False
 
-    line_to_append = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end']) + ' ' + default_val + '\n'
+    line_to_append = '%s\t%d\t%d\t%s\n' % (data['ref'], data['start'], data['end'], default_val)
+
+    lock = locks.getLock(data['name'])
+
+    lock.acquire()
 
     if not os.path.exists(rel_path):
         with open(rel_path, 'w') as new:
@@ -62,7 +72,7 @@ def addLabel(data):
             current_line_ref = lineVals[0]
             current_line_start = int(lineVals[1])
 
-            if not (current_line_ref < data['ref'] or current_line_start < data['start']):
+            if not added and not (current_line_ref < data['ref'] or current_line_start < data['start']):
                 file_output.append(line_to_append)
                 added = True
 
@@ -77,18 +87,22 @@ def addLabel(data):
     with open(rel_path, 'w') as f:
         f.writelines(file_output)
 
-    jh.addJob(data)
+    lock.release()
 
     return data
 
 
 # Removes label from label file
 def removeLabel(data):
-    rel_path = cfg.dataPath + data['name'] + '_Labels.bedGraph'
+    rel_path = os.path.join(cfg.dataPath, data['name'] + '_Labels.bedGraph')
 
     output = []
 
-    line_to_check = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end'])
+    line_to_check = '%s\t%s\t%s' % (data['ref'], str(data['start']), str(data['end']))
+
+    lock = locks.getLock(data['name'])
+
+    lock.acquire()
 
     # read labels in besides one to delete
     with open(rel_path, 'r') as f:
@@ -106,17 +120,23 @@ def removeLabel(data):
     with open(rel_path, 'w') as f:
         f.writelines(output)
 
-    jh.addJob(data)
+    mh.updateModelLabels(data)
+
+    lock.release()
 
     return data
 
 
 def updateLabel(data):
-    rel_path = cfg.dataPath + data['name'] + '_Labels.bedGraph'
+    rel_path = os.path.join(cfg.dataPath, data['name'] + '_Labels.bedGraph')
 
     output = []
 
-    line_to_check = data['ref'] + ' ' + str(data['start']) + ' ' + str(data['end'])
+    line_to_check = '%s\t%s\t%s' % (data['ref'], str(data['start']), str(data['end']))
+
+    lock = locks.getLock(data['name'])
+
+    lock.acquire()
 
     # read labels in besides one to delete
     with open(rel_path, 'r') as f:
@@ -126,7 +146,7 @@ def updateLabel(data):
         while not current_line == '':
 
             if not current_line.find(line_to_check) <= -1:
-                output.append(line_to_check + ' ' + data['label'] + '\n')
+                output.append('%s\t%s\n' % (line_to_check, data['label']))
             else:
                 output.append(current_line)
 
@@ -136,13 +156,15 @@ def updateLabel(data):
     with open(rel_path, 'w') as f:
         f.writelines(output)
 
-    jh.addJob(data)
+    mh.updateModelLabels(data)
+
+    lock.release()
 
     return data
 
 
-def getLabels(data):
-    rel_path = cfg.dataPath + data['name'] + '_Labels.bedGraph'
+def getLabels(data, useLock=True):
+    rel_path = os.path.join(cfg.dataPath, data['name'] + '_Labels.bedGraph')
     refseq = data['ref']
     start = data['start']
     end = data['end']
@@ -151,6 +173,12 @@ def getLabels(data):
 
     if not os.path.exists(rel_path):
         return output
+
+    if useLock:
+
+        lock = locks.getLock(data['name'])
+
+        lock.acquire()
 
     with open(rel_path, 'r') as f:
 
@@ -175,6 +203,8 @@ def getLabels(data):
 
             current_line = f.readline()
 
+    if useLock:
+        lock.release()
 
     return output
 
@@ -182,15 +212,14 @@ def getLabels(data):
 def parseHub(data):
     hub = hubParse.parse(data)
     # Add a way to configure hub here somehow instead of just loading everything
-    jh.addJob(hub)
     return UCSCtoPeakLearner.convert(hub)
 
 
 def getProblems(data):
     if 'genome' not in data:
-        return
+        data['genome'] = getGenome(data)
 
-    rel_path = '%sgenomes/%s/%s' % (cfg.dataPath, data['genome'], 'problems.bed')
+    rel_path = os.path.join(cfg.dataPath, 'genomes/', data['genome'], 'problems.bed')
     refseq = data['ref']
     start = data['start']
     end = data['end']
@@ -226,5 +255,55 @@ def getProblems(data):
     return output
 
 
-def getModel(data):
-    print(data)
+def getGenome(data):
+    hub, track = data['name'].rsplit('/')
+
+    trackListPath = os.path.join(cfg.dataPath, hub, 'trackList.json')
+
+    with open(trackListPath, 'r') as f:
+        trackList = json.load(f)
+
+        genomePath = trackList['include'][0].split('/')
+
+        genome = genomePath[-2]
+
+        return genome
+
+
+def getHubInfo(data):
+    track, hub = data.rsplit('/')
+
+    genome = getGenome(data)
+
+    genomePath = os.path.join(cfg.dataPath, 'genomes/', genome)
+
+    trackListPath = os.path.join(cfg.dataPath, hub, 'trackList.json')
+
+    output = {'hub': hub, 'genomePath': genomePath, 'tracks': []}
+
+    with open(trackListPath, 'r') as f:
+        trackList = json.load(f)
+
+        for track in trackList['tracks']:
+            trackLabel = track['label']
+            url = track['urlTemplates'][0]['url']
+
+            output['tracks'].append({'name': trackLabel, 'coverage': url})
+
+        return output
+
+
+def getTrackUrl(data):
+    track, hub = data['name'].rsplit('/')
+
+    dataLabel = os.path.join(cfg.dataPath, hub, track)
+
+    trackListPath = '%s%s/trackList.json' % (cfg.dataPath, hub)
+
+    with open(trackListPath) as f:
+        trackList = json.load(f)
+        for track in trackList['tracks']:
+            if track['label'] == dataLabel:
+                out = track['urlTemplates'][0]['url']
+                return out
+    return

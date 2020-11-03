@@ -18,7 +18,8 @@ Web Server:
 6. cd jbrowse
 7. ./setup.sh
 8. cd ..
-9. python3 run.py
+9. Install [PeakError](https://github.com/deltarod/PeakError/)
+10. python3 run.py
 
 The PeakLearner + Jbrowse webserver should now be started, and can be access at 127.0.0.1:8081.
 
@@ -49,3 +50,5 @@ WiggleHighlighter git               https://github.com/cmdcolin/wigglehighlighte
 InteractivePeakAnnotator git        https://github.com/cmdcolin/interactivepeakannotator
 
 PeakLearnerPlugin git               https://github.com/deltarod/PeakLearnerPlugin
+
+PeakError git                       https://github.com/deltarod/PeakError
