@@ -1,6 +1,7 @@
 import os
 import tempfile
 import requests
+import threading
 import gzip
 import json
 import api.PLConfig as cfg
@@ -14,7 +15,7 @@ def convert(data):
     # Needs someway to configure this
     dataPath = cfg.dataPath
 
-    hubPath = '%s%s/' % (dataPath, hub)
+    hubPath = os.path.join(dataPath, hub)
 
     # Initialize Directory
     if not os.path.exists(hubPath):
@@ -28,11 +29,9 @@ def convert(data):
     # This will need to be updated if there are multiple genomes in file
     genome = genomesFile['genome']
 
-    includes = []
+    threads = []
 
-    genePaths = downloadGeneTracks(genome, dataPath)
-
-    includes.extend(genePaths)
+    includes = getGeneTracks(genome, dataPath, threads)
 
     # Generate problems for this genome
     problems = gp.generateProblems(genome, dataPath)
@@ -41,17 +40,18 @@ def convert(data):
 
     includes.append(problemPath)
 
-    refSeqPath = downloadRefSeq(genome, dataPath, includes)
+    refSeqPath = getRefSeq(genome, dataPath, includes, threads)
 
     createTrackListJson(hubPath, hub, refSeqPath, genomesFile['trackDb'])
 
+    for thread in threads:
+        thread.join()
+
     # Removing last character as having the / at the end breaks trackList includes
-    return hubPath[:-1]
+    return hubPath
 
 
 def createTrackListJson(path, hub, refSeqPath, tracks):
-    trackPath = '%strackList.json' % path
-
     # Include here provides the required assembly, as well as generated genes
     config = {'include': ['../%s' % refSeqPath], 'tracks': []}
 
@@ -114,29 +114,50 @@ def createTrackListJson(path, hub, refSeqPath, tracks):
 
         config['tracks'].append(trackFile)
 
+    trackPath = os.path.join(path, 'trackList.json')
+
     with open(trackPath, 'w') as conf:
         json.dump(config, conf)
 
 
-def downloadRefSeq(genome, path, includes):
+def getRefSeq(genome, path, includes, threads):
     ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/'
 
-    genomePath = 'genomes/' + genome + '/'
+    genomeRelPath = os.path.join('genomes', genome)
 
-    includes = formatIncludes(includes, path + genomePath)
+    genomePath = os.path.join(path, genomeRelPath)
 
-    if not os.path.exists(path + genomePath):
+    includes = formatIncludes(includes, genomePath)
+
+    if not os.path.exists(genomePath):
         try:
-            os.makedirs(path + genomePath)
+            os.makedirs(genomePath)
         except OSError:
             return
 
     genomeUrl = ucscUrl + genome + '/bigZips/' + genome + '.fa.gz'
-    genomeFaPath = genomePath + genome + '.fa'
+    genomeFaPath = os.path.join(genomePath, genome + '.fa')
     genomeFaiPath = genomeFaPath + '.fai'
 
-    if not os.path.exists(path + genomeFaiPath):
-        if not os.path.exists(path + genomeFaPath):
+    dlThread = threading.Thread(target=downloadRefSeq, args=(genomeUrl, genomeFaPath, genomeFaiPath))
+    threads.append(dlThread)
+    dlThread.start()
+
+    genomeConfigPath = os.path.join(genomePath, 'trackList.json')
+
+    with open(genomeConfigPath, 'w') as genomeCfg:
+        genomeFile = genome + '.fa.fai'
+        output = {'refSeqs': genomeFile, 'include': includes}
+        json.dump(output, genomeCfg)
+
+    genomeConfigRelPath = os.path.join(genomeRelPath, 'trackList.json')
+
+    return genomeConfigRelPath
+
+
+def downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath):
+    if not os.path.exists(genomeFaiPath):
+        if not os.path.exists(genomeFaPath):
             with tempfile.NamedTemporaryFile(suffix='.fa.gz') as temp:
                 # Gets FASTA file for genome
                 with requests.get(genomeUrl, allow_redirects=True) as r:
@@ -145,28 +166,20 @@ def downloadRefSeq(genome, path, includes):
                     temp.seek(0)
                 with gzip.GzipFile(fileobj=temp, mode='r') as gz:
                     # uncompress the flatfile
-                    with open(path + genomeFaPath, 'w+b') as faFile:
+                    with open(genomeFaPath, 'w+b') as faFile:
                         # Save to file
                         faFile.write(gz.read())
 
+        print("Samtools")
+
         # Run samtools faidx {genome Fasta File}, creating an indexed Fasta file
-        os.system('samtools faidx %s' % path + genomeFaPath)
+        os.system('samtools faidx %s' % genomeFaPath)
 
         # Normal Fasta file no longer needed
-        os.remove(path + genomeFaPath)
-
-    genomeConfigPath = '%strackList.json' % genomePath
-
-    if not os.path.exists(path + genomeConfigPath):
-        with open(path + genomeConfigPath, 'w') as genomeCfg:
-            genomeFile = genomeFaiPath.rsplit('/', 1)[1]
-            output = {'refSeqs': genomeFile, 'include': includes}
-            json.dump(output, genomeCfg)
-
-    return genomeConfigPath
+        os.remove(genomeFaPath)
 
 
-def downloadGeneTracks(genome, path):
+def getGeneTracks(genome, path, threads):
     ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/'
 
     genomePath = '%sgenomes/%s/' % (path, genome)
@@ -185,32 +198,37 @@ def downloadGeneTracks(genome, path):
 
     getDbFiles('trackDb', genesUrl, genesPath)
 
-    outputPath = []
+    includes = []
 
     for gene in genes:
-        getDbFiles(gene, genesUrl, genesPath)
-
         geneTrackPath = '%s%s/' % (genomePath, gene)
 
-        if not os.path.exists(geneTrackPath):
-            print("Assembling gene", gene)
-            try:
-                os.makedirs(geneTrackPath)
-            except OSError:
-                return
+        geneArgs = (gene, genesUrl, genesPath, geneTrackPath)
 
-            generateTrack = "bin/ucsc-to-json.pl -q --in %s --out %s --track %s" % (genesPath, geneTrackPath, gene)
+        geneThread = threading.Thread(target=getAndProcessGeneTrack, args=geneArgs)
+        threads.append(geneThread)
+        geneThread.start()
 
-            # This will use Jbrowse perl files to generate a track for that specific gene
-            os.system(generateTrack)
+        includes.append(os.path.join(geneTrackPath, 'trackList.json'))
 
-            addGeneCategory(geneTrackPath, 'Reference / Genes')
+    return includes
 
-            print("Gene assembled", gene)
 
-        outputPath.append('%strackList.json' % geneTrackPath)
+def getAndProcessGeneTrack(gene, genesUrl, genesPath, geneTrackPath):
+    getDbFiles(gene, genesUrl, genesPath)
 
-    return outputPath
+    if not os.path.exists(geneTrackPath):
+        try:
+            os.makedirs(geneTrackPath)
+        except OSError:
+            return
+
+        generateTrack = "bin/ucsc-to-json.pl -q --in %s --out %s --track %s" % (genesPath, geneTrackPath, gene)
+
+        # This will use Jbrowse perl files to generate a track for that specific gene
+        os.system(generateTrack)
+
+        addGeneCategory(geneTrackPath, 'Reference / Genes')
 
 
 def generateProblemTrack(path):
@@ -241,8 +259,14 @@ def getDbFiles(name, url, output):
                 open(output + file, 'w+b').write(r.content)
 
 
+# TODO: Remove lock and move this to DB
+geneLock = threading.Lock()
+
+
 def addGeneCategory(genePath, label):
     confFile = '%strackList.json' % genePath
+
+    geneLock.acquire()
 
     conf = json.loads(open(confFile, 'r').read())
 
@@ -253,11 +277,13 @@ def addGeneCategory(genePath, label):
     with open(confFile, 'w') as newConfFile:
         json.dump(conf, newConfFile)
 
+    geneLock.release()
+
 
 def formatIncludes(includes, prePath):
     output = []
 
     for include in includes:
-        output.append(include.replace(prePath, ''))
+        output.append(os.path.relpath(include, start=prePath))
 
     return output
