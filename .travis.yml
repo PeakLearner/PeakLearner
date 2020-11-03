@@ -6,6 +6,7 @@ python:
   - 3.8
 
 before_install:
+  - sudo apt install libdb5.3-dev
   - python --version
   - pip install -U pip
   - pip install -U pytest
@@ -13,6 +14,7 @@ before_install:
   - pip install pybbi
   - pip install pandas
   - pip install numpy
+  - pip install bsddb3
   - pip install git+https://github.com/deltarod/PeakError.git
   - pip install codecov
 
