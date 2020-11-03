@@ -305,14 +305,11 @@ def getHubInfo(data):
 
 
 def getTrackUrl(data):
-    if 'hub' not in data:
-        data['hub'] = data['name'].split('/')[-2]
-    if 'track' not in data:
-        data['track'] = data['name'].split('/')[-1]
+    track, hub = data['name'].rsplit('/')
 
-    dataLabel = '%s/%s' % (data['hub'], data['track'])
+    dataLabel = '%s/%s' % (hub, track)
 
-    trackListPath = '%s%s/trackList.json' % (cfg.dataPath, data['hub'])
+    trackListPath = '%s%s/trackList.json' % (cfg.dataPath, hub)
 
     with open(trackListPath) as f:
         trackList = json.load(f)

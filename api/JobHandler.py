@@ -27,11 +27,11 @@ def addJob(data):
         jobs.append(job)
     else:
         for currentJob in jobs:
-            currentData = currentJob['data']
+            currentData = currentJob['trackInfo']
             if not currentData['type'] == data['type']:
                 continue
             sameProblem = data['problem'] == currentData['problem']
-            sameTrack = data['data']['name'] == currentData['data']['name']
+            sameTrack = data['trackInfo']['name'] == currentData['trackInfo']['name']
 
             if not sameProblem or not sameTrack:
                 continue

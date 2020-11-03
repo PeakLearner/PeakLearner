@@ -11,7 +11,7 @@ import utils.SlurmConfig as cfg
 def model(job):
     data = job['data']
     problem = data['problem']
-    trackInfo = data['data']
+    trackInfo = data['trackInfo']
     penalty = data['penalty']
 
     dataPath = '%s%s/%s-%d-%d/' % (cfg.dataPath, trackInfo['name'], problem['ref'], problem['start'], problem['end'])

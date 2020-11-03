@@ -12,9 +12,11 @@ modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
 
 
 def getModel(data):
-    data['hub'] = data['name'].split('/')[0]
+    track, hub = data['name'].rsplit('/')
 
-    data['track'] = data['name'].split('/')[-1]
+    data['hub'] = track
+
+    data['track'] = hub
 
     problems = th.getProblems(data)
 
@@ -59,33 +61,34 @@ def getModel(data):
 
 
 def loadModelFile(path, data):
-    refseq = data['ref']
-    start = data['start']
-    end = data['end']
+    try:
+        df = pd.read_csv(path, sep='\t', header=None)
+    except FileNotFoundError:
+        print("File", path, "not found")
+        return []
 
-    output = []
+    df.columns = ["ref", "start", "end", "type", "score"]
 
-    with open(path) as model:
-        modelLine = model.readline()
+    df = df[df['type'] == 'peak']
 
-        while not modelLine == '':
-            lineVals = modelLine.split()
-            lineStart = int(lineVals[1])
-            lineEnd = int(lineVals[2])
-            lineLabel = lineVals[3]
+    inView = df.apply(checkInBounds, axis=1, args=(data,))
 
-            lineIfStartIn = (lineStart >= start) and (lineStart <= end)
-            lineIfEndIn = (lineEnd >= start) and (lineEnd <= end)
-            wrap = (lineStart < start) and (lineEnd > end)
+    toView = df[inView]
 
-            if (lineIfStartIn or lineIfEndIn or wrap) and lineLabel == 'peak':
-                lineHeight = float(lineVals[4])
-                output.append({"ref": refseq, "start": lineStart,
-                               "end": lineEnd, "score": lineHeight})
+    model = df[['ref', 'start', 'end', 'score']]
 
-            modelLine = model.readline()
+    return model.to_dict('records')
 
-    return output
+
+def checkInBounds(row, data):
+    if not data['ref'] == row['ref']:
+        return False
+
+    startIn = (row['start'] >= data['start']) and (row['start'] <= data['end'])
+    endIn = (row['end'] >= data['start']) and (row['end'] <= data['end'])
+    wrap = (row['start'] < data['start']) and (row['end'] > data['end'])
+
+    return startIn or endIn or wrap
 
 
 def updateModelLabels(data, generate=True):
@@ -249,12 +252,12 @@ def checkGenerateModels(problem, data, modelsPath):
         return
 
 
-def submitOOMJob(problem, data, penalty, type):
-    job = {'type': 'model', 'problem': problem, 'data': data}
+def submitOOMJob(problem, data, penalty, jobType):
+    job = {'type': 'model', 'problem': problem, 'trackInfo': data}
 
-    if type == '*':
+    if jobType == '*':
         job['penalty'] = float(penalty) * 10
-    elif type == '/':
+    elif jobType == '/':
         job['penalty'] = float(penalty) / 10
     else:
         print("Invalid OOM Job")
@@ -263,12 +266,12 @@ def submitOOMJob(problem, data, penalty, type):
 
 
 def submitPregenJob(problem, data):
-    job = {'type': 'pregen', 'problem': problem, 'data': data, 'penalties': getPrePenalties(problem, data)}
+    job = {'type': 'pregen', 'problem': problem, 'trackInfo': data, 'penalties': getPrePenalties(problem, data)}
     jh.addJob(job)
 
 
 def submitGridSearch(problem, data, minPenalty, maxPenalty, num=pl.gridSearchSize):
-    job = {'type': 'gridSearch', 'problem': problem, 'data': data,
+    job = {'type': 'gridSearch', 'problem': problem, 'trackInfo': data,
            'minPenalty': float(minPenalty), 'maxPenalty': float(maxPenalty), 'numModels': num}
 
     jh.addJob(job)

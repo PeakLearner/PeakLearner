@@ -1,3 +1,5 @@
 numpy
 pandas
 requests
+bsddb3
+PeakError
