@@ -302,6 +302,7 @@ def putModel(data):
     with open(modelFilePath, 'w') as f:
         f.writelines(modelData)
 
+    # TODO: Only do this when a job that would put models is finished
     updateModelLabels(trackInfo, generate=False)
 
     lock.release()

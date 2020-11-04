@@ -2,6 +2,6 @@
 */__pycache__/
 *.pyc
 /.idea/
-/server/commands/genomes/
+/server/data/
 /server/PeakLearnerSlurm.cfg
-*/data/
+/jbrowse/data/
