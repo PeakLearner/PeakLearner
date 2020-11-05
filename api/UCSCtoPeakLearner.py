@@ -151,15 +151,21 @@ def getRefSeq(genome, path, includes):
 def downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath):
     if not os.path.exists(genomeFaiPath):
         if not os.path.exists(genomeFaPath):
-            with tempfile.NamedTemporaryFile(suffix='.fa.gz') as temp:
-                # Gets FASTA file for genome
-                with requests.get(genomeUrl, allow_redirects=True) as r:
-                    temp.write(r.content)
-                    temp.flush()
-                    temp.seek(0)
-                with gzip.GzipFile(fileobj=temp, mode='r') as gz:
-                    # uncompress the flatfile
-                    open(genomeFaPath, 'w+b').write(gz.read())
+            with requests.get(genomeUrl, allow_redirects=True) as r:
+                if not r.status_code == 200:
+                    print("downloadRefSeq Error", r.status_code)
+                    return
+
+                with open(genomeFaPath, 'wb') as fa:
+                    fa.write(r.content)
+
+            print("pregzip")
+
+            with gzip.GzipFile(genomeFaPath, mode='r') as gz:
+                # uncompress the flatfile
+                open(genomeFaPath, 'w+b').write(gz.read())
+
+            print("post gzip")
 
         print("Samtools")
 
