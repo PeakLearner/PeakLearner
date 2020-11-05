@@ -2,6 +2,6 @@
 #SBATCH --job-name=PeakLearnerSlurm
 #SBATCH --output=/home/tristan/Research/PeakLearner/runlog.txt
 #SBATCH --chdir=/home/tristan/Research/PeakLearner/server/
-#SBATCH --time=10:01
+#SBATCH --time=1:00
 
 srun python3 run.py

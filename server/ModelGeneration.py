@@ -120,7 +120,7 @@ def fixAndSaveCoverage(interval, outputPath, problem):
     return outputPath
 
 
-def generateModels(job, report=True):
+def generateModels(job):
     data = job['data']
     penalties = data['penalties']
     trackInfo = data['trackInfo']
@@ -153,14 +153,14 @@ def generateModels(job, report=True):
     for thread in modelThreads:
         thread.join()
 
-    if report:
+    finishQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'Done'}}
 
-        finishQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'Done'}}
+    r = requests.post(cfg.remoteServer, json=finishQuery)
 
-        r = requests.post(cfg.remoteServer, json=finishQuery)
+    if not r.status_code == 200:
+        print("Job Finish Request Error", r.status_code)
 
-        if not r.status_code == 200:
-            print("Job Finish Request Error", r.status_code)
+    # TODO: Save models to /projects/
 
 
 def gridSearch(job):
@@ -169,16 +169,10 @@ def gridSearch(job):
     maxPenalty = data['maxPenalty']
     numModels = data['numModels']
     # Remove start and end of list because that is minPenalty/maxPenalty (already calculated)
+    # Add 2 to numModels to account for start/end points (already calculated models)
     data['penalties'] = np.linspace(minPenalty, maxPenalty, numModels + 2).tolist()[1:-1]
 
-    generateModels(job, report=False)
-
-    finishQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'Done'}}
-
-    r = requests.post(cfg.remoteServer, json=finishQuery)
-
-    if not r.status_code == 200:
-        print("gridSearch Job Finish Request Error", r.status_code)
+    generateModels(job)
 
 
 def startJob(jobId):

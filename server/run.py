@@ -7,7 +7,7 @@ import SlurmConfig as cfg
 
 
 def startAllNewJobs():
-    query = {'command': 'getAllJobs', 'args': {'id': 'New'}}
+    query = {'command': 'getAllJobs', 'args': {'status': 'New'}}
 
     # TODO: Add error handling
     jobs = requests.post(cfg.remoteServer, json=query)
@@ -25,8 +25,18 @@ def startAllNewJobs():
     if jobs.status_code == 200:
         infoForJobs = jobs.json()
 
+        print(len(infoForJobs))
+
         for job in infoForJobs:
             if job['status'].lower() == 'new':
+
+                startQuery = {'command': 'updateJob', 'args':{'id': job['id'], 'status': 'Queued'}}
+                startRequest = requests.post(cfg.remoteServer, json=startQuery)
+
+                if not startRequest.status_code == 200:
+                    continue
+
+                print("Starting job with ID", job['id'], "and type", job['data']['type'])
                 if cfg.useSlurm:
                     createSlurmJob(job)
                 else:
@@ -38,7 +48,11 @@ def startAllNewJobs():
 
 
 def createSlurmJob(job):
+    # TODO: Calculate required CPUs for job
     numCpus = 5
+    if numCpus > cfg.maxCPUsPerJob:
+        numCpus = cfg.maxCPUsPerJob
+
     jobName = 'PeakLearner-%d' % job['id']
 
     jobString = '#!/bin/bash\n'

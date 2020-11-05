@@ -31,6 +31,7 @@ if 'slurm' not in configSections:
     config['slurm']['username'] = 'slurmUser'
     config['slurm']['anaconda3venvPath'] = '/'
     config['slurm']['monsoon'] = 'False'
+    config['slurm']['maxCPUsPerJob'] = '1'
 
     save = True
 
@@ -53,4 +54,5 @@ remoteDataPath = config['remoteServer']['dataPath']
 slurmUser = config['slurm']['username']
 condaVenvPath = config['slurm']['anaconda3venvPath']
 monsoon = config['slurm']['monsoon'].lower() == 'true'
+maxCPUsPerJob = int(config['slurm']['maxCPUsPerJob'])
 timeToRun = int(config['cron']['timeToRun'])
