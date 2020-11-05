@@ -139,14 +139,17 @@ def updateModelLabels(data, generate=True):
 
                 peaks = model[model['annotation'] == 'peak']
 
-                if peaks.size < 1:
+                if len(peaks.index) < 1:
                     os.remove(modelPath)
                     continue
 
-                if labels.size < 1:
+                if len(labels.index) < 1:
                     continue
 
                 error = PeakError.error(peaks, labels)
+
+                if error is None:
+                    continue
 
                 summary = PeakError.summarize(error)
 

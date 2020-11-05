@@ -301,7 +301,6 @@ def getTrackUrl(data):
     with open(trackListPath) as f:
         trackList = json.load(f)
         for track in trackList['tracks']:
-            print(track['label'], data['name'])
             if track['label'] == data['name']:
                 out = track['urlTemplates'][0]['url']
                 return out

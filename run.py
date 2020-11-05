@@ -26,15 +26,6 @@ if 'data' not in configSections:
 
     save = True
 
-if 'slurm' not in configSections:
-    config.add_section('slurm')
-    config['slurm']['url'] = 'slurm.url'
-    config['slurm']['user'] = 'user'
-    # TODO: use tokens, passwords are insecure
-    config['slurm']['pass'] = 'pass'
-
-    save = True
-
 # If a section was missing, save that to the config
 if save:
     with open(configFile, 'w') as cfg:
@@ -44,9 +35,6 @@ if save:
 httpServerPort = int(config['http']['port'])
 httpServerPath = config['http']['path']
 
-PLConfig.slurmUrl = config['slurm']['url']
-PLConfig.slurmUser = config['slurm']['user']
-PLConfig.slurmPass = config['slurm']['pass']
 PLConfig.dataPath = config['data']['path']
 
 httpArgs = (httpServerPort, httpServerPath)
