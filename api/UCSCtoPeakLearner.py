@@ -29,9 +29,7 @@ def convert(data):
     # This will need to be updated if there are multiple genomes in file
     genome = genomesFile['genome']
 
-    threads = []
-
-    includes = getGeneTracks(genome, dataPath, threads)
+    includes = getGeneTracks(genome, dataPath)
 
     # Generate problems for this genome
     problems = gp.generateProblems(genome, dataPath)
@@ -40,12 +38,9 @@ def convert(data):
 
     includes.append(problemPath)
 
-    refSeqPath = getRefSeq(genome, dataPath, includes, threads)
+    refSeqPath = getRefSeq(genome, dataPath, includes)
 
     createTrackListJson(hubPath, hub, refSeqPath, genomesFile['trackDb'])
-
-    for thread in threads:
-        thread.join()
 
     # Removing last character as having the / at the end breaks trackList includes
     return hubPath
@@ -120,7 +115,7 @@ def createTrackListJson(path, hub, refSeqPath, tracks):
         json.dump(config, conf)
 
 
-def getRefSeq(genome, path, includes, threads):
+def getRefSeq(genome, path, includes):
     ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/'
 
     genomeRelPath = os.path.join('genomes', genome)
@@ -139,9 +134,7 @@ def getRefSeq(genome, path, includes, threads):
     genomeFaPath = os.path.join(genomePath, genome + '.fa')
     genomeFaiPath = genomeFaPath + '.fai'
 
-    dlThread = threading.Thread(target=downloadRefSeq, args=(genomeUrl, genomeFaPath, genomeFaiPath))
-    threads.append(dlThread)
-    dlThread.start()
+    downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath)
 
     genomeConfigPath = os.path.join(genomePath, 'trackList.json')
 
@@ -166,9 +159,7 @@ def downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath):
                     temp.seek(0)
                 with gzip.GzipFile(fileobj=temp, mode='r') as gz:
                     # uncompress the flatfile
-                    with open(genomeFaPath, 'w+b') as faFile:
-                        # Save to file
-                        faFile.write(gz.read())
+                    open(genomeFaPath, 'w+b').write(gz.read())
 
         print("Samtools")
 
@@ -179,7 +170,7 @@ def downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath):
         os.remove(genomeFaPath)
 
 
-def getGeneTracks(genome, path, threads):
+def getGeneTracks(genome, path):
     ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/'
 
     genomePath = '%sgenomes/%s/' % (path, genome)
@@ -203,11 +194,7 @@ def getGeneTracks(genome, path, threads):
     for gene in genes:
         geneTrackPath = '%s%s/' % (genomePath, gene)
 
-        geneArgs = (gene, genesUrl, genesPath, geneTrackPath)
-
-        geneThread = threading.Thread(target=getAndProcessGeneTrack, args=geneArgs)
-        threads.append(geneThread)
-        geneThread.start()
+        getAndProcessGeneTrack(gene, genesUrl, genesPath, geneTrackPath)
 
         includes.append(os.path.join(geneTrackPath, 'trackList.json'))
 
