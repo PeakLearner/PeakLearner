@@ -1,7 +1,9 @@
 import os
 import requests
-import commands.ModelGeneration as mg
-import utils.SlurmConfig as cfg
+import time
+import tempfile
+import ModelGeneration as mg
+import SlurmConfig as cfg
 
 
 def startAllNewJobs():
@@ -30,34 +32,56 @@ def startAllNewJobs():
                 else:
                     mg.startJob(job['id'])
 
+        return True
+
+    return False
+
 
 def createSlurmJob(job):
-
+    numCpus = 5
     jobName = 'PeakLearner-%d' % job['id']
 
     jobString = '#!/bin/bash\n'
 
-    jobString += '#SBATCH --job-name=%s\n' % job['id']
+    jobString += '#SBATCH --job-name=%s\n' % jobName
 
-    jobString += '#SBATCH --output=%s%s/%s.txt\n' % (cfg.dataPath, cfg.slurmUser, jobName)
-    jobString += '#SBATCH --chdir=%s%s\n' % (cfg.dataPath, cfg.slurmUser)
+    jobString += '#SBATCH --output=%s\n' % os.path.join(os.getcwd(), 'data/', jobName + '.txt')
+    jobString += '#SBATCH --chdir=%s\n' % os.getcwd()
 
     # TODO: Make resource allocation better
-    jobString += '#SBATCH --time=1:00\n'
-    jobString += '#SBATCH --mem=1024\n'
-    jobString += '#SBATCH --c 1\n'
+    jobString += '#SBATCH --time=2:00\n'
+    jobString += '#SBATCH --cpus-per-task=%d\n' % numCpus
 
-    jobString += 'module load anaconda3\n'
-    jobString += 'module load R\n'
+    if cfg.monsoon:
+        jobString += '#SBATCH --mem=1024\n'
+        jobString += 'module load anaconda3\n'
+        jobString += 'module load R\n'
+        jobString += 'conda activate %s\n' % cfg.condaVenvPath
 
-    jobString += 'conda activate %s\n' % cfg.condaVenvPath
+    jobString += 'srun python3 %s %s\n' % ('ModelGeneration.py', job['id'])
 
-    jobString += 'srun python3 commands/ModelGeneration.py %s\n' % (job['id'])
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.sh') as temp:
+        temp.write(jobString)
+        temp.flush()
+        temp.seek(0)
 
-    command = 'sbatch %s' % jobString
+        command = 'sbatch %s' % temp.name
 
-    os.system(command)
+        os.system(command)
 
 
 if __name__ == '__main__':
-    startAllNewJobs()
+    startTime = time.time()
+
+    if cfg.useCron:
+        timeDiff = lambda: time.time() - startTime
+
+        while timeDiff() < cfg.timeToRun:
+            startAllNewJobs()
+            time.sleep(1)
+    else:
+        startAllNewJobs()
+
+        endTime = time.time()
+
+        print("Start Time:", startTime, "End Time", endTime)

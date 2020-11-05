@@ -271,7 +271,7 @@ def getGenome(data):
 
 
 def getHubInfo(data):
-    track, hub = data.rsplit('/')
+    hub, track = data.rsplit('/')
 
     genome = getGenome(data)
 
@@ -294,16 +294,15 @@ def getHubInfo(data):
 
 
 def getTrackUrl(data):
-    track, hub = data['name'].rsplit('/')
+    hub, track = data['name'].split('/')
 
-    dataLabel = os.path.join(cfg.dataPath, hub, track)
-
-    trackListPath = '%s%s/trackList.json' % (cfg.dataPath, hub)
+    trackListPath = os.path.join(cfg.dataPath, hub, 'trackList.json')
 
     with open(trackListPath) as f:
         trackList = json.load(f)
         for track in trackList['tracks']:
-            if track['label'] == dataLabel:
+            print(track['label'], data['name'])
+            if track['label'] == data['name']:
                 out = track['urlTemplates'][0]['url']
                 return out
     return

@@ -68,6 +68,8 @@ def addJob(data):
 def getJob(data):
     output = {}
 
+    jobLock.acquire()
+
     # If ID field
     if 'id' in data:
         for job in jobs:
@@ -82,16 +84,18 @@ def getJob(data):
             if job['status'] == 'New':
                 output = job
                 # If new job is fetched, that job is now being processed so update jobs to reflect that
-                updateJob({'id': job['id'], 'status': 'Processing'})
+                updateJob({'id': job['id'], 'status': 'Processing'}, lock=False)
                 break
 
         if not output:
             return
 
+    jobLock.release()
+
     return output
 
 
-def updateJob(data):
+def updateJob(data, lock=True):
     global jobs
 
     if 'id' not in data:
@@ -103,21 +107,28 @@ def updateJob(data):
     newJobList = []
     added = False
 
+    updatedJob = {}
+
     if data['status'] == 'Done':
         return removeJob(data)
 
-    jobLock.acquire()
+    if lock:
+        jobLock.acquire()
 
     for job in jobs:
         if job['id'] == data['id']:
             job['status'] = data['status']
+            updatedJob = job
             added = True
         newJobList.append(job)
 
     if added:
         jobs = newJobList
 
-    jobLock.release()
+    if lock:
+        jobLock.release()
+
+    return updatedJob
 
 
 def removeJob(data):
@@ -128,6 +139,8 @@ def removeJob(data):
 
     newJobList = []
 
+    removedJob = {}
+
     jobLock.acquire()
 
     for job in jobs:
@@ -135,6 +148,7 @@ def removeJob(data):
         if job['id'] == data['id']:
             historyLock.acquire()
             jobHistory.append(job)
+            removedJob = job
             historyLock.release()
         # If not job to delete, re add to job list
         else:
@@ -144,7 +158,7 @@ def removeJob(data):
 
     jobLock.release()
 
-    return data
+    return removedJob
 
 
 def getAllJobs(data):

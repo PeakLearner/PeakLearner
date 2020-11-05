@@ -129,8 +129,11 @@ def updateModelLabels(data, generate=True):
                 penalty = getPenalty(file)
 
                 modelPath = '%s%s' % (modelsPath, file)
-
-                model = pd.read_csv(modelPath, sep='\t', header=None)
+                try:
+                    model = pd.read_csv(modelPath, sep='\t', header=None)
+                except pd.errors.EmptyDataError:
+                    os.remove(modelPath)
+                    continue
 
                 model.columns = modelColumns
 
@@ -138,6 +141,9 @@ def updateModelLabels(data, generate=True):
 
                 if peaks.size < 1:
                     os.remove(modelPath)
+                    continue
+
+                if labels.size < 1:
                     continue
 
                 error = PeakError.error(peaks, labels)
@@ -281,7 +287,7 @@ def putModel(data):
     modelData = data['modelData']
     modelInfo = data['modelInfo']
     problem = modelInfo['problem']
-    trackInfo = modelInfo['data']
+    trackInfo = modelInfo['trackInfo']
     penalty = data['penalty']
 
     trackPath = '%s%s/%s/' % (pl.dataPath, trackInfo['hub'], trackInfo['track'])
