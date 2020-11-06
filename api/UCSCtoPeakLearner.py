@@ -128,6 +128,7 @@ def getRefSeq(genome, path, includes):
         try:
             os.makedirs(genomePath)
         except OSError:
+            print(genomePath, "does not exist")
             return
 
     genomeUrl = ucscUrl + genome + '/bigZips/' + genome + '.fa.gz'
@@ -187,12 +188,21 @@ def getGeneTracks(genome, path):
 
     includes = []
 
+    geneThreads = []
+
     for gene in genes:
         geneTrackPath = os.path.join(genomePath, gene)
 
-        getAndProcessGeneTrack(gene, genesUrl, genesPath, geneTrackPath)
+        args = (gene, genesUrl, genesPath, geneTrackPath)
+
+        geneThread = threading.Thread(target=getAndProcessGeneTrack, args=args)
+        geneThreads.append(geneThread)
+        geneThread.start()
 
         includes.append(os.path.join(geneTrackPath, 'trackList.json'))
+
+    for thread in geneThreads:
+        thread.join()
 
     return includes
 
@@ -240,7 +250,10 @@ def getDbFiles(name, url, output):
         path = os.path.join(output, file)
         if not os.path.exists(path):
             with requests.get(url + file, allow_redirects=True) as r:
-                open(path, 'w+b').write(r.content)
+                if not r.status_code == 200:
+                    print("getDbFile Error", r.status_code)
+                with open(path, 'wb') as f:
+                    f.write(r.content)
 
 
 # TODO: Remove lock and move this to DB
@@ -248,7 +261,7 @@ geneLock = threading.Lock()
 
 
 def addGeneCategory(genePath, label):
-    confFile = os.path.join( genePath, 'trackList.json')
+    confFile = os.path.join(genePath, 'trackList.json')
 
     geneLock.acquire()
 
