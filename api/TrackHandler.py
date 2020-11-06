@@ -59,6 +59,7 @@ def addLabel(data):
         with open(rel_path, 'w') as new:
             print("New label file created at %s" % rel_path)
             new.write(line_to_append)
+            lock.release()
             return data
 
     # read labels in besides one to delete
