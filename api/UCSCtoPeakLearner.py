@@ -158,28 +158,20 @@ def downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath):
                     temp.flush()
                     temp.seek(0)
 
-            with gzip.GzipFile(genomeFaPath + '.gz', mode='r') as gz:
-                # uncompress the flatfile
-                with open(genomeFaPath, 'w+b') as faFile:
-                    # Save to file
-                    faFile.write(gz.read())
+            os.system('gzip -d %s' % genomeFaPath + '.gz')
 
         print("Samtools on", genomeFaPath)
 
         # Run samtools faidx {genome Fasta File}, creating an indexed Fasta file
         os.system('samtools faidx %s' % genomeFaPath)
 
-        # Normal Fasta file no longer needed
-        os.remove(genomeFaPath)
-        os.remove(genomeFaPath + '.gz')
-
 
 def getGeneTracks(genome, path):
     ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/'
 
-    genomePath = '%sgenomes/%s/' % (path, genome)
+    genomePath = os.path.join(path, 'genomes', genome)
 
-    genesPath = '%sgenes/' % genomePath
+    genesPath = os.path.join(genomePath, 'genes')
 
     if not os.path.exists(genesPath):
         try:
@@ -196,7 +188,7 @@ def getGeneTracks(genome, path):
     includes = []
 
     for gene in genes:
-        geneTrackPath = '%s%s/' % (genomePath, gene)
+        geneTrackPath = os.path.join(genomePath, gene)
 
         getAndProcessGeneTrack(gene, genesUrl, genesPath, geneTrackPath)
 
@@ -245,9 +237,10 @@ def getDbFiles(name, url, output):
     files = ['%s.txt.gz' % name, '%s.sql' % name]
 
     for file in files:
-        if not os.path.exists(output + file):
+        path = os.path.join(output, file)
+        if not os.path.exists(path):
             with requests.get(url + file, allow_redirects=True) as r:
-                open(output + file, 'w+b').write(r.content)
+                open(path, 'w+b').write(r.content)
 
 
 # TODO: Remove lock and move this to DB
