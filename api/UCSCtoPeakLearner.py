@@ -248,7 +248,7 @@ geneLock = threading.Lock()
 
 
 def addGeneCategory(genePath, label):
-    confFile = '%strackList.json' % genePath
+    confFile = os.path.join( genePath, 'trackList.json')
 
     geneLock.acquire()
 
