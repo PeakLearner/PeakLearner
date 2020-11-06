@@ -151,29 +151,27 @@ def getRefSeq(genome, path, includes):
 def downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath):
     if not os.path.exists(genomeFaiPath):
         if not os.path.exists(genomeFaPath):
-            with requests.get(genomeUrl, allow_redirects=True) as r:
-                if not r.status_code == 200:
-                    print("downloadRefSeq Error", r.status_code)
-                    return
+            with open(genomeFaPath + '.gz', 'wb') as temp:
+                # Gets FASTA file for genome
+                with requests.get(genomeUrl, allow_redirects=True) as r:
+                    temp.write(r.content)
+                    temp.flush()
+                    temp.seek(0)
 
-                with open(genomeFaPath, 'wb') as fa:
-                    fa.write(r.content)
-
-            print("pregzip")
-
-            with gzip.GzipFile(genomeFaPath, mode='r') as gz:
+            with gzip.GzipFile(genomeFaPath + '.gz', mode='r') as gz:
                 # uncompress the flatfile
-                open(genomeFaPath, 'w+b').write(gz.read())
+                with open(genomeFaPath, 'w+b') as faFile:
+                    # Save to file
+                    faFile.write(gz.read())
 
-            print("post gzip")
-
-        print("Samtools")
+        print("Samtools on", genomeFaPath)
 
         # Run samtools faidx {genome Fasta File}, creating an indexed Fasta file
         os.system('samtools faidx %s' % genomeFaPath)
 
         # Normal Fasta file no longer needed
         os.remove(genomeFaPath)
+        os.remove(genomeFaPath + '.gz')
 
 
 def getGeneTracks(genome, path):
