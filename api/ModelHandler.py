@@ -118,6 +118,9 @@ def updateModelLabels(data, generate=True):
 
         labels = pd.DataFrame(th.getLabels(labelQuery, useLock=False))
 
+        if len(labels.index) < 1:
+            continue
+
         labels.columns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
 
         labels = labels[labels['annotation'] != 'unknown']

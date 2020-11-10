@@ -220,7 +220,7 @@ def getProblems(data):
     if 'genome' not in data:
         data['genome'] = getGenome(data)
 
-    rel_path = os.path.join(cfg.dataPath, 'genomes/', data['genome'], 'problems.bed')
+    rel_path = os.path.join(cfg.dataPath, 'genomes', data['genome'], 'problems.bed')
     refseq = data['ref']
     start = data['start']
     end = data['end']

@@ -9,8 +9,10 @@ import SlurmConfig as cfg
 def startAllNewJobs():
     query = {'command': 'getAllJobs', 'args': {'status': 'New'}}
 
-    # TODO: Add error handling
-    jobs = requests.post(cfg.remoteServer, json=query)
+    try:
+        jobs = requests.post(cfg.remoteServer, json=query)
+    except requests.exceptions.ConnectionError:
+        return False
 
     if jobs.status_code == 204:
         return False
