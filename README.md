@@ -10,7 +10,7 @@ An Interactive Labeling and model feedback system for genomic data.
 ## Building
 
 Web Server:
-1. git clone https://github.com/deltarod/PeakLearner-1.1.git
+1. git clone https://github.com/deltarod/PeakLearner.git
 2. cd PeakLearner-1.1/
 3. git submodule update --init --recursive - Initializes recursive submodules
 4. Install http.server via pip
@@ -41,7 +41,7 @@ gmod wiki                           http://gmod.org/wiki/JBrowse
 
 Jbrowse git                         https://github.com/GMOD/jbrowse/
 
-PeakLearner git                     https://github.com/deltarod/PeakLearner-1.1
+PeakLearner git                     https://github.com/deltarod/PeakLearner
 
 MultiBigWig git                     https://github.com/elsiklab/multibigwig
 
