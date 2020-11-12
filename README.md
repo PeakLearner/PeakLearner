@@ -1,33 +1,60 @@
-# PeakLearner-1.1
-An Interactive Labeling and model feedback system for genomic data.
-
-## Todos
-1. Dynamic model generation and display
-2. Authentication system
-3. Customizable Hub Upload
-4. Better CI
-
-## Building
-
-Web Server:
-1. git clone https://github.com/deltarod/PeakLearner.git
-2. cd PeakLearner-1.1/
-3. git submodule update --init --recursive - Initializes recursive submodules
-4. Install http.server via pip
-5. sudo apt update && sudo apt install samtools
-6. cd jbrowse
-7. ./setup.sh
-8. cd ..
-9. Install [PeakError](https://github.com/deltarod/PeakError/)
-10. python3 run.py
-
-The PeakLearner + Jbrowse webserver should now be started, and can be access at 127.0.0.1:8081.
+# PeakLearner
+An Interactive Labeling and model generation system for genomic data.
 
 ## Features
 
 UCSCToPeakLearner: A custom dropdown menu which can take a hub.txt file, parse, and create a new data directory for JBrowse to read from.
 
 Interactive Labeling: A user can create, modify, and delete labels for a given track. These labels are then stored on the webserver
+
+## Setup
+This section will explain the setup for the different systems of PeakLearner
+
+Both sections were developed on Python 3.8, they both should work with this version.
+The Web Server might work with 3.7 but this is untested.
+The Slurm Server should work with 3.6 and up but this is also untested. 
+
+### Web Server
+1. `git clone https://github.com/deltarod/PeakLearner.git`
+2. `cd PeakLearner/`
+3. `git submodule update --init --recursive` - Initializes recursive submodules
+4. Install https.server, pandas, numpy, pybbi via pip
+5. `sudo apt update && sudo apt install samtools`
+6. `cd jbrowse`
+7. `./setup.sh`
+8. `cd ..`
+9. Install [PeakError](https://github.com/deltarod/PeakError/)
+10. `python3 run.py`
+
+The PeakLearner + Jbrowse webserver should now be started, and can be access at 127.0.0.1:8081.
+
+### Slurm Server
+1. `git clone https://github.com/deltarod/PeakLearner.git`
+2. `cd PeakLearner/server/`
+3. `python3 run.py` - This will generate the intial config
+4. Setup PeakLearnerSlurm.cfg, for more information see the [configuration section](#configuration)
+
+
+## Configuration
+This section will explain some of the configuration of the different systems
+
+### Web Server Configuration
+
+#### Config File
+- HTTP Section: Info about the http server
+    - port: port it will be served on
+    - path: path to jbrowse files (typically cloned during web server setup, default will work)
+- data: Info about data within jbrowse folder
+    - path: path to data folder, default will work
+
+
+### Slurm Configuration
+TBD
+
+## Todos
+1. Authentication system
+2. Customizable Hub Upload
+3. Better CI
 
 ## Contributing
 Follow the [Contributing Guide](CONTRIBUTING.md)!
