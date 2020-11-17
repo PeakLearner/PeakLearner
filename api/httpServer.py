@@ -2,11 +2,10 @@ import http.server as server
 import os
 import re
 import json
-import api.TrackHandler as TrackHandler
+from api import TrackHandler
 
-#https://github.com/danvk/RangeHTTPServer
-#see link above for original code which we copied here to properly extend
-
+# https://github.com/danvk/RangeHTTPServer
+# see link above for original code which we copied here to properly extend
 
 
 def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=16*1024):
@@ -21,7 +20,10 @@ def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=16*1024):
             break
         outfile.write(buf)
 
+
 BYTE_RANGE_RE = re.compile(r'bytes=(\d+)-(\d+)?$')
+
+
 def parse_byte_range(byte_range):
     '''Returns the two numbers in 'bytes=123-456' or throws ValueError.
     The last number or both numbers may be None.

@@ -1,11 +1,13 @@
 import os
 import PeakError
 import threading
+import tempfile
 import api.plLocks as locks
 import pandas as pd
 import api.TrackHandler as th
 import api.PLConfig as pl
 import api.JobHandler as jh
+from api import PLdb as db
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors', 'penalty', 'numPeaks']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
@@ -296,28 +298,20 @@ def putModel(data):
     trackInfo = modelInfo['trackInfo']
     penalty = data['penalty']
 
-    trackPath = '%s%s/%s/' % (pl.dataPath, trackInfo['hub'], trackInfo['track'])
-    problemPath = '%s%s-%d-%d/' % (trackPath, problem['ref'], problem['start'], problem['end'])
+    # TODO: Replace 1 with user of hub NOT current user
+    model = db.Model(1, trackInfo['hub'], trackInfo['track'], problem['ref'], problem['start'], penalty)
 
-    if not os.path.exists(problemPath):
-        try:
-            os.makedirs(problemPath)
-        except OSError:
-            return
-
-    lock = locks.getLock(trackInfo['name'])
-
-    lock.acquire()
-
-    modelFilePath = '%s%s_Model.bedGraph' % (problemPath, penalty)
-
-    with open(modelFilePath, 'w') as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt') as f:
         f.writelines(modelData)
 
-    # TODO: Only do this when a job that would put models is finished
-    updateModelLabels(trackInfo, generate=False)
+        f.flush()
+        f.seek(0)
 
-    lock.release()
+        df = pd.read_csv(f.name, sep='\t', header=None)
+
+        model.put(df)
+
+    # TODO: Calculate label error for that model
 
     return modelInfo
 

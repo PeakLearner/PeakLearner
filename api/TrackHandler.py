@@ -1,11 +1,7 @@
 import os
 import json
-import api.plLocks as locks
-import api.HubParse as hubParse
-import api.UCSCtoPeakLearner as UCSCtoPeakLearner
-import api.PLConfig as cfg
-import api.JobHandler as jh
-import api.ModelHandler as mh
+from api import plLocks as locks, HubParse as hubParse, UCSCtoPeakLearner as UCSCtoPeakLearner
+from api import PLConfig as cfg, JobHandler as jh, ModelHandler as mh
 
 
 def jsonInput(data):
