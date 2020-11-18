@@ -2,6 +2,8 @@ language: python
 
 sudo: required
 
+dist: bionic
+
 python:
   - 3.6
   - 3.7
@@ -10,7 +12,7 @@ python:
 before_install:
   - sudo apt-get update
   - sudo apt-get -y install libdb5.3-dev
-  - sudo apt-get -y install slurm-llnl
+  - sudo apt-get -y install slurm-wlm
   # Setup python dependencies
   - python --version
   - pip install -U pip
