@@ -1,5 +1,7 @@
 language: python
 
+sudo: required
+
 python:
   - 3.6
   - 3.7
@@ -37,6 +39,8 @@ after_success:
 after_failure:
   - sudo journalctl -u slurmctld
   - sudo journalctl -u slurmd
+  - sudo systemctl status slurmctld.service
+  - sudo systemctl status slurmd.service
 
 
 
