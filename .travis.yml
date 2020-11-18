@@ -24,6 +24,10 @@ before_install:
   - pip install bsddb3
   - pip install git+https://github.com/deltarod/PeakError.git
   - pip install codecov
+  - sudo mkdir /var/spool/slurm-llnl/
+  - sudo chown slurm /var/spool/slurm-llnl/
+  - sudo mkdir /var/spool/slurmd/
+  - sudo chown slurm /var/spool/slurmd/
 
 script:
   # Setup slurm.conf for testing
