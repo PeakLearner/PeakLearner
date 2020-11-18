@@ -24,10 +24,6 @@ def getModel(data):
 
     output = []
 
-    lock = locks.getLock(data['name'])
-
-    lock.acquire()
-
     for problem in problems:
         # data path, hub path, track path, problem path
         modelsPath = '%s%s/%s/%s-%s-%s/' % (pl.dataPath, data['hub'], data['track'],
@@ -56,8 +52,6 @@ def getModel(data):
         model = loadModelFile(minErrorModelPath, data)
 
         output.extend(model)
-
-    lock.release()
 
     return output
 

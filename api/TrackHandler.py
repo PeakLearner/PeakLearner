@@ -37,7 +37,7 @@ def commands(command):
 
 # Adds Label to label file
 def addLabel(data):
-    rel_path = os.path.join(cfg.dataPath, data['name'] + '_Labels.bedGraph')
+    rel_path = os.path.join(cfg.httpServerPath, cfg.dataPath, data['name'] + '_Labels.bedGraph')
 
     file_output = []
 
@@ -91,7 +91,7 @@ def addLabel(data):
 
 # Removes label from label file
 def removeLabel(data):
-    rel_path = os.path.join(cfg.dataPath, data['name'] + '_Labels.bedGraph')
+    rel_path = os.path.join(cfg.httpServerPath, cfg.dataPath, data['name'] + '_Labels.bedGraph')
 
     output = []
 
@@ -125,7 +125,7 @@ def removeLabel(data):
 
 
 def updateLabel(data):
-    rel_path = os.path.join(cfg.dataPath, data['name'] + '_Labels.bedGraph')
+    rel_path = os.path.join(cfg.httpServerPath, cfg.dataPath, data['name'] + '_Labels.bedGraph')
 
     output = []
 
@@ -161,7 +161,7 @@ def updateLabel(data):
 
 
 def getLabels(data, useLock=True):
-    rel_path = os.path.join(cfg.dataPath, data['name'] + '_Labels.bedGraph')
+    rel_path = os.path.join(cfg.httpServerPath, cfg.dataPath, data['name'] + '_Labels.bedGraph')
     refseq = data['ref']
     start = data['start']
     end = data['end']
@@ -216,7 +216,7 @@ def getProblems(data):
     if 'genome' not in data:
         data['genome'] = getGenome(data)
 
-    rel_path = os.path.join(cfg.dataPath, 'genomes', data['genome'], 'problems.bed')
+    rel_path = os.path.join(cfg.httpServerPath, cfg.dataPath, 'genomes', data['genome'], 'problems.bed')
     refseq = data['ref']
     start = data['start']
     end = data['end']
@@ -255,7 +255,7 @@ def getProblems(data):
 def getGenome(data):
     hub, track = data['name'].rsplit('/')
 
-    trackListPath = os.path.join(cfg.dataPath, hub, 'trackList.json')
+    trackListPath = os.path.join(cfg.httpServerPath, cfg.dataPath, hub, 'trackList.json')
 
     with open(trackListPath, 'r') as f:
         trackList = json.load(f)
@@ -272,9 +272,9 @@ def getHubInfo(data):
 
     genome = getGenome(data)
 
-    genomePath = os.path.join(cfg.dataPath, 'genomes/', genome)
+    genomePath = os.path.join(cfg.httpServerPath, cfg.dataPath, 'genomes/', genome)
 
-    trackListPath = os.path.join(cfg.dataPath, hub, 'trackList.json')
+    trackListPath = os.path.join(cfg.httpServerPath, cfg.dataPath, hub, 'trackList.json')
 
     output = {'hub': hub, 'genomePath': genomePath, 'tracks': []}
 
@@ -293,7 +293,7 @@ def getHubInfo(data):
 def getTrackUrl(data):
     hub, track = data['name'].split('/')
 
-    trackListPath = os.path.join(cfg.dataPath, hub, 'trackList.json')
+    trackListPath = os.path.join(cfg.httpServerPath, cfg.dataPath, hub, 'trackList.json')
 
     with open(trackListPath) as f:
         trackList = json.load(f)

@@ -8,18 +8,22 @@ dbPath = os.path.join(cfg.httpServerPath, cfg.dataPath, 'db')
 db.createEnvWithDir(dbPath)
 
 
+def close():
+    db.close_db()
+
+
 class Model(db.Resource):
-    keys = ("User", "Hub", "Track", "Chrom", "ProblemStart", "Penalty")
+    keys = ("user", "hub", "track", "chrom", "problemstart", "penalty")
     pass
 
 
 class Labels(db.Resource):
-    keys = ("User", "Hub", "Track", "Chrom", "ProblemStart")
+    keys = ("user", "hub", "track", "chrom", "problemstart")
     pass
 
 
 class BestModel(db.Resource):
-    keys = ("User", "Hub", "Track", "Chrom", "problemStart")
+    keys = ("user", "hub", "track", "chrom", "problemstart")
     pass
 
 

@@ -20,3 +20,4 @@ try:
     startServer()
 except KeyboardInterrupt:
     joinServer()
+    PLdb.close()
