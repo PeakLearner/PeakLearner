@@ -33,5 +33,10 @@ script:
 after_success:
   - codecov
 
+after_failure:
+  - sudo journalctl -u slurmctld
+  - sudo journalctl -u slurmd
+
+
 
 
