@@ -35,6 +35,6 @@ if save:
 
 # get ports from config
 httpServerPort = int(config['http']['port'])
-httpServerPath = config['http']['path']
+jbrowsePath = config['http']['path']
 
 dataPath = config['data']['path']

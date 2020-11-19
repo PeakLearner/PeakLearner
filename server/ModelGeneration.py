@@ -63,7 +63,7 @@ def sendModel(modelPath, modelInfo, penalty):
 
     r = requests.post(cfg.remoteServer, json=query)
 
-    if not r.status_code == 200:
+    if not r.status_code == 200 or r.status_code == 204:
         print("Send Model Request Error", r.status_code)
 
 

@@ -8,8 +8,7 @@ import pandas as pd
 
 def generateProblems(genome, path):
     ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/' + genome + '/database/'
-
-    genomePath = '%sgenomes/%s/' % (path, genome)
+    genomePath = os.path.join(path, 'genomes', genome)
 
     if not os.path.exists(genomePath):
         try:
@@ -21,7 +20,7 @@ def generateProblems(genome, path):
 
     for file in ['chromInfo', 'gap']:
         fileUrl = ucscUrl + file + '.txt.gz'
-        output = genomePath + file + '.txt'
+        output = os.path.join(genomePath, file + '.txt')
 
         files.append(downloadAndUnpackFile(fileUrl, output))
 
@@ -50,7 +49,7 @@ def generateProblems(genome, path):
     output['problemStart'] = output['problemStart'].astype(int)
     output['problemEnd'] = output['problemEnd'].astype(int)
 
-    outputFile = genomePath + 'problems.bed'
+    outputFile = os.path.join(genomePath, 'problems.bed')
 
     output.to_csv(outputFile, sep='\t', index=False, header=False)
 
