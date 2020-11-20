@@ -1,7 +1,7 @@
 pandas
 numpy
 requests
-simpleBDB
+simpleBDB > "1.0.6"
 bsddb3
 pybbi
 

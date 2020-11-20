@@ -9,7 +9,7 @@ from api import PLdb as db
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
-labelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
+jbrowseModelColumns = ["ref", "start", "end", "type", "score"]
 
 
 def getModel(data):
@@ -48,23 +48,24 @@ def getModel(data):
 
 
 def loadModelDf(df, data):
-    df.columns = ["ref", "start", "end", "type", "score"]
-    onlyPeaks = df[df['type'] == 'peak']
+    onlyPeaks = df[df['annotation'] == 'peak']
 
     inView = onlyPeaks.apply(checkInBounds, axis=1, args=(data, ))
 
     output = onlyPeaks[inView]
 
+    output.columns = jbrowseModelColumns
+
     return output.to_dict('records')
 
 
 def checkInBounds(row, data):
-    if not data['ref'] == row['ref']:
+    if not data['ref'] == row['chrom']:
         return False
 
-    startIn = data['start'] <= row['start'] <= data['end']
-    endIn = data['start'] >= row['end'] <= data['end']
-    wrap = (row['start'] < data['start']) and (row['end'] > data['end'])
+    startIn = data['start'] <= row['chromStart'] <= data['end']
+    endIn = data['start'] >= row['chromEnd'] <= data['end']
+    wrap = (row['chromStart'] < data['start']) and (row['chromEnd'] > data['end'])
 
     return startIn or endIn or wrap
 

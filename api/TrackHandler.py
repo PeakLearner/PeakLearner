@@ -1,7 +1,11 @@
 import os
 import json
+import pandas as pd
 from api import HubParse as hubParse, UCSCtoPeakLearner as UCSCtoPeakLearner
-from api import PLConfig as cfg, JobHandler as jh, ModelHandler as mh
+from api import PLConfig as cfg, JobHandler as jh, ModelHandler as mh, PLdb as db
+
+
+jbrowseLabelColumns = ['ref', 'start', 'end', 'label']
 
 
 def jsonInput(data):
@@ -16,7 +20,6 @@ def jsonInput(data):
 
 def commands(command):
     command_list = {
-        'addLabel': addLabel,
         'removeLabel': removeLabel,
         'updateLabel': updateLabel,
         'getLabels': getLabels,
@@ -35,77 +38,17 @@ def commands(command):
     return command_list.get(command, None)
 
 
-# Adds Label to label file
-def addLabel(data):
-    rel_path = os.path.join(cfg.jbrowsePath, cfg.dataPath, data['name'] + '_Labels.bedGraph')
-
-    file_output = []
-
-    default_val = 'unknown'
-
-    added = False
-
-    line_to_append = '%s\t%d\t%d\t%s\n' % (data['ref'], data['start'], data['end'], default_val)
-
-    if not os.path.exists(rel_path):
-        with open(rel_path, 'w') as new:
-            print("New label file created at %s" % rel_path)
-            new.write(line_to_append)
-            return data
-
-    # read labels in besides one to delete
-    with open(rel_path, 'r') as f:
-
-        current_line = f.readline()
-
-        while not current_line == '':
-            lineVals = current_line.split()
-
-            current_line_ref = lineVals[0]
-            current_line_start = int(lineVals[1])
-
-            if not added and not (current_line_ref < data['ref'] or current_line_start < data['start']):
-                file_output.append(line_to_append)
-                added = True
-
-            file_output.append(current_line)
-            current_line = f.readline()
-
-        if not added:
-            file_output.append(line_to_append)
-
-    # this could be "runtime expensive" saving here instead of just sending label data to the model itself for
-    # storage
-    with open(rel_path, 'w') as f:
-        f.writelines(file_output)
-
-
-    return data
-
-
 # Removes label from label file
 def removeLabel(data):
-    rel_path = os.path.join(cfg.jbrowsePath, cfg.dataPath, data['name'] + '_Labels.bedGraph')
+    # TODO: Add user
+    data['hub'], data['track'] = data['name'].split('/')
 
-    output = []
+    toRemove = pd.Series({'chrom': data['ref'],
+                          'chromStart': data['start'],
+                          'chromEnd': data['end']})
 
-    line_to_check = '%s\t%s\t%s' % (data['ref'], str(data['start']), str(data['end']))
-
-    # read labels in besides one to delete
-    with open(rel_path, 'r') as f:
-
-        current_line = f.readline()
-
-        while not current_line == '':
-
-            if current_line.find(line_to_check) == -1:
-                output.append(current_line)
-
-            current_line = f.readline()
-
-    # write labels after one to delete is gone
-    with open(rel_path, 'w') as f:
-        f.writelines(output)
+    labels = db.Labels(1, data['hub'], data['track'], data['ref'])
+    labels.remove(toRemove)
 
     mh.updateAllModelLabels(data)
 
@@ -113,70 +56,67 @@ def removeLabel(data):
 
 
 def updateLabel(data):
-    rel_path = os.path.join(cfg.jbrowsePath, cfg.dataPath, data['name'] + '_Labels.bedGraph')
+    # TODO: add user
+    data['hub'], data['track'] = data['name'].split('/')
 
-    output = []
+    update = True
 
-    line_to_check = '%s\t%s\t%s' % (data['ref'], str(data['start']), str(data['end']))
+    if 'label' not in data.keys():
+        update = False
+        label = 'unknown'
+    else:
+        label = data['label']
 
-    # read labels in besides one to delete
-    with open(rel_path, 'r') as f:
+    newLabel = pd.Series({'chrom': data['ref'],
+                          'chromStart': data['start'],
+                          'chromEnd': data['end'],
+                          'annotation': label})
 
-        current_line = f.readline()
+    # TODO: Replace 1 with hub user NOT current user
+    labels = db.Labels(1, data['hub'], data['track'], data['ref'])
 
-        while not current_line == '':
+    labels.add(newLabel)
 
-            if not current_line.find(line_to_check) <= -1:
-                output.append('%s\t%s\n' % (line_to_check, data['label']))
-            else:
-                output.append(current_line)
-
-            current_line = f.readline()
-
-    # write labels after one to delete is gone
-    with open(rel_path, 'w') as f:
-        f.writelines(output)
-
-    mh.updateAllModelLabels(data)
+    if update:
+        mh.updateAllModelLabels(data)
 
     return data
 
 
 def getLabels(data):
-    rel_path = os.path.join(cfg.jbrowsePath, cfg.dataPath, data['name'] + '_Labels.bedGraph')
-    refseq = data['ref']
-    start = data['start']
-    end = data['end']
+    # TODO: Add user
+    data['hub'], data['track'] = data['name'].split('/')
 
-    output = []
+    print('before getting Labels')
 
-    if not os.path.exists(rel_path):
-        return output
+    labels = getLabelsDf(data)
 
-    with open(rel_path, 'r') as f:
+    print('getLabels', labels)
 
-        current_line = f.readline()
+    if len(labels.index) < 1:
+        return {}
 
-        while not current_line == '':
-            lineVals = current_line.split()
+    print('getLabels after if')
 
-            lineStart = int(lineVals[1])
+    labels.columns = jbrowseLabelColumns
 
-            lineEnd = int(lineVals[2])
+    print('labels', labels)
 
-            if lineVals[0] == refseq:
+    test = labels.to_dict('records')
 
-                lineIfStartIn = (lineStart >= start) and (lineStart <= end)
-                lineIfEndIn = (lineEnd >= start) and (lineEnd <= end)
-                wrap = (lineStart < start) and (lineEnd > end)
+    print('test', test)
 
-                if lineIfStartIn or lineIfEndIn or wrap:
-                    output.append({"ref": refseq, "start": lineStart,
-                                   "end": lineEnd, "label": lineVals[3]})
+    return test
 
-            current_line = f.readline()
 
-    return output
+def getLabelsDf(data):
+    # TODO: Add user
+    print('beforeCreationLabels')
+    labels = db.Labels(1, data['hub'], data['track'], data['ref'])
+    print('afterCreationLabels')
+    labelsDf = labels.get()
+    print('getLabelsDf', labelsDf)
+    return labelsDf.apply(mh.checkInBounds, axis=1, args=(data,))
 
 
 def parseHub(data):
