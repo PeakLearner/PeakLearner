@@ -29,11 +29,16 @@ def getModel(data):
 
         nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
 
+        if len(nonZeroRegions.index) < 1:
+            # TODO: LOPART HERE
+            continue
+
         minError = nonZeroRegions[nonZeroRegions['errors'] == nonZeroRegions['errors'].min()]
 
         # Uses first penalty with min label error
         # This will favor the model with the lowest penalty, given that summary is sorted
         penalty = minError['penalty'].iloc[0]
+
 
         # TODO: Replace 1 with user of hub NOT current user
         minErrorModel = db.Model(1, data['hub'], data['track'], problem['ref'], problem['start'], penalty)
@@ -63,8 +68,8 @@ def checkInBounds(row, data):
     if not data['ref'] == row['chrom']:
         return False
 
-    startIn = data['start'] <= row['chromStart'] <= data['end']
-    endIn = data['start'] >= row['chromEnd'] <= data['end']
+    startIn = (data['start'] <= row['chromStart'] <= data['end'])
+    endIn = (data['start'] <= row['chromEnd'] <= data['end'])
     wrap = (row['chromStart'] < data['start']) and (row['chromEnd'] > data['end'])
 
     return startIn or endIn or wrap
@@ -85,9 +90,9 @@ def updateAllModelLabels(data):
             submitPregenJob(problem, data)
             continue
 
-        labelQuery = {'name': data['name'], 'ref': problem['ref'], 'start': problem['start'], 'end': problem['end']}
-        labels = pd.DataFrame(th.getLabels(labelQuery))
-        if len(labels.index) < 1:
+        labelQuery = {'hub': data['hub'], 'track': data['track'], 'ref': problem['ref'], 'start': problem['start'], 'end': problem['end']}
+        labels = th.getLabelsDf(labelQuery)
+        if labels is None or len(labels.index) < 1:
             continue
 
         newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem))
@@ -138,7 +143,7 @@ def checkGenerateModels(modelSums, problem, data):
 
             return
 
-    else:
+    elif len(minError.index) == 1:
         index = minError.index[0]
 
         model = minError.iloc[0]
@@ -176,6 +181,8 @@ def checkGenerateModels(modelSums, problem, data):
 
         return
 
+    submitPregenJob(problem, data)
+
 
 def submitOOMJob(problem, data, penalty, jobType):
     job = {'type': 'model', 'problem': problem, 'trackInfo': data}
@@ -208,6 +215,7 @@ def putModel(data):
     problem = modelInfo['problem']
     trackInfo = modelInfo['trackInfo']
     penalty = data['penalty']
+    hub, track = trackInfo['name'].split('/')
 
     # TODO: Replace 1 with user of hub NOT current user
     model = db.Model(1, trackInfo['hub'], trackInfo['track'], problem['ref'], problem['start'], penalty)
@@ -222,8 +230,10 @@ def putModel(data):
         df = pd.read_csv(f.name, sep='\t', header=None)
         df.columns = modelColumns
 
-        labelQuery = {'name': trackInfo['name'], 'ref': problem['ref'], 'start': problem['start'], 'end': problem['end']}
-        labels = pd.DataFrame(th.getLabels(labelQuery))
+        labelQuery = {'hub': hub, 'track': track, 'ref': problem['ref'],
+                      'start': problem['start'], 'end': problem['end']}
+        labels = th.getLabelsDf(labelQuery)
+
 
         errorSum = calculateModelLabelError(df, labels, penalty)
 
@@ -231,6 +241,8 @@ def putModel(data):
 
         if errorSum is None:
             return
+
+        print(errorSum)
 
         modelSummaries.add(errorSum)
     return modelInfo

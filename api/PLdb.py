@@ -52,7 +52,7 @@ class ModelSummaries(db.PandasDf):
     keys = ("user", "hub", "track", "chrom", "problemstart")
 
     def conditional(self, item, df):
-        return item['chromStart'] == df['chromStart']
+        return item['penalty'] == df['penalty']
 
     def sortDf(self, df):
         df['floatPenalty'] = df['penalty'].astype(float)
