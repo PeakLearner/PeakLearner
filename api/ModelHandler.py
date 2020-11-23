@@ -89,7 +89,6 @@ def updateAllModelLabels(data):
         labels = pd.DataFrame(th.getLabels(labelQuery))
         if len(labels.index) < 1:
             continue
-        labels.columns = labelColumns
 
         newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem))
 
@@ -225,7 +224,6 @@ def putModel(data):
 
         labelQuery = {'name': trackInfo['name'], 'ref': problem['ref'], 'start': problem['start'], 'end': problem['end']}
         labels = pd.DataFrame(th.getLabels(labelQuery))
-        labels.columns = labelColumns
 
         errorSum = calculateModelLabelError(df, labels, penalty)
 

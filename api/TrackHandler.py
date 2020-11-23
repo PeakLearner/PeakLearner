@@ -59,8 +59,6 @@ def updateLabel(data):
     # TODO: add user
     data['hub'], data['track'] = data['name'].split('/')
 
-    update = True
-
     if 'label' not in data.keys():
         update = False
         label = 'unknown'
@@ -77,8 +75,7 @@ def updateLabel(data):
 
     labels.add(newLabel)
 
-    if update:
-        mh.updateAllModelLabels(data)
+    mh.updateAllModelLabels(data)
 
     return data
 
@@ -93,10 +90,10 @@ def getLabels(data):
 
     print('getLabels', labels)
 
-    if len(labels.index) < 1:
+    if labels is None:
         return {}
 
-    print('getLabels after if')
+    print('getLabels after if\n', labels)
 
     labels.columns = jbrowseLabelColumns
 
@@ -111,12 +108,17 @@ def getLabels(data):
 
 def getLabelsDf(data):
     # TODO: Add user
-    print('beforeCreationLabels')
     labels = db.Labels(1, data['hub'], data['track'], data['ref'])
-    print('afterCreationLabels')
+    print('labels obj', labels)
     labelsDf = labels.get()
-    print('getLabelsDf', labelsDf)
-    return labelsDf.apply(mh.checkInBounds, axis=1, args=(data,))
+    print('labels df', labelsDf)
+    if len(labelsDf.index) < 1:
+        return
+    labelsDf['inBounds'] = labelsDf.apply(mh.checkInBounds, axis=1, args=(data,))
+    print('inBounds')
+    output = labelsDf[labelsDf['inBounds']].drop(columns='inBounds')
+    print('output', output)
+    return output
 
 
 def parseHub(data):

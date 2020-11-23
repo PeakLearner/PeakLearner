@@ -206,9 +206,10 @@ def getGeneTracks(genome, dataPath):
 
 
 def getAndProcessGeneTrack(gene, genesUrl, genesPath, geneTrackPath):
+    print('getDBfiles')
     getDbFiles(gene, genesUrl, genesPath)
 
-    trackListPath = os.path.join(geneTrackPath)
+    trackListPath = os.path.join(geneTrackPath, 'trackList.json')
 
     if not os.path.exists(geneTrackPath):
         try:
