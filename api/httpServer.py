@@ -144,14 +144,15 @@ def httpserver(port, path):
     http_server.serve_forever()
 
 
-
+def shutdownServer():
+    print('Shutting down PeakLearner')
+    if http_server is not None:
+        http_server.shutdown()
 
 
 def interrupt_handle(signal, frame):
     print('\nHandling interrupt')
-    if http_server is not None:
-        http_server.shutdown()
-
+    shutdownServer()
 
 
 signal(SIGINT, interrupt_handle)

@@ -1,4 +1,5 @@
 import configparser
+import os
 
 configFile = 'PeakLearnerSlurm.cfg'
 
@@ -12,7 +13,7 @@ save = False
 
 if 'general' not in configSections:
     config.add_section('general')
-    config['general']['useSlurm'] = 'False'
+    config['general']['useSlurm'] = 'True'
     config['general']['useCron'] = 'False'
     config['general']['debug'] = 'False'
     config['general']['multithread'] = 'False'
@@ -28,6 +29,7 @@ if 'remoteServer' not in configSections:
 if 'slurm' not in configSections:
     config.add_section('slurm')
     config['slurm']['dataPath'] = 'data/'
+    config['slurm']['maxJobLen'] = '10'
     config['slurm']['username'] = 'slurmUser'
     config['slurm']['anaconda3venvPath'] = '/'
     config['slurm']['monsoon'] = 'False'
@@ -51,6 +53,7 @@ debug = config['general']['debug'].lower() == 'true'
 multithread = config['general']['multithread'].lower() == 'true'
 dataPath = config['slurm']['dataPath']
 remoteDataPath = config['remoteServer']['dataPath']
+maxJobLen = int(config['slurm']['maxJobLen'])
 slurmUser = config['slurm']['username']
 condaVenvPath = config['slurm']['anaconda3venvPath']
 monsoon = config['slurm']['monsoon'].lower() == 'true'

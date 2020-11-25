@@ -6,7 +6,14 @@ import numpy as np
 import pandas as pd
 import requests
 import threading
-import SlurmConfig as cfg
+
+if __name__ == '__main__':
+    import SlurmConfig as cfg
+    modelGenPath = os.path.join('server', 'GenerateModel.R')
+else:
+    import server.SlurmConfig as cfg
+
+    modelGenPath = 'GenerateModel.R'
 
 
 def model(job):
@@ -36,7 +43,7 @@ def model(job):
 
 
 def generateModel(coveragePath, data, penalty):
-    command = 'Rscript GenerateModel.R %s %f' % (coveragePath, penalty)
+    command = 'Rscript %s %s %f' % (modelGenPath, coveragePath, penalty)
 
     os.system(command)
 
@@ -47,19 +54,14 @@ def generateModel(coveragePath, data, penalty):
 
 
 def sendModel(modelPath, modelInfo, penalty):
-    modelData = []
-
     strPenalty = str(penalty)
 
-    with open(modelPath) as modelFile:
-        data = modelFile.readline()
+    print('\nmodelPath\n', modelPath, '\ncwd\n', os.getcwd(), '\n')
 
-        while not data == '':
-            modelData.append(data)
-            data = modelFile.readline()
+    modelData = pd.read_csv(modelPath, sep='\t', header=None)
 
     query = {'command': 'putModel',
-             'args': {'modelInfo': modelInfo, 'penalty': strPenalty, 'modelData': modelData}}
+             'args': {'modelInfo': modelInfo, 'penalty': strPenalty, 'modelData': modelData.to_json()}}
 
     r = requests.post(cfg.remoteServer, json=query)
 

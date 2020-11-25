@@ -2,8 +2,13 @@ import os
 import requests
 import time
 import tempfile
-import ModelGeneration as mg
-import SlurmConfig as cfg
+
+if __name__ == '__main__':
+    import ModelGeneration as mg
+    import SlurmConfig as cfg
+else:
+    import server.ModelGeneration as mg
+    import server.SlurmConfig as cfg
 
 
 def startAllNewJobs():
@@ -32,7 +37,7 @@ def startAllNewJobs():
         for job in infoForJobs:
             if job['status'].lower() == 'new':
 
-                startQuery = {'command': 'updateJob', 'args':{'id': job['id'], 'status': 'Queued'}}
+                startQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'Queued'}}
                 startRequest = requests.post(cfg.remoteServer, json=startQuery)
 
                 if not startRequest.status_code == 200:
@@ -65,7 +70,7 @@ def createSlurmJob(job):
     jobString += '#SBATCH --chdir=%s\n' % os.getcwd()
 
     # TODO: Make resource allocation better
-    jobString += '#SBATCH --time=2:00\n'
+    jobString += '#SBATCH --time=%s:00\n' % cfg.maxJobLen
     jobString += '#SBATCH --cpus-per-task=%d\n' % numCpus
 
     if cfg.monsoon:
@@ -74,7 +79,7 @@ def createSlurmJob(job):
         jobString += 'module load R\n'
         jobString += 'conda activate %s\n' % cfg.condaVenvPath
 
-    jobString += 'srun python3 %s %s\n' % ('ModelGeneration.py', job['id'])
+    jobString += 'srun python3 %s %s\n' % ('server/ModelGeneration.py', job['id'])
 
     with tempfile.NamedTemporaryFile(mode='w', suffix='.sh') as temp:
         temp.write(jobString)

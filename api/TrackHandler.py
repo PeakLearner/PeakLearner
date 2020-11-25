@@ -20,6 +20,7 @@ def jsonInput(data):
 
 def commands(command):
     command_list = {
+        'addLabel': addLabel,
         'removeLabel': removeLabel,
         'updateLabel': updateLabel,
         'getLabels': getLabels,
@@ -32,10 +33,31 @@ def commands(command):
         'removeJob': jh.removeJob,
         'getAllJobs': jh.getAllJobs,
         'getModel': mh.getModel,
+        'getModelSummary': mh.getModelSummary,
         'putModel': mh.putModel,
     }
 
     return command_list.get(command, None)
+
+
+def addLabel(data):
+    # TODO: add user
+    data['hub'], data['track'] = data['name'].split('/')
+
+    label = 'unknown'
+
+    # Duplicated because calls from updateLabel are causing freezing
+    newLabel = pd.Series({'chrom': data['ref'],
+                          'chromStart': data['start'],
+                          'chromEnd': data['end'],
+                          'annotation': label})
+
+    # TODO: Replace 1 with hub user NOT current user
+    labels = db.Labels(1, data['hub'], data['track'], data['ref'])
+
+    labels.add(newLabel)
+
+    return data
 
 
 # Removes label from label file
@@ -59,13 +81,9 @@ def updateLabel(data):
     # TODO: add user
     data['hub'], data['track'] = data['name'].split('/')
 
-    if 'label' not in data.keys():
-        update = False
-        label = 'unknown'
-    else:
-        label = data['label']
+    label = data['label']
 
-    newLabel = pd.Series({'chrom': data['ref'],
+    updateLabel = pd.Series({'chrom': data['ref'],
                           'chromStart': data['start'],
                           'chromEnd': data['end'],
                           'annotation': label})
@@ -73,7 +91,7 @@ def updateLabel(data):
     # TODO: Replace 1 with hub user NOT current user
     labels = db.Labels(1, data['hub'], data['track'], data['ref'])
 
-    labels.add(newLabel)
+    labels.add(updateLabel)
 
     mh.updateAllModelLabels(data)
 
@@ -84,24 +102,15 @@ def getLabels(data):
     # TODO: Add user
     data['hub'], data['track'] = data['name'].split('/')
 
-    print('before getting Labels')
-
     labels = getLabelsDf(data)
-
-    print('getLabels', labels)
 
     if labels is None:
         return {}
 
-    print('getLabels after if\n', labels)
-
+    labels = labels[['chrom', 'chromStart', 'chromEnd', 'annotation']]
     labels.columns = jbrowseLabelColumns
 
-    print('labels', labels)
-
     test = labels.to_dict('records')
-
-    print('test', test)
 
     return test
 
@@ -109,16 +118,11 @@ def getLabels(data):
 def getLabelsDf(data):
     # TODO: Add user
     labels = db.Labels(1, data['hub'], data['track'], data['ref'])
-    print('labels obj', labels)
     labelsDf = labels.get()
-    print('labels df', labelsDf)
     if len(labelsDf.index) < 1:
         return
     labelsDf['inBounds'] = labelsDf.apply(mh.checkInBounds, axis=1, args=(data,))
-    print('inBounds')
-    output = labelsDf[labelsDf['inBounds']].drop(columns='inBounds')
-    print('output', output)
-    return output
+    return labelsDf[labelsDf['inBounds']].drop(columns='inBounds')
 
 
 def parseHub(data):
@@ -180,29 +184,6 @@ def getGenome(data):
         genome = genomePath[-2]
 
         return genome
-
-
-def getHubInfo(data):
-    hub, track = data.rsplit('/')
-
-    genome = getGenome(data)
-
-    genomePath = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'genomes/', genome)
-
-    trackListPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, hub, 'trackList.json')
-
-    output = {'hub': hub, 'genomePath': genomePath, 'tracks': []}
-
-    with open(trackListPath, 'r') as f:
-        trackList = json.load(f)
-
-        for track in trackList['tracks']:
-            trackLabel = track['label']
-            url = track['urlTemplates'][0]['url']
-
-            output['tracks'].append({'name': trackLabel, 'coverage': url})
-
-        return output
 
 
 def getTrackUrl(data):

@@ -159,8 +159,6 @@ def downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath):
 
             os.system('gzip -d %s' % genomeFaPath + '.gz')
 
-        print("Samtools on", genomeFaPath)
-
         # Run samtools faidx {genome Fasta File}, creating an indexed Fasta file
         os.system('samtools faidx %s' % genomeFaPath)
 
@@ -206,7 +204,6 @@ def getGeneTracks(genome, dataPath):
 
 
 def getAndProcessGeneTrack(gene, genesUrl, genesPath, geneTrackPath):
-    print('getDBfiles')
     getDbFiles(gene, genesUrl, genesPath)
 
     trackListPath = os.path.join(geneTrackPath, 'trackList.json')

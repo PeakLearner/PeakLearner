@@ -4,20 +4,22 @@ from api import httpServer, PLConfig as cfg, PLdb
 
 httpArgs = (cfg.httpServerPort, cfg.jbrowsePath)
 
-# start servers
-httpServer = threading.Thread(target=httpServer.httpserver, args=httpArgs)
+# start httpServer
+server = threading.Thread(target=httpServer.httpserver, args=httpArgs)
 
 
 def startServer():
-    httpServer.start()
+    server.start()
 
 
-def joinServer():
-    httpServer.join()
-
-
-try:
-    startServer()
-except KeyboardInterrupt:
-    joinServer()
+def shutdown():
+    httpServer.shutdownServer()
+    server.join()
     PLdb.close()
+
+
+if __name__ == '__main__':
+    try:
+        startServer()
+    except KeyboardInterrupt:
+        shutdown()

@@ -1,0 +1,6 @@
+ 1: Initial with no labels
+ 2: First labels added to contig
+ 3: View of peaks to the right of full graph screenshot, middle track (AXL) needs correcting
+ 4: Added no peak label to AXL's right peak, fixed that region
+ 5: Full graph overview after AXL fix, small left peaks to be labeled as no peak
+ 6: small left peaks labeled as no peak

@@ -1,6 +1,5 @@
 import PeakError
 import threading
-import tempfile
 import pandas as pd
 import api.TrackHandler as th
 import api.PLConfig as pl
@@ -29,11 +28,16 @@ def getModel(data):
 
         nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
 
+        if len(nonZeroRegions.index) < 1:
+            # TODO: LOPART HERE
+            continue
+
         minError = nonZeroRegions[nonZeroRegions['errors'] == nonZeroRegions['errors'].min()]
 
         # Uses first penalty with min label error
         # This will favor the model with the lowest penalty, given that summary is sorted
         penalty = minError['penalty'].iloc[0]
+
 
         # TODO: Replace 1 with user of hub NOT current user
         minErrorModel = db.Model(1, data['hub'], data['track'], problem['ref'], problem['start'], penalty)
@@ -63,8 +67,8 @@ def checkInBounds(row, data):
     if not data['ref'] == row['chrom']:
         return False
 
-    startIn = data['start'] <= row['chromStart'] <= data['end']
-    endIn = data['start'] >= row['chromEnd'] <= data['end']
+    startIn = (data['start'] <= row['chromStart'] <= data['end'])
+    endIn = (data['start'] <= row['chromEnd'] <= data['end'])
     wrap = (row['chromStart'] < data['start']) and (row['chromEnd'] > data['end'])
 
     return startIn or endIn or wrap
@@ -85,9 +89,9 @@ def updateAllModelLabels(data):
             submitPregenJob(problem, data)
             continue
 
-        labelQuery = {'name': data['name'], 'ref': problem['ref'], 'start': problem['start'], 'end': problem['end']}
-        labels = pd.DataFrame(th.getLabels(labelQuery))
-        if len(labels.index) < 1:
+        labelQuery = {'hub': data['hub'], 'track': data['track'], 'ref': problem['ref'], 'start': problem['start'], 'end': problem['end']}
+        labels = th.getLabelsDf(labelQuery)
+        if labels is None or len(labels.index) < 1:
             continue
 
         newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem))
@@ -118,31 +122,33 @@ def checkGenerateModels(modelSums, problem, data):
 
     minError = nonZeroRegions[nonZeroRegions['errors'] == nonZeroRegions['errors'].min()]
 
+    if len(minError.index) == 0:
+        return
+
+    if minError.iloc[0]['errors'] == 0:
+        return
+
     if len(minError.index) > 1:
         # no need to generate new models if error is 0
-        if minError.iloc[0]['errors'] == 0:
-            return
-        else:
-            first = minError.iloc[0]
-            last = minError.iloc[-1]
+        first = minError.iloc[0]
+        last = minError.iloc[-1]
 
-            biggerFp = first['fp'] > last['fp']
-            smallerFn = first['fn'] < last['fn']
+        biggerFp = first['fp'] > last['fp']
+        smallerFn = first['fn'] < last['fn']
 
-            # Sanity check for bad labels, if the minimum is still the same values
-            # With little labels this could not generate new models
-            if biggerFp or smallerFn:
-                minPenalty = first['penalty']
-                maxPenalty = last['penalty']
-                submitGridSearch(problem, data, minPenalty, maxPenalty)
+        # Sanity check for bad labels, if the minimum is still the same values
+        # With little labels this could not generate new models
+        if biggerFp or smallerFn:
+            minPenalty = first['penalty']
+            maxPenalty = last['penalty']
+            submitGridSearch(problem, data, minPenalty, maxPenalty)
 
-            return
+        return
 
-    else:
+    elif len(minError.index) == 1:
         index = minError.index[0]
 
         model = minError.iloc[0]
-
         if model['fp'] > model['fn']:
             try:
                 above = sumdf.iloc[index + 1]
@@ -155,9 +161,10 @@ def checkGenerateModels(modelSums, problem, data):
             maxPenalty = above['penalty']
 
             # If the next model only has 1 more peak, not worth searching
-            if model['numPeaks'] + 1 >= above['numPeaks']:
+            if model['numPeaks'] <= above['numPeaks'] + 1:
                 return
         else:
+
             try:
                 below = sumdf.iloc[index - 1]
             except IndexError:
@@ -172,9 +179,12 @@ def checkGenerateModels(modelSums, problem, data):
             if below['numPeaks'] + 1 >= model['numPeaks']:
                 return
 
+        print('before grid search submit')
         submitGridSearch(problem, data, minPenalty, maxPenalty)
 
         return
+
+    submitPregenJob(problem, data)
 
 
 def submitOOMJob(problem, data, penalty, jobType):
@@ -196,6 +206,7 @@ def submitPregenJob(problem, data):
 
 
 def submitGridSearch(problem, data, minPenalty, maxPenalty, num=pl.gridSearchSize):
+    print('submit grid search')
     job = {'type': 'gridSearch', 'problem': problem, 'trackInfo': data,
            'minPenalty': float(minPenalty), 'maxPenalty': float(maxPenalty), 'numModels': num}
 
@@ -203,36 +214,31 @@ def submitGridSearch(problem, data, minPenalty, maxPenalty, num=pl.gridSearchSiz
 
 
 def putModel(data):
-    modelData = data['modelData']
+    modelData = pd.read_json(data['modelData'])
+    modelData.columns = modelColumns
     modelInfo = data['modelInfo']
     problem = modelInfo['problem']
     trackInfo = modelInfo['trackInfo']
     penalty = data['penalty']
+    hub, track = trackInfo['name'].split('/')
 
     # TODO: Replace 1 with user of hub NOT current user
     model = db.Model(1, trackInfo['hub'], trackInfo['track'], problem['ref'], problem['start'], penalty)
     modelSummaries = db.ModelSummaries(1, trackInfo['hub'], trackInfo['track'], problem['ref'], problem['start'])
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt') as f:
-        f.writelines(modelData)
+    labelQuery = {'hub': hub, 'track': track, 'ref': problem['ref'],
+                  'start': problem['start'], 'end': problem['end']}
+    labels = th.getLabelsDf(labelQuery)
 
-        f.flush()
-        f.seek(0)
+    errorSum = calculateModelLabelError(modelData, labels, penalty)
 
-        df = pd.read_csv(f.name, sep='\t', header=None)
-        df.columns = modelColumns
+    model.put(modelData)
 
-        labelQuery = {'name': trackInfo['name'], 'ref': problem['ref'], 'start': problem['start'], 'end': problem['end']}
-        labels = pd.DataFrame(th.getLabels(labelQuery))
+    if errorSum is None:
+        return
 
-        errorSum = calculateModelLabelError(df, labels, penalty)
+    modelSummaries.add(errorSum)
 
-        model.put(df)
-
-        if errorSum is None:
-            return
-
-        modelSummaries.add(errorSum)
     return modelInfo
 
 
@@ -245,6 +251,7 @@ def calculateModelLabelError(modelDf, labels, penalty):
         return errorSeries
 
     error = PeakError.error(peaks, labels)
+
     if error is None:
         return errorSeries
 
@@ -256,6 +263,25 @@ def calculateModelLabelError(modelDf, labels, penalty):
     singleRow = summary.iloc[0]
 
     return singleRow
+
+
+def getModelSummary(data):
+    data['hub'], data['track'] = data['name'].split('/')
+
+    problems = th.getProblems(data)
+
+    output = {}
+
+    for problem in problems:
+        # TODO: Replace 1 with user of hub NOT current user
+        modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['ref'], problem['start']).get()
+
+        if len(modelSummaries.index) < 1:
+            continue
+
+        output[problem['start']] = modelSummaries.to_dict('records')
+
+    return output
 
 
 def getPrePenalties(problem, data):
