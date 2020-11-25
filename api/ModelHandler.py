@@ -1,10 +1,7 @@
 import PeakError
 import threading
 import pandas as pd
-import api.TrackHandler as th
-import api.PLConfig as pl
-import api.JobHandler as jh
-from api import PLdb as db
+from api import PLdb as db, TrackHandler as th, PLConfig as pl, JobHandler as jh
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
