@@ -85,7 +85,7 @@ def test_serverStarted():
 
     query = {'command': 'getAllJobs', 'args': {}}
 
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=1)
 
     assert request.status_code == 204
 
@@ -119,7 +119,7 @@ def test_addHub():
 def test_getGenome():
     query = {'command': 'getGenome', 'args': {'name': 'TestHub/aorta_ENCFF115HTK'}}
 
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=1)
 
     assert request.status_code == 200
 
@@ -148,7 +148,7 @@ rangeArgs = {'name': 'TestHub/aorta_ENCFF115HTK',
 
 def test_getProblems():
     query = {'command': 'getProblems', 'args': rangeArgs}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=1)
 
     assert request.status_code == 200
 
@@ -160,7 +160,7 @@ expectedUrl = 'https://rcdata.nau.edu/genomic-ml/PeakSegFPOP/labels/H3K4me3_TDH_
 
 def test_getTrackUrl():
     query = {'command': 'getTrackUrl', 'args': rangeArgs}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=1)
 
     assert request.status_code == 200
 
@@ -181,19 +181,19 @@ noPeakLabel['end'] = 16091959
 def test_labels():
     # Blank Label Test
     query = {'command': 'getLabels', 'args': rangeArgs}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=1)
 
     assert request.status_code == 204
 
     # Add label
     query = {'command': 'addLabel', 'args': startLabel}
 
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
 
     assert request.status_code == 200
 
     query = {'command': 'getLabels', 'args': rangeArgs}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
 
     assert request.status_code == 200
 
@@ -212,12 +212,12 @@ def test_labels():
 
     query = {'command': 'updateLabel', 'args': updateLabel}
 
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
 
     assert request.status_code == 200
 
     query = {'command': 'getLabels', 'args': rangeArgs}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
 
     assert request.status_code == 200
 
@@ -227,7 +227,7 @@ def test_labels():
 
     query = {'command': 'getAllJobs', 'args': {}}
 
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=1)
 
     assert request.status_code == 200
 
@@ -248,12 +248,12 @@ def test_labels():
     # Try adding another label
     query = {'command': 'addLabel', 'args': endLabel}
 
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
 
     assert request.status_code == 200
 
     query = {'command': 'getLabels', 'args': rangeArgs}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
 
     assert request.status_code == 200
 
@@ -268,13 +268,13 @@ def test_labels():
 
     query = {'command': 'updateLabel', 'args': updateAnother}
 
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
 
     assert request.status_code == 200
 
     query = {'command': 'getAllJobs', 'args': {}}
 
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
 
     # Check that system doesn't create duplicate jobs
     assert len(request.json()) == 1
@@ -282,7 +282,7 @@ def test_labels():
     job = request.json()[0]
 
     query = {'command': 'getLabels', 'args': rangeArgs}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
 
     assert request.status_code == 200
 
@@ -297,19 +297,19 @@ def test_labels():
     for label in labels:
         label['name'] = rangeArgs['name']
         query = {'command': 'removeLabel', 'args': label}
-        request = requests.post(serverIp, json=query)
+        request = requests.post(serverIp, json=query, timeout=5)
 
         assert request.status_code == 200
 
     query = {'command': 'getLabels', 'args': rangeArgs}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
 
     assert request.status_code == 204
 
     # Remove job, could cause issues in next test
 
     query = {'command': 'removeJob', 'args': job}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
 
     assert request.status_code == 200
 
@@ -317,23 +317,23 @@ def test_labels():
 def test_models():
     # Add initial label
     query = {'command': 'addLabel', 'args': startLabel}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
     assert request.status_code == 200
 
     # Update Label to create job
     updateLabel = startLabel.copy()
     updateLabel['label'] = 'peakStart'
     query = {'command': 'updateLabel', 'args': updateLabel}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
     assert request.status_code == 200
 
     query = {'command': 'getAllJobs', 'args': {}}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
     jobs = request.json()
     assert len(jobs) == 1
 
     query = {'command': 'getProblems', 'args': startLabel}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
     assert request.status_code == 200
 
     problems = request.json()
@@ -352,7 +352,7 @@ def test_models():
 
     while True:
         query = {'command': 'getModelSummary', 'args': startLabel}
-        request = requests.post(serverIp, json=query)
+        request = requests.post(serverIp, json=query, timeout=5)
 
         if request.status_code == 200:
             models = request.json()
@@ -375,21 +375,21 @@ def test_models():
 
     # Add label with no update
     query = {'command': 'addLabel', 'args': endLabel}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
     assert request.status_code == 200
 
     updateLabel = endLabel.copy()
     updateLabel['label'] = 'peakEnd'
     query = {'command': 'updateLabel', 'args': updateLabel}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
     assert request.status_code == 200
 
     query = {'command': 'getAllJobs', 'args': {}}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
     assert request.status_code == 204
 
     query = {'command': 'getModelSummary', 'args': startLabel}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
     assert request.status_code == 200
 
     sums = request.json()
@@ -406,17 +406,17 @@ def test_models():
 
     # Add Label with grid search
     query = {'command': 'addLabel', 'args': noPeakLabel}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
     assert request.status_code == 200
 
     updateLabel = noPeakLabel.copy()
     updateLabel['label'] = 'noPeak'
     query = {'command': 'updateLabel', 'args': updateLabel}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
     assert request.status_code == 200
 
     query = {'command': 'getAllJobs', 'args': {}}
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=5)
     assert request.status_code == 200
 
     jobs = request.json()
@@ -435,7 +435,7 @@ def test_models():
 
     while True:
         query = {'command': 'getModelSummary', 'args': startLabel}
-        request = requests.post(serverIp, json=query)
+        request = requests.post(serverIp, json=query, timeout=5)
 
         if request.status_code == 200:
             models = request.json()
