@@ -14,7 +14,7 @@ before_install:
   - sudo apt-get -y install slurm-wlm
   - sudo apt-get -y install r-base-dev
   - sudo apt-get -y install samtools
-  - Rscript -e 'install.packages("PeakSegDisk")
+  - Rscript -e 'install.packages("PeakSegDisk")'
   # Setup python dependencies
   - python --version
   - pip install -U pip
