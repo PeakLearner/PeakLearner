@@ -46,6 +46,10 @@ after_failure:
   - sudo journalctl -u slurmd
   - sudo systemctl -l status slurmctld.service
   - sudo systemctl -l status slurmd.service
+  - cat runlog.txt
+  - cat data/PeakLearner-2.txt
+  - cat data/PeakLearner-3.txt
+  - cat data/PeakLearner-4.txt
 
 
 
