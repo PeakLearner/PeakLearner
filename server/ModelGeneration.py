@@ -7,12 +7,14 @@ import pandas as pd
 import requests
 import threading
 
-if __name__ == '__main__':
+try:
+    import server.SlurmConfig as cfg
+except ModuleNotFoundError:
     import SlurmConfig as cfg
+
+if __name__ == '__main__':
     modelGenPath = os.path.join('server', 'GenerateModel.R')
 else:
-    import server.SlurmConfig as cfg
-
     modelGenPath = 'GenerateModel.R'
 
 

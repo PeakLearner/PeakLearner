@@ -25,6 +25,7 @@ before_install:
   - sudo chown slurm /var/spool/slurmd/
   - cd jbrowse
   - ./setup.sh
+  - cd ..
 
 script:
   # Setup slurm.conf for testing
