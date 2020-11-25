@@ -75,6 +75,7 @@ def test_JobHandler():
 
     assert len(jh.getAllJobs({})) == 0
 
+
 serverIp = 'http://127.0.0.1:%s' % cfg.httpServerPort
 
 
@@ -353,15 +354,17 @@ def test_models():
     while True:
         query = {'command': 'getModelSummary', 'args': startLabel}
         request = requests.post(serverIp, json=query, timeout=5)
+        print('time:', time.time(), '\nstatusCode:', request.status_code, '\n')
 
         if request.status_code == 200:
             models = request.json()
+            print('lenModels\n', len(models))
             contig = models[str(problem['start'])]
             if len(contig) >= len(job['data']['penalties']):
                 break
 
-            if (time.time() - startTime) > 240:
-                raise Exception
+        if (time.time() - startTime) > 240:
+            raise Exception
 
         time.sleep(5)
 
@@ -443,8 +446,8 @@ def test_models():
             if len(gridContig) >= len(contig) + numModels:
                 break
 
-            if (time.time() - startTime) > 240:
-                raise Exception
+        if (time.time() - startTime) > 240:
+            raise Exception
 
         time.sleep(5)
 

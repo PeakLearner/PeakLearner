@@ -1,4 +1,3 @@
-import configparser
 import threading
 from api import httpServer, PLConfig as cfg, PLdb
 
