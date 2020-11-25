@@ -4,5 +4,3 @@ requests
 simpleBDB > "1.0.7"
 bsddb3
 pybbi
-
--e git+https://git@github.com/deltarod/PeakError.git#egg=PeakError
