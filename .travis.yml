@@ -18,6 +18,7 @@ before_install:
   - python --version
   - pip install -U pip
   - pip install -U pytest
+  - pip install git+https://github.com/deltarod/PeakError.git
   - pip install codecov
   - sudo mkdir /var/spool/slurm-llnl/
   - sudo chown slurm /var/spool/slurm-llnl/
