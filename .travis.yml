@@ -13,6 +13,7 @@ before_install:
   - sudo apt-get update
   - sudo apt-get -y install libdb5.3-dev
   - sudo apt-get -y install slurm-wlm
+  - sudo apt-get -y install r-base-dev
   # Setup python dependencies
   - python --version
   - pip install -U pip
