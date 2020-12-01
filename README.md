@@ -18,8 +18,8 @@ The Slurm Server should work with 3.6 and up but this is also untested.
 1. `git clone https://github.com/deltarod/PeakLearner.git`
 2. `cd PeakLearner/`
 3. `git submodule update --init --recursive` - Initializes recursive submodules
-4. Install https.server, pandas, numpy, pybbi via pip
-5. `sudo apt update && sudo apt install samtools`
+4. `sudo apt update && sudo apt install samtools libdb5.3-dev`
+5. `python3 -m pip install -r requirements.txt` - Installs Python Requirements
 6. `cd jbrowse`
 7. `./setup.sh`
 8. `cd ..`

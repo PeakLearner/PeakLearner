@@ -1,226 +1,154 @@
-import os
 import PeakError
 import threading
-import api.plLocks as locks
 import pandas as pd
-import api.TrackHandler as th
-import api.PLConfig as pl
-import api.JobHandler as jh
+from api import PLdb as db, TrackHandler as th, PLConfig as pl, JobHandler as jh
 
-summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors', 'penalty', 'numPeaks']
+summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
+jbrowseModelColumns = ["ref", "start", "end", "type", "score"]
 
 
 def getModel(data):
-    track, hub = data['name'].rsplit('/')
-
-    data['hub'] = track
-
-    data['track'] = hub
+    data['hub'], data['track'] = data['name'].split('/')
 
     problems = th.getProblems(data)
 
     output = []
 
-    lock = locks.getLock(data['name'])
-
-    lock.acquire()
-
     for problem in problems:
-        # data path, hub path, track path, problem path
-        modelsPath = '%s%s/%s/%s-%s-%s/' % (pl.dataPath, data['hub'], data['track'],
-                                            problem['ref'], problem['start'], problem['end'])
+        # TODO: Replace 1 with user of hub NOT current user
+        modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['ref'], problem['start']).get()
 
-        summaryPath = '%smodelSummary.txt' % modelsPath
-
-        # Converter required because pandas will lose trailing 0's
-        try:
-            summary = pd.read_csv(summaryPath, sep='\t', header=None, converters={6: lambda x: str(x)})
-        except FileNotFoundError:
+        if len(modelSummaries.index) < 1:
+            # TODO: LOPART HERE
             continue
 
-        summary.columns = summaryColumns
+        nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
 
-        minError = summary[summary['errors'] == summary['errors'].min()]
+        if len(nonZeroRegions.index) < 1:
+            # TODO: LOPART HERE
+            continue
+
+        minError = nonZeroRegions[nonZeroRegions['errors'] == nonZeroRegions['errors'].min()]
 
         # Uses first penalty with min label error
         # This will favor the model with the lowest penalty, given that summary is sorted
         penalty = minError['penalty'].iloc[0]
 
-        minErrorModelPath = '%s%s_Model.bedGraph' % (modelsPath, penalty)
+
+        # TODO: Replace 1 with user of hub NOT current user
+        minErrorModel = db.Model(1, data['hub'], data['track'], problem['ref'], problem['start'], penalty)
 
         # TODO: If no good model, do LOPART
 
-        model = loadModelFile(minErrorModelPath, data)
+        model = loadModelDf(minErrorModel.get(), data)
 
         output.extend(model)
-
-    lock.release()
 
     return output
 
 
-def loadModelFile(path, data):
-    try:
-        df = pd.read_csv(path, sep='\t', header=None)
-    except FileNotFoundError:
-        print("File", path, "not found")
-        return []
+def loadModelDf(df, data):
+    onlyPeaks = df[df['annotation'] == 'peak']
 
-    df.columns = ["ref", "start", "end", "type", "score"]
+    inView = onlyPeaks.apply(checkInBounds, axis=1, args=(data, ))
 
-    df = df[df['type'] == 'peak']
+    output = onlyPeaks[inView]
 
-    inView = df.apply(checkInBounds, axis=1, args=(data,))
+    output.columns = jbrowseModelColumns
 
-    toView = df[inView]
-
-    model = df[['ref', 'start', 'end', 'score']]
-
-    return model.to_dict('records')
+    return output.to_dict('records')
 
 
 def checkInBounds(row, data):
-    if not data['ref'] == row['ref']:
+    if not data['ref'] == row['chrom']:
         return False
 
-    startIn = (row['start'] >= data['start']) and (row['start'] <= data['end'])
-    endIn = (row['end'] >= data['start']) and (row['end'] <= data['end'])
-    wrap = (row['start'] < data['start']) and (row['end'] > data['end'])
+    startIn = (data['start'] <= row['chromStart'] <= data['end'])
+    endIn = (data['start'] <= row['chromEnd'] <= data['end'])
+    wrap = (row['chromStart'] < data['start']) and (row['chromEnd'] > data['end'])
 
     return startIn or endIn or wrap
 
 
-def updateModelLabels(data, generate=True):
-    data['hub'] = data['name'].split('/')[0]
-
-    data['track'] = data['name'].split('/')[-1]
+def updateAllModelLabels(data):
+    data['hub'], data['track'] = data['name'].split('/')
 
     # This is the problems that the label update is in
     problems = th.getProblems(data)
 
-    threads = []
-
     for problem in problems:
-        # data path, hub path, track path, problem path
-        modelsPath = '%s%s/%s/%s-%s-%s/' % (pl.dataPath, data['hub'], data['track'],
-                                            problem['ref'], problem['start'], problem['end'])
+        # TODO: Replace 1 with hub user NOT current user
+        modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['ref'], problem['start'])
+        modelsums = modelSummaries.get()
 
-        if not os.path.exists(modelsPath):
+        if len(modelsums.index) < 1:
             submitPregenJob(problem, data)
             continue
 
-        files = os.listdir(modelsPath)
-
-        summaryOutput = []
-
-        labelQuery = {'name': data['name'], 'ref': problem['ref'], 'start': problem['start'], 'end': problem['end']}
-
-        labels = pd.DataFrame(th.getLabels(labelQuery, useLock=False))
-
-        labels.columns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
-
-        labels = labels[labels['annotation'] != 'unknown']
-
-        summaryPath = '%smodelSummary.txt' % modelsPath
-
-        for file in files:
-            if '_Model' in file:
-                penalty = getPenalty(file)
-
-                modelPath = '%s%s' % (modelsPath, file)
-
-                model = pd.read_csv(modelPath, sep='\t', header=None)
-
-                model.columns = modelColumns
-
-                peaks = model[model['annotation'] == 'peak']
-
-                if peaks.size < 1:
-                    os.remove(modelPath)
-                    continue
-
-                error = PeakError.error(peaks, labels)
-
-                summary = PeakError.summarize(error)
-
-                summary['penalty'] = penalty
-
-                summary['numPeaks'] = len(peaks.index)
-
-                summaryOutput.append(summary)
-
-        try:
-            problemSummary = pd.concat(summaryOutput)
-        except ValueError:
-            submitPregenJob(problem, data)
+        labelQuery = {'hub': data['hub'], 'track': data['track'], 'ref': problem['ref'], 'start': problem['start'], 'end': problem['end']}
+        labels = th.getLabelsDf(labelQuery)
+        if labels is None or len(labels.index) < 1:
             continue
 
-        problemSummary.to_csv(summaryPath, sep='\t', header=False, index=False)
+        newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem))
 
-        if generate:
-            checkGenerateArgs = (problem, data, modelsPath)
-            cgThread = threading.Thread(target=checkGenerateModels, args=checkGenerateArgs)
-            threads.append(cgThread)
-            cgThread.start()
+        modelSummaries.add(newSum)
 
-    for thread in threads:
-        thread.join()
+        checkGenerateArgs = (modelSummaries, problem, data)
+        cgThread = threading.Thread(target=checkGenerateModels, args=checkGenerateArgs, daemon=True)
+        cgThread.start()
 
 
-def getPenalty(filePath):
-    return filePath.rsplit('_', 1)[0]
+def modelSumLabelUpdate(modelSum, labels, data, problem):
+    # TODO: Replace 1 with hub user unique identifier
+    modelob = db.Model(1, data['hub'], data['track'], problem['ref'], problem['start'], modelSum['penalty'])
+
+    modeldf = modelob.get()
+
+    if len(modeldf.index) < 1 > len(labels.index):
+        return modeldf
+
+    return calculateModelLabelError(modeldf, labels, modelSum['penalty'])
 
 
-def checkGenerateModels(problem, data, modelsPath):
-    modelSummaryPath = '%s/modelSummary.txt' % modelsPath
+def checkGenerateModels(modelSums, problem, data):
+    sumdf = modelSums.get()
 
-    if not os.path.exists(modelSummaryPath):
-        submitPregenJob(problem, data)
+    nonZeroRegions = sumdf[sumdf['regions'] > 0]
+
+    minError = nonZeroRegions[nonZeroRegions['errors'] == nonZeroRegions['errors'].min()]
+
+    if len(minError.index) == 0:
         return
 
-    try:
-        df = pd.read_csv(modelSummaryPath, sep='\t', header=None, converters={6: lambda x: str(x)})
-    except pd.errors.EmptyDataError:
-        # If no models to base errors off of, do pregen
-        submitPregenJob(problem, data)
+    if minError.iloc[0]['errors'] == 0:
         return
-
-    df.columns = summaryColumns
-
-    df['floatPenalty'] = df['penalty'].astype(float)
-    df = df.sort_values('floatPenalty', ignore_index=True)
-
-    minError = df[df['errors'] == df['errors'].min()]
 
     if len(minError.index) > 1:
         # no need to generate new models if error is 0
-        if minError.iloc[0]['errors'] == 0:
-            return
-        else:
-            first = minError.iloc[0]
-            last = minError.iloc[-1]
+        first = minError.iloc[0]
+        last = minError.iloc[-1]
 
-            biggerFp = first['fp'] > last['fp']
-            smallerFn = first['fn'] < last['fn']
+        biggerFp = first['fp'] > last['fp']
+        smallerFn = first['fn'] < last['fn']
 
-            # Sanity check for bad labels, if the minimum is still the same values
-            # With little labels this could not generate new models
-            if biggerFp or smallerFn:
-                minPenalty = first['penalty']
-                maxPenalty = last['penalty']
-                submitGridSearch(problem, data, minPenalty, maxPenalty)
+        # Sanity check for bad labels, if the minimum is still the same values
+        # With little labels this could not generate new models
+        if biggerFp or smallerFn:
+            minPenalty = first['penalty']
+            maxPenalty = last['penalty']
+            submitGridSearch(problem, data, minPenalty, maxPenalty)
 
-            return
+        return
 
-    else:
+    elif len(minError.index) == 1:
         index = minError.index[0]
 
         model = minError.iloc[0]
-
         if model['fp'] > model['fn']:
             try:
-                above = df.iloc[index + 1]
+                above = sumdf.iloc[index + 1]
             except IndexError:
                 submitOOMJob(problem, data, model['penalty'], '*')
                 return
@@ -230,11 +158,12 @@ def checkGenerateModels(problem, data, modelsPath):
             maxPenalty = above['penalty']
 
             # If the next model only has 1 more peak, not worth searching
-            if model['numPeaks'] + 1 >= above['numPeaks']:
+            if model['numPeaks'] <= above['numPeaks'] + 1:
                 return
         else:
+
             try:
-                below = df.iloc[index - 1]
+                below = sumdf.iloc[index - 1]
             except IndexError:
                 submitOOMJob(problem, data, model['penalty'], '/')
                 return
@@ -247,9 +176,12 @@ def checkGenerateModels(problem, data, modelsPath):
             if below['numPeaks'] + 1 >= model['numPeaks']:
                 return
 
+        print('before grid search submit')
         submitGridSearch(problem, data, minPenalty, maxPenalty)
 
         return
+
+    submitPregenJob(problem, data)
 
 
 def submitOOMJob(problem, data, penalty, jobType):
@@ -271,6 +203,7 @@ def submitPregenJob(problem, data):
 
 
 def submitGridSearch(problem, data, minPenalty, maxPenalty, num=pl.gridSearchSize):
+    print('submit grid search')
     job = {'type': 'gridSearch', 'problem': problem, 'trackInfo': data,
            'minPenalty': float(minPenalty), 'maxPenalty': float(maxPenalty), 'numModels': num}
 
@@ -278,35 +211,74 @@ def submitGridSearch(problem, data, minPenalty, maxPenalty, num=pl.gridSearchSiz
 
 
 def putModel(data):
-    modelData = data['modelData']
+    modelData = pd.read_json(data['modelData'])
+    modelData.columns = modelColumns
     modelInfo = data['modelInfo']
     problem = modelInfo['problem']
-    trackInfo = modelInfo['data']
+    trackInfo = modelInfo['trackInfo']
     penalty = data['penalty']
+    hub, track = trackInfo['name'].split('/')
 
-    trackPath = '%s%s/%s/' % (pl.dataPath, trackInfo['hub'], trackInfo['track'])
-    problemPath = '%s%s-%d-%d/' % (trackPath, problem['ref'], problem['start'], problem['end'])
+    # TODO: Replace 1 with user of hub NOT current user
+    model = db.Model(1, trackInfo['hub'], trackInfo['track'], problem['ref'], problem['start'], penalty)
+    modelSummaries = db.ModelSummaries(1, trackInfo['hub'], trackInfo['track'], problem['ref'], problem['start'])
 
-    if not os.path.exists(problemPath):
-        try:
-            os.makedirs(problemPath)
-        except OSError:
-            return
+    labelQuery = {'hub': hub, 'track': track, 'ref': problem['ref'],
+                  'start': problem['start'], 'end': problem['end']}
+    labels = th.getLabelsDf(labelQuery)
 
-    lock = locks.getLock(trackInfo['name'])
+    errorSum = calculateModelLabelError(modelData, labels, penalty)
 
-    lock.acquire()
+    model.put(modelData)
 
-    modelFilePath = '%s%s_Model.bedGraph' % (problemPath, penalty)
+    if errorSum is None:
+        return
 
-    with open(modelFilePath, 'w') as f:
-        f.writelines(modelData)
-
-    updateModelLabels(trackInfo, generate=False)
-
-    lock.release()
+    modelSummaries.add(errorSum)
 
     return modelInfo
+
+
+def calculateModelLabelError(modelDf, labels, penalty):
+    labels = labels[labels['annotation'] != 'unknown']
+    peaks = modelDf[modelDf['annotation'] == 'peak']
+    errorSeries = pd.Series({'regions': 0, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
+                          'errors': 0, 'penalty': penalty, 'numPeaks': len(peaks.index)})
+    if len(labels.index) < 1 > len(peaks.index):
+        return errorSeries
+
+    error = PeakError.error(peaks, labels)
+
+    if error is None:
+        return errorSeries
+
+    summary = PeakError.summarize(error)
+    summary.columns = summaryColumns
+    summary['penalty'] = penalty
+    summary['numPeaks'] = len(peaks.index)
+
+    singleRow = summary.iloc[0]
+
+    return singleRow
+
+
+def getModelSummary(data):
+    data['hub'], data['track'] = data['name'].split('/')
+
+    problems = th.getProblems(data)
+
+    output = {}
+
+    for problem in problems:
+        # TODO: Replace 1 with user of hub NOT current user
+        modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['ref'], problem['start']).get()
+
+        if len(modelSummaries.index) < 1:
+            continue
+
+        output[problem['start']] = modelSummaries.to_dict('records')
+
+    return output
 
 
 def getPrePenalties(problem, data):

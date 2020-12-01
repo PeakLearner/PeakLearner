@@ -2,11 +2,14 @@ import http.server as server
 import os
 import re
 import json
-import api.TrackHandler as TrackHandler
+import socketserver
+import threading
+from api import TrackHandler
+from signal import signal, SIGINT
+import sys
 
-#https://github.com/danvk/RangeHTTPServer
-#see link above for original code which we copied here to properly extend
-
+# https://github.com/danvk/RangeHTTPServer
+# see link above for original code which we copied here to properly extend
 
 
 def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=16*1024):
@@ -21,7 +24,10 @@ def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=16*1024):
             break
         outfile.write(buf)
 
+
 BYTE_RANGE_RE = re.compile(r'bytes=(\d+)-(\d+)?$')
+
+
 def parse_byte_range(byte_range):
     '''Returns the two numbers in 'bytes=123-456' or throws ValueError.
     The last number or both numbers may be None.
@@ -114,9 +120,39 @@ class RangeRequestHandler(server.SimpleHTTPRequestHandler):
             self.end_headers()
 
 
+class ThreadingHTTPServerWithDirectory(server.ThreadingHTTPServer):
+    def __init__(self, *args, directory='', **kwargs):
+        if directory == '':
+            directory = os.getcwd()
+        else:
+            directory = os.path.join(os.getcwd(), directory)
+        self.directory = directory
+        super().__init__(*args, **kwargs)
+
+    def finish_request(self, request, client_address):
+        self.RequestHandlerClass(request, client_address, self, directory=self.directory)
+
+
+http_server = None
+
+
 def httpserver(port, path):
-    os.chdir(path)
+    global http_server
     handler = RangeRequestHandler
-    http_server = server.ThreadingHTTPServer(('', port), handler)
+    http_server = ThreadingHTTPServerWithDirectory(('', port), handler, directory=path)
     print("Started HTTP server on port", port)
     http_server.serve_forever()
+
+
+def shutdownServer():
+    print('Shutting down PeakLearner')
+    if http_server is not None:
+        http_server.shutdown()
+
+
+def interrupt_handle(signal, frame):
+    print('\nHandling interrupt')
+    shutdownServer()
+
+
+signal(SIGINT, interrupt_handle)

@@ -1,11 +1,11 @@
 import os
 import json
-import api.plLocks as locks
-import api.HubParse as hubParse
-import api.UCSCtoPeakLearner as UCSCtoPeakLearner
-import api.PLConfig as cfg
-import api.JobHandler as jh
-import api.ModelHandler as mh
+import pandas as pd
+from api import HubParse as hubParse, UCSCtoPeakLearner as UCSCtoPeakLearner
+from api import PLConfig as cfg, JobHandler as jh, ModelHandler as mh, PLdb as db
+
+
+jbrowseLabelColumns = ['ref', 'start', 'end', 'label']
 
 
 def jsonInput(data):
@@ -33,180 +33,96 @@ def commands(command):
         'removeJob': jh.removeJob,
         'getAllJobs': jh.getAllJobs,
         'getModel': mh.getModel,
+        'getModelSummary': mh.getModelSummary,
         'putModel': mh.putModel,
     }
 
     return command_list.get(command, None)
 
 
-# Adds Label to label file
 def addLabel(data):
-    rel_path = os.path.join(cfg.dataPath, data['name'] + '_Labels.bedGraph')
+    # TODO: add user
+    data['hub'], data['track'] = data['name'].split('/')
 
-    file_output = []
+    label = 'unknown'
 
-    default_val = 'unknown'
+    # Duplicated because calls from updateLabel are causing freezing
+    newLabel = pd.Series({'chrom': data['ref'],
+                          'chromStart': data['start'],
+                          'chromEnd': data['end'],
+                          'annotation': label})
 
-    added = False
+    # TODO: Replace 1 with hub user NOT current user
+    labels = db.Labels(1, data['hub'], data['track'], data['ref'])
 
-    line_to_append = '%s\t%d\t%d\t%s\n' % (data['ref'], data['start'], data['end'], default_val)
-
-    lock = locks.getLock(data['name'])
-
-    lock.acquire()
-
-    if not os.path.exists(rel_path):
-        with open(rel_path, 'w') as new:
-            print("New label file created at %s" % rel_path)
-            new.write(line_to_append)
-            return data
-
-    # read labels in besides one to delete
-    with open(rel_path, 'r') as f:
-
-        current_line = f.readline()
-
-        while not current_line == '':
-            lineVals = current_line.split()
-
-            current_line_ref = lineVals[0]
-            current_line_start = int(lineVals[1])
-
-            if not added and not (current_line_ref < data['ref'] or current_line_start < data['start']):
-                file_output.append(line_to_append)
-                added = True
-
-            file_output.append(current_line)
-            current_line = f.readline()
-
-        if not added:
-            file_output.append(line_to_append)
-
-    # this could be "runtime expensive" saving here instead of just sending label data to the model itself for
-    # storage
-    with open(rel_path, 'w') as f:
-        f.writelines(file_output)
-
-    lock.release()
+    labels.add(newLabel)
 
     return data
 
 
 # Removes label from label file
 def removeLabel(data):
-    rel_path = os.path.join(cfg.dataPath, data['name'] + '_Labels.bedGraph')
+    # TODO: Add user
+    data['hub'], data['track'] = data['name'].split('/')
 
-    output = []
+    toRemove = pd.Series({'chrom': data['ref'],
+                          'chromStart': data['start'],
+                          'chromEnd': data['end']})
 
-    line_to_check = '%s\t%s\t%s' % (data['ref'], str(data['start']), str(data['end']))
+    labels = db.Labels(1, data['hub'], data['track'], data['ref'])
+    labels.remove(toRemove)
 
-    lock = locks.getLock(data['name'])
-
-    lock.acquire()
-
-    # read labels in besides one to delete
-    with open(rel_path, 'r') as f:
-
-        current_line = f.readline()
-
-        while not current_line == '':
-
-            if current_line.find(line_to_check) == -1:
-                output.append(current_line)
-
-            current_line = f.readline()
-
-    # write labels after one to delete is gone
-    with open(rel_path, 'w') as f:
-        f.writelines(output)
-
-    mh.updateModelLabels(data)
-
-    lock.release()
+    mh.updateAllModelLabels(data)
 
     return data
 
 
 def updateLabel(data):
-    rel_path = os.path.join(cfg.dataPath, data['name'] + '_Labels.bedGraph')
+    # TODO: add user
+    data['hub'], data['track'] = data['name'].split('/')
 
-    output = []
+    label = data['label']
 
-    line_to_check = '%s\t%s\t%s' % (data['ref'], str(data['start']), str(data['end']))
+    updateLabel = pd.Series({'chrom': data['ref'],
+                          'chromStart': data['start'],
+                          'chromEnd': data['end'],
+                          'annotation': label})
 
-    lock = locks.getLock(data['name'])
+    # TODO: Replace 1 with hub user NOT current user
+    labels = db.Labels(1, data['hub'], data['track'], data['ref'])
 
-    lock.acquire()
+    labels.add(updateLabel)
 
-    # read labels in besides one to delete
-    with open(rel_path, 'r') as f:
-
-        current_line = f.readline()
-
-        while not current_line == '':
-
-            if not current_line.find(line_to_check) <= -1:
-                output.append('%s\t%s\n' % (line_to_check, data['label']))
-            else:
-                output.append(current_line)
-
-            current_line = f.readline()
-
-    # write labels after one to delete is gone
-    with open(rel_path, 'w') as f:
-        f.writelines(output)
-
-    mh.updateModelLabels(data)
-
-    lock.release()
+    mh.updateAllModelLabels(data)
 
     return data
 
 
-def getLabels(data, useLock=True):
-    rel_path = os.path.join(cfg.dataPath, data['name'] + '_Labels.bedGraph')
-    refseq = data['ref']
-    start = data['start']
-    end = data['end']
+def getLabels(data):
+    # TODO: Add user
+    data['hub'], data['track'] = data['name'].split('/')
 
-    output = []
+    labels = getLabelsDf(data)
 
-    if not os.path.exists(rel_path):
-        return output
+    if labels is None:
+        return {}
 
-    if useLock:
+    labels = labels[['chrom', 'chromStart', 'chromEnd', 'annotation']]
+    labels.columns = jbrowseLabelColumns
 
-        lock = locks.getLock(data['name'])
+    test = labels.to_dict('records')
 
-        lock.acquire()
+    return test
 
-    with open(rel_path, 'r') as f:
 
-        current_line = f.readline()
-
-        while not current_line == '':
-            lineVals = current_line.split()
-
-            lineStart = int(lineVals[1])
-
-            lineEnd = int(lineVals[2])
-
-            if lineVals[0] == refseq:
-
-                lineIfStartIn = (lineStart >= start) and (lineStart <= end)
-                lineIfEndIn = (lineEnd >= start) and (lineEnd <= end)
-                wrap = (lineStart < start) and (lineEnd > end)
-
-                if lineIfStartIn or lineIfEndIn or wrap:
-                    output.append({"ref": refseq, "start": lineStart,
-                                   "end": lineEnd, "label": lineVals[3]})
-
-            current_line = f.readline()
-
-    if useLock:
-        lock.release()
-
-    return output
+def getLabelsDf(data):
+    # TODO: Add user
+    labels = db.Labels(1, data['hub'], data['track'], data['ref'])
+    labelsDf = labels.get()
+    if len(labelsDf.index) < 1:
+        return
+    labelsDf['inBounds'] = labelsDf.apply(mh.checkInBounds, axis=1, args=(data,))
+    return labelsDf[labelsDf['inBounds']].drop(columns='inBounds')
 
 
 def parseHub(data):
@@ -219,7 +135,7 @@ def getProblems(data):
     if 'genome' not in data:
         data['genome'] = getGenome(data)
 
-    rel_path = os.path.join(cfg.dataPath, 'genomes/', data['genome'], 'problems.bed')
+    rel_path = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'genomes', data['genome'], 'problems.bed')
     refseq = data['ref']
     start = data['start']
     end = data['end']
@@ -258,7 +174,7 @@ def getProblems(data):
 def getGenome(data):
     hub, track = data['name'].rsplit('/')
 
-    trackListPath = os.path.join(cfg.dataPath, hub, 'trackList.json')
+    trackListPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, hub, 'trackList.json')
 
     with open(trackListPath, 'r') as f:
         trackList = json.load(f)
@@ -270,40 +186,15 @@ def getGenome(data):
         return genome
 
 
-def getHubInfo(data):
-    track, hub = data.rsplit('/')
-
-    genome = getGenome(data)
-
-    genomePath = os.path.join(cfg.dataPath, 'genomes/', genome)
-
-    trackListPath = os.path.join(cfg.dataPath, hub, 'trackList.json')
-
-    output = {'hub': hub, 'genomePath': genomePath, 'tracks': []}
-
-    with open(trackListPath, 'r') as f:
-        trackList = json.load(f)
-
-        for track in trackList['tracks']:
-            trackLabel = track['label']
-            url = track['urlTemplates'][0]['url']
-
-            output['tracks'].append({'name': trackLabel, 'coverage': url})
-
-        return output
-
-
 def getTrackUrl(data):
-    track, hub = data['name'].rsplit('/')
+    hub, track = data['name'].split('/')
 
-    dataLabel = os.path.join(cfg.dataPath, hub, track)
-
-    trackListPath = '%s%s/trackList.json' % (cfg.dataPath, hub)
+    trackListPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, hub, 'trackList.json')
 
     with open(trackListPath) as f:
         trackList = json.load(f)
         for track in trackList['tracks']:
-            if track['label'] == dataLabel:
+            if track['label'] == data['name']:
                 out = track['urlTemplates'][0]['url']
                 return out
     return

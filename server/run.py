@@ -1,14 +1,23 @@
 import os
 import requests
-import commands.ModelGeneration as mg
-import utils.SlurmConfig as cfg
+import time
+import tempfile
+
+if __name__ == '__main__':
+    import ModelGeneration as mg
+    import SlurmConfig as cfg
+else:
+    import server.ModelGeneration as mg
+    import server.SlurmConfig as cfg
 
 
 def startAllNewJobs():
-    query = {'command': 'getAllJobs', 'args': {'id': 'New'}}
+    query = {'command': 'getAllJobs', 'args': {'status': 'New'}}
 
-    # TODO: Add error handling
-    jobs = requests.post(cfg.remoteServer, json=query)
+    try:
+        jobs = requests.post(cfg.remoteServer, json=query)
+    except requests.exceptions.ConnectionError:
+        return False
 
     if jobs.status_code == 204:
         return False
@@ -23,41 +32,77 @@ def startAllNewJobs():
     if jobs.status_code == 200:
         infoForJobs = jobs.json()
 
+        print(len(infoForJobs))
+
         for job in infoForJobs:
             if job['status'].lower() == 'new':
+
+                startQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'Queued'}}
+                startRequest = requests.post(cfg.remoteServer, json=startQuery)
+
+                if not startRequest.status_code == 200:
+                    continue
+
+                print("Starting job with ID", job['id'], "and type", job['data']['type'])
                 if cfg.useSlurm:
                     createSlurmJob(job)
                 else:
                     mg.startJob(job['id'])
 
+        return True
+
+    return False
+
 
 def createSlurmJob(job):
+    # TODO: Calculate required CPUs for job
+    numCpus = 5
+    if numCpus > cfg.maxCPUsPerJob:
+        numCpus = cfg.maxCPUsPerJob
 
     jobName = 'PeakLearner-%d' % job['id']
 
     jobString = '#!/bin/bash\n'
 
-    jobString += '#SBATCH --job-name=%s\n' % job['id']
+    jobString += '#SBATCH --job-name=%s\n' % jobName
 
-    jobString += '#SBATCH --output=%s%s/%s.txt\n' % (cfg.dataPath, cfg.slurmUser, jobName)
-    jobString += '#SBATCH --chdir=%s%s\n' % (cfg.dataPath, cfg.slurmUser)
+    jobString += '#SBATCH --output=%s\n' % os.path.join(os.getcwd(), 'data/', jobName + '.txt')
+    jobString += '#SBATCH --chdir=%s\n' % os.getcwd()
 
     # TODO: Make resource allocation better
-    jobString += '#SBATCH --time=1:00\n'
-    jobString += '#SBATCH --mem=1024\n'
-    jobString += '#SBATCH --c 1\n'
+    jobString += '#SBATCH --time=%s:00\n' % cfg.maxJobLen
+    jobString += '#SBATCH --cpus-per-task=%d\n' % numCpus
 
-    jobString += 'module load anaconda3\n'
-    jobString += 'module load R\n'
+    if cfg.monsoon:
+        jobString += '#SBATCH --mem=1024\n'
+        jobString += 'module load anaconda3\n'
+        jobString += 'module load R\n'
+        jobString += 'conda activate %s\n' % cfg.condaVenvPath
 
-    jobString += 'conda activate %s\n' % cfg.condaVenvPath
+    jobString += 'srun python3 %s %s\n' % ('server/ModelGeneration.py', job['id'])
 
-    jobString += 'srun python3 commands/ModelGeneration.py %s\n' % (job['id'])
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.sh') as temp:
+        temp.write(jobString)
+        temp.flush()
+        temp.seek(0)
 
-    command = 'sbatch %s' % jobString
+        command = 'sbatch %s' % temp.name
 
-    os.system(command)
+        os.system(command)
 
 
 if __name__ == '__main__':
-    startAllNewJobs()
+    startTime = time.time()
+
+    if cfg.useCron:
+        timeDiff = lambda: time.time() - startTime
+
+        while timeDiff() < cfg.timeToRun:
+            startAllNewJobs()
+            time.sleep(1)
+    else:
+        startAllNewJobs()
+
+        endTime = time.time()
+
+        print("Start Time:", startTime, "End Time", endTime)
