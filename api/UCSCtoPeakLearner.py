@@ -69,7 +69,7 @@ def createTrackListJson(hub, dataPath, refSeqPath, tracks):
 
     for track in trackList:
         trackFile = {'label': "%s/%s" % (hub, track['track']), 'key': track['shortLabel'],
-                     'type': 'InteractivePeakAnnotator/View/Track/MultiXYPlot',
+                     'type': 'PeakLearnerBackend/View/Track/MultiXYPlot',
                      'urlTemplates': []}
 
         categories = 'Data'
@@ -79,28 +79,21 @@ def createTrackListJson(hub, dataPath, refSeqPath, tracks):
         trackFile['category'] = categories
 
         # Determine which track is the coverage data
-        coverage = peaks = None
+        coverage = None
         for child in track['children']:
             file = child['bigDataUrl'].rsplit('/', 1)
             if 'coverage' in file[1]:
                 coverage = child
-            if 'joint_peaks' in file[1]:
-                peaks = child
 
         # Add Data Url to config
         if coverage is not None:
             trackFile['urlTemplates'].append(
-                {'url': coverage['bigDataUrl'], 'name': '%s/%s' % (hub, coverage['shortLabel']), 'color': '#235'}
-            )
-
-        if peaks is not None:
-            trackFile['urlTemplates'].append(
-                {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Model', 'name': '%s/%s' % (hub, peaks['shortLabel']),
-                 'color': 'red', 'lineWidth': 5}
+                {'url': coverage['bigDataUrl'], 'name': '%s/%s' % (hub, track['track']), 'color': '#235'}
             )
 
         trackFile['storeClass'] = 'MultiBigWig/Store/SeqFeature/MultiBigWig'
-        trackFile['storeConf'] = {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Labels'}
+        trackFile['storeConf'] = {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Labels',
+                                  'modelClass': 'PeakLearnerBackend/Store/SeqFeature/Model'}
 
         config['tracks'].append(trackFile)
 

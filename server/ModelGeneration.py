@@ -4,6 +4,8 @@ import sys
 import time
 import numpy as np
 import pandas as pd
+import tempfile
+import PeakSegDisk
 import requests
 import threading
 
@@ -19,22 +21,19 @@ else:
 
 
 def model(job):
-    data = job['data']
-    problem = data['problem']
-    trackInfo = data['trackInfo']
-    penalty = data['penalty']
+    data = job['jobData']
 
-    dataPath = '%s%s/%s-%d-%d/' % (cfg.dataPath, trackInfo['name'], problem['ref'], problem['start'], problem['end'])
+    dataPath = os.path.join(cfg.dataPath, 'PeakLearner-%s' % job['id'])
 
     if not os.path.exists(dataPath):
         try:
             os.makedirs(dataPath)
         except OSError:
-            return
+            return False
 
-    coveragePath = getCoverageFile(trackInfo, problem, dataPath)
+    getCoverageFile(job, dataPath)
 
-    generateModel(coveragePath, data, penalty)
+    generateModel(dataPath, job)
 
     finishQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'Done'}}
 
@@ -44,23 +43,38 @@ def model(job):
         print("Model Request Error", r.status_code)
 
 
-def generateModel(coveragePath, data, penalty):
-    command = 'Rscript %s %s %f' % (modelGenPath, coveragePath, penalty)
+def generateModel(dataPath, stepData):
+    coveragePath = os.path.join(dataPath, 'coverage.bedGraph')
+    cf = open(coveragePath)
+    segmentsPath = os.path.join(dataPath, '%s-segments.bed' % stepData['penalty'])
+    sf = open(segmentsPath, 'w')
+    lossPath = os.path.join(dataPath, '%s-loss.tsv' % stepData['penalty'])
+    lf = open(lossPath, 'w')
 
-    os.system(command)
+    penalty = str(stepData['penalty'])
 
-    modelPath = '%s_penalty=%f_segments.bed' % (coveragePath, penalty)
+    db = tempfile.NamedTemporaryFile(suffix='.db')
 
-    if os.path.exists(modelPath):
-        sendModel(modelPath, data, penalty)
+    success = PeakSegDisk.FPOP_files(cf, sf, lf, penalty, db)
+
+    if success:
+        cf.close()
+        sf.close()
+        lf.close()
+        db.close()
+        sendSegments(segmentsPath, stepData)
 
 
-def sendModel(modelPath, modelInfo, penalty):
-    strPenalty = str(penalty)
+def sendSegments(segmentsFile, stepData):
+    strPenalty = str(stepData['penalty'])
 
-    print('\nmodelPath\n', modelPath, '\ncwd\n', os.getcwd(), '\n')
+    modelData = pd.read_csv(segmentsFile, sep='\t', header=None)
 
-    modelData = pd.read_csv(modelPath, sep='\t', header=None)
+    modelInfo = {'user': stepData['user'],
+                 'hub': stepData['hub'],
+                 'track': stepData['track'],
+                 'problem': stepData['jobData']['problem'],
+                 'jobId': stepData['id']}
 
     query = {'command': 'putModel',
              'args': {'modelInfo': modelInfo, 'penalty': strPenalty, 'modelData': modelData.to_json()}}
@@ -71,17 +85,18 @@ def sendModel(modelPath, modelInfo, penalty):
         print("Send Model Request Error", r.status_code)
 
 
-def getCoverageFile(trackInfo, problem, output):
+def getCoverageFile(job, dataPath):
+    problem = job['jobData']['problem']
 
-    query = {'command': 'getTrackUrl', 'args': trackInfo}
+    query = {'command': 'getTrackUrl', 'args': {'user': job['user'], 'hub': job['hub'], 'track': job['track']}}
 
     hubInfo = requests.post(cfg.remoteServer, json=query)
-
-    coveragePath = os.path.join(output, 'coverage.bedGraph')
 
     if not hubInfo.status_code == 200:
         print("GetCoverageFile track Url Error", hubInfo.status_code)
         return
+
+    coveragePath = os.path.join(dataPath, 'coverage.bedGraph')
 
     coverageUrl = hubInfo.json()
     if not os.path.exists(coveragePath):
@@ -125,30 +140,29 @@ def fixAndSaveCoverage(interval, outputPath, problem):
 
 
 def generateModels(job):
-    data = job['data']
+    data = job['jobData']
     penalties = data['penalties']
-    trackInfo = data['trackInfo']
-    problem = data['problem']
 
-    dataPath = os.path.join(cfg.dataPath, trackInfo['name'], '%s-%d-%d' %
-                            (problem['ref'], problem['start'], problem['end']))
+    dataPath = os.path.join(cfg.dataPath, 'PeakLearner-%s' % job['id'])
 
     if not os.path.exists(dataPath):
         try:
             os.makedirs(dataPath)
         except OSError:
-            print("Os Error")
-            return
+            return False
 
-    coveragePath = getCoverageFile(trackInfo, problem, dataPath)
+    coveragePath = getCoverageFile(job, dataPath)
+
+    if not os.path.exists(coveragePath):
+        return False
 
     modelThreads = []
 
     for penalty in penalties:
-        modelData = data
+        modelData = job.copy()
         modelData['penalty'] = penalty
 
-        modelArgs = (coveragePath, modelData, penalty)
+        modelArgs = (dataPath, modelData)
 
         modelThread = threading.Thread(target=generateModel, args=modelArgs)
         modelThread.start()
@@ -168,10 +182,10 @@ def generateModels(job):
 
 
 def gridSearch(job):
-    data = job['data']
+    data = job['jobData']
     minPenalty = data['minPenalty']
     maxPenalty = data['maxPenalty']
-    numModels = data['numModels']
+    numModels = job['numModels']
     # Remove start and end of list because that is minPenalty/maxPenalty (already calculated)
     # Add 2 to numModels to account for start/end points (already calculated models)
     data['penalties'] = np.linspace(minPenalty, maxPenalty, numModels + 2).tolist()[1:-1]
@@ -197,7 +211,7 @@ def startJob(jobId):
 
     endTime = time.time()
 
-    print("Start Time", startTime, "End Time", endTime)
+    print("Start Time", startTime, "End Time", endTime, "total time", endTime - startTime)
 
 
 def startJobWithType(job):
@@ -207,7 +221,7 @@ def startJobWithType(job):
         'gridSearch': gridSearch
     }
 
-    jobType = types.get(job['data']['type'], None)
+    jobType = types.get(job['jobType'], None)
 
     jobType(job)
 

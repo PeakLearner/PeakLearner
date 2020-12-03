@@ -2,46 +2,15 @@ import os
 import json
 import pandas as pd
 from api import HubParse as hubParse, UCSCtoPeakLearner as UCSCtoPeakLearner
-from api import PLConfig as cfg, JobHandler as jh, ModelHandler as mh, PLdb as db
-
+from api import PLConfig as cfg, PLdb as db
+from api.Handlers import ModelHandler as mh
 
 jbrowseLabelColumns = ['ref', 'start', 'end', 'label']
 
 
-def jsonInput(data):
-    command = data['command']
-    # for some reason data['args'] is a list containing a dict
-    args = data['args']
-
-    commandOutput = commands(command)(args)
-
-    return commandOutput
-
-
-def commands(command):
-    command_list = {
-        'addLabel': addLabel,
-        'removeLabel': removeLabel,
-        'updateLabel': updateLabel,
-        'getLabels': getLabels,
-        'parseHub': parseHub,
-        'getProblems': getProblems,
-        'getGenome': getGenome,
-        'getTrackUrl': getTrackUrl,
-        'getJob': jh.getJob,
-        'updateJob': jh.updateJob,
-        'removeJob': jh.removeJob,
-        'getAllJobs': jh.getAllJobs,
-        'getModel': mh.getModel,
-        'getModelSummary': mh.getModelSummary,
-        'putModel': mh.putModel,
-    }
-
-    return command_list.get(command, None)
-
-
 def addLabel(data):
     # TODO: add user
+    data['user'] = 1
     data['hub'], data['track'] = data['name'].split('/')
 
     label = 'unknown'
@@ -53,9 +22,11 @@ def addLabel(data):
                           'annotation': label})
 
     # TODO: Replace 1 with hub user NOT current user
-    labels = db.Labels(1, data['hub'], data['track'], data['ref'])
+    labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
 
-    labels.add(newLabel)
+    added, after = labels.add(newLabel)
+
+    print('Labels After Add\n', after, '\n')
 
     return data
 
@@ -63,22 +34,24 @@ def addLabel(data):
 # Removes label from label file
 def removeLabel(data):
     # TODO: Add user
+    data['user'] = 1
     data['hub'], data['track'] = data['name'].split('/')
 
     toRemove = pd.Series({'chrom': data['ref'],
                           'chromStart': data['start'],
                           'chromEnd': data['end']})
 
-    labels = db.Labels(1, data['hub'], data['track'], data['ref'])
+    labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
     labels.remove(toRemove)
 
-    mh.updateAllModelLabels(data)
+    mh.updateAllModelLabels(data, labels)
 
     return data
 
 
 def updateLabel(data):
     # TODO: add user
+    data['user'] = 1
     data['hub'], data['track'] = data['name'].split('/')
 
     label = data['label']
@@ -89,40 +62,34 @@ def updateLabel(data):
                           'annotation': label})
 
     # TODO: Replace 1 with hub user NOT current user
-    labels = db.Labels(1, data['hub'], data['track'], data['ref'])
+    labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
 
-    labels.add(updateLabel)
+    added, after = labels.add(updateLabel)
 
-    mh.updateAllModelLabels(data)
+    print('Labels After Add\n', after, '\n')
 
-    return data
+    if mh.updateAllModelLabels(data, labels):
+        return data
 
 
 def getLabels(data):
     # TODO: Add user
+    data['user'] = 1
     data['hub'], data['track'] = data['name'].split('/')
-
-    labels = getLabelsDf(data)
-
-    if labels is None:
-        return {}
-
-    labels = labels[['chrom', 'chromStart', 'chromEnd', 'annotation']]
-    labels.columns = jbrowseLabelColumns
-
-    test = labels.to_dict('records')
-
-    return test
-
-
-def getLabelsDf(data):
-    # TODO: Add user
-    labels = db.Labels(1, data['hub'], data['track'], data['ref'])
+    labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
     labelsDf = labels.get()
     if len(labelsDf.index) < 1:
-        return
+        return {}
     labelsDf['inBounds'] = labelsDf.apply(mh.checkInBounds, axis=1, args=(data,))
-    return labelsDf[labelsDf['inBounds']].drop(columns='inBounds')
+    labelsDf = labelsDf[labelsDf['inBounds']].drop(columns='inBounds')
+
+    if labelsDf is None:
+        return {}
+
+    labelsDf = labelsDf[['chrom', 'chromStart', 'chromEnd', 'annotation']]
+    labelsDf.columns = jbrowseLabelColumns
+
+    return labelsDf.to_dict('records')
 
 
 def parseHub(data):
@@ -172,9 +139,9 @@ def getProblems(data):
 
 
 def getGenome(data):
-    hub, track = data['name'].rsplit('/')
+    data['hub'], data['track'] = data['name'].split('/')
 
-    trackListPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, hub, 'trackList.json')
+    trackListPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, data['hub'], 'trackList.json')
 
     with open(trackListPath, 'r') as f:
         trackList = json.load(f)
@@ -187,9 +154,8 @@ def getGenome(data):
 
 
 def getTrackUrl(data):
-    hub, track = data['name'].split('/')
-
-    trackListPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, hub, 'trackList.json')
+    trackListPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, data['hub'], 'trackList.json')
+    data['name'] = os.path.join(data['hub'], data['track'])
 
     with open(trackListPath) as f:
         trackList = json.load(f)

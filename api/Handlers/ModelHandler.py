@@ -1,7 +1,7 @@
 import PeakError
-import threading
 import pandas as pd
-from api import PLdb as db, TrackHandler as th, PLConfig as pl, JobHandler as jh
+from api import PLdb as db, PLConfig as pl
+from api.Handlers import LabelHandler as lh, JobHandler as jh
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
@@ -11,7 +11,7 @@ jbrowseModelColumns = ["ref", "start", "end", "type", "score"]
 def getModel(data):
     data['hub'], data['track'] = data['name'].split('/')
 
-    problems = th.getProblems(data)
+    problems = lh.getProblems(data)
 
     output = []
 
@@ -20,20 +20,24 @@ def getModel(data):
         modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['ref'], problem['start']).get()
 
         if len(modelSummaries.index) < 1:
-            # TODO: LOPART HERE
+            # TODO: DEFAULT LOPART HERE
             continue
 
         nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
 
         if len(nonZeroRegions.index) < 1:
-            # TODO: LOPART HERE
+            # TODO: DEFAULT LOPART HERE
             continue
 
-        minError = nonZeroRegions[nonZeroRegions['errors'] == nonZeroRegions['errors'].min()]
+        noError = nonZeroRegions[nonZeroRegions['errors'] < 1]
+
+        if len(noError.index) < 1:
+            #TODO: LOPART HERE
+            continue
 
         # Uses first penalty with min label error
         # This will favor the model with the lowest penalty, given that summary is sorted
-        penalty = minError['penalty'].iloc[0]
+        penalty = noError['penalty'].iloc[0]
 
 
         # TODO: Replace 1 with user of hub NOT current user
@@ -71,33 +75,32 @@ def checkInBounds(row, data):
     return startIn or endIn or wrap
 
 
-def updateAllModelLabels(data):
+def updateAllModelLabels(data, labels):
     data['hub'], data['track'] = data['name'].split('/')
 
+    labels = labels.get()
+
     # This is the problems that the label update is in
-    problems = th.getProblems(data)
+    problems = lh.getProblems(data)
 
     for problem in problems:
         # TODO: Replace 1 with hub user NOT current user
         modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['ref'], problem['start'])
-        modelsums = modelSummaries.get()
+        txn = modelSummaries.getTxn()
+        modelsums = modelSummaries.get(txn=txn)
 
         if len(modelsums.index) < 1:
             submitPregenJob(problem, data)
             continue
 
-        labelQuery = {'hub': data['hub'], 'track': data['track'], 'ref': problem['ref'], 'start': problem['start'], 'end': problem['end']}
-        labels = th.getLabelsDf(labelQuery)
-        if labels is None or len(labels.index) < 1:
-            continue
-
         newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem))
 
-        modelSummaries.add(newSum)
+        modelSummaries.add(newSum, txn=txn)
+        txn.commit()
 
-        checkGenerateArgs = (modelSummaries, problem, data)
-        cgThread = threading.Thread(target=checkGenerateModels, args=checkGenerateArgs, daemon=True)
-        cgThread.start()
+        checkGenerateModels(modelSummaries, problem, data)
+
+    return True
 
 
 def modelSumLabelUpdate(modelSum, labels, data, problem):
@@ -106,9 +109,6 @@ def modelSumLabelUpdate(modelSum, labels, data, problem):
 
     modeldf = modelob.get()
 
-    if len(modeldf.index) < 1 > len(labels.index):
-        return modeldf
-
     return calculateModelLabelError(modeldf, labels, modelSum['penalty'])
 
 
@@ -116,6 +116,9 @@ def checkGenerateModels(modelSums, problem, data):
     sumdf = modelSums.get()
 
     nonZeroRegions = sumdf[sumdf['regions'] > 0]
+
+    if len(nonZeroRegions.index) == 0:
+        return
 
     minError = nonZeroRegions[nonZeroRegions['errors'] == nonZeroRegions['errors'].min()]
 
@@ -176,7 +179,6 @@ def checkGenerateModels(modelSums, problem, data):
             if below['numPeaks'] + 1 >= model['numPeaks']:
                 return
 
-        print('before grid search submit')
         submitGridSearch(problem, data, minPenalty, maxPenalty)
 
         return
@@ -185,29 +187,43 @@ def checkGenerateModels(modelSums, problem, data):
 
 
 def submitOOMJob(problem, data, penalty, jobType):
-    job = {'type': 'model', 'problem': problem, 'trackInfo': data}
+    job = {'numModels': 1,
+           'user': data['user'],
+           'hub': data['hub'],
+           'track': data['track'],
+           'jobType': 'model',
+           'jobData': {'problem': problem}}
 
     if jobType == '*':
-        job['penalty'] = float(penalty) * 10
+        job['jobData']['penalty'] = float(penalty) * 10
     elif jobType == '/':
-        job['penalty'] = float(penalty) / 10
+        job['jobData']['penalty'] = float(penalty) / 10
     else:
         print("Invalid OOM Job")
         return
-    jh.addJob(job)
+    jh.updateJob(job)
 
 
 def submitPregenJob(problem, data):
-    job = {'type': 'pregen', 'problem': problem, 'trackInfo': data, 'penalties': getPrePenalties(problem, data)}
-    jh.addJob(job)
+    penalties = getPrePenalties(problem, data)
+    job = {'numModels': len(penalties),
+           'user': data['user'],
+           'hub': data['hub'],
+           'track': data['track'],
+           'jobType': 'pregen',
+           'jobData': {'problem': problem, 'penalties': penalties}}
+    jh.updateJob(job)
 
 
 def submitGridSearch(problem, data, minPenalty, maxPenalty, num=pl.gridSearchSize):
-    print('submit grid search')
-    job = {'type': 'gridSearch', 'problem': problem, 'trackInfo': data,
-           'minPenalty': float(minPenalty), 'maxPenalty': float(maxPenalty), 'numModels': num}
+    job = {'numModels': num,
+           'user': data['user'],
+           'hub': data['hub'],
+           'track': data['track'],
+           'jobType': 'gridSearch',
+           'jobData': {'problem': problem, 'minPenalty': float(minPenalty), 'maxPenalty': float(maxPenalty)}}
 
-    jh.addJob(job)
+    jh.updateJob(job)
 
 
 def putModel(data):
@@ -215,47 +231,43 @@ def putModel(data):
     modelData.columns = modelColumns
     modelInfo = data['modelInfo']
     problem = modelInfo['problem']
-    trackInfo = modelInfo['trackInfo']
     penalty = data['penalty']
-    hub, track = trackInfo['name'].split('/')
+    user = modelInfo['user']
+    hub = modelInfo['hub']
+    track = modelInfo['track']
 
-    # TODO: Replace 1 with user of hub NOT current user
-    model = db.Model(1, trackInfo['hub'], trackInfo['track'], problem['ref'], problem['start'], penalty)
-    modelSummaries = db.ModelSummaries(1, trackInfo['hub'], trackInfo['track'], problem['ref'], problem['start'])
+    print('putting model after args setup')
 
-    labelQuery = {'hub': hub, 'track': track, 'ref': problem['ref'],
-                  'start': problem['start'], 'end': problem['end']}
-    labels = th.getLabelsDf(labelQuery)
+    txn = db.Model.getTxn()
 
+    db.Model(user, hub, track, problem['ref'], problem['start'], penalty).put(modelData, txn=txn)
+    labels = db.Labels(user, hub, track, problem['ref']).get(txn=txn)
     errorSum = calculateModelLabelError(modelData, labels, penalty)
-
-    model.put(modelData)
-
     if errorSum is None:
         return
+    db.ModelSummaries(user, hub, track, problem['ref'], problem['start']).add(errorSum, txn=txn)
 
-    modelSummaries.add(errorSum)
-
+    txn.commit()
     return modelInfo
 
 
 def calculateModelLabelError(modelDf, labels, penalty):
     labels = labels[labels['annotation'] != 'unknown']
     peaks = modelDf[modelDf['annotation'] == 'peak']
-    errorSeries = pd.Series({'regions': 0, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
-                          'errors': 0, 'penalty': penalty, 'numPeaks': len(peaks.index)})
-    if len(labels.index) < 1 > len(peaks.index):
-        return errorSeries
+    numPeaks = len(peaks.index)
+
+    if len(labels.index) < 1 > numPeaks:
+        return getErrorSeries(penalty, numPeaks)
 
     error = PeakError.error(peaks, labels)
 
     if error is None:
-        return errorSeries
+        return getErrorSeries(penalty, numPeaks)
 
     summary = PeakError.summarize(error)
     summary.columns = summaryColumns
     summary['penalty'] = penalty
-    summary['numPeaks'] = len(peaks.index)
+    summary['numPeaks'] = numPeaks
 
     singleRow = summary.iloc[0]
 
@@ -265,7 +277,7 @@ def calculateModelLabelError(modelDf, labels, penalty):
 def getModelSummary(data):
     data['hub'], data['track'] = data['name'].split('/')
 
-    problems = th.getProblems(data)
+    problems = lh.getProblems(data)
 
     output = {}
 
@@ -279,6 +291,11 @@ def getModelSummary(data):
         output[problem['start']] = modelSummaries.to_dict('records')
 
     return output
+
+
+def getErrorSeries(penalty, numPeaks):
+    return pd.Series({'regions': 0, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
+                             'errors': 0, 'penalty': penalty, 'numPeaks': numPeaks})
 
 
 def getPrePenalties(problem, data):

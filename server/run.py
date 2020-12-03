@@ -43,7 +43,7 @@ def startAllNewJobs():
                 if not startRequest.status_code == 200:
                     continue
 
-                print("Starting job with ID", job['id'], "and type", job['data']['type'])
+                print("Starting job with ID", job['id'], "and type", job['jobType'])
                 if cfg.useSlurm:
                     createSlurmJob(job)
                 else:

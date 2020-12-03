@@ -1,81 +1,12 @@
-from api import JobHandler as jh, PLConfig as cfg
+from api import PLConfig as cfg
 import server.run as slurmrun
+import pandas as pd
 import run
 import time
 import os
 import requests
 
-
-def test_JobHandler():
-    testProblem = {'ref': 'chr1', 'start': 521368, 'end': 2634220}
-    testTrackInfo = {'ref': 'chr1', 'start': 1506599, 'end': 1510099,
-                     'genome': 'hg19', 'hub': 'testHub', 'track': 'testTrack',
-                     'name': 'testHub/testTrack'}
-    testJob = {'type': 'pregen', 'problem': testProblem, 'trackInfo': testTrackInfo,
-               'penalties': [100, 1000, 10000, 100000, 1000000]}
-
-    otherTestProblem = {'ref': 'chr1', 'start': 2684221, 'end': 3845268}
-    otherTestTrackInfo = {'ref': 'chr1', 'start': 2971999, 'end': 2986999,
-                          'genome': 'hg19', 'hub': 'testHub', 'track': 'testTrack',
-                          'name': 'testHub/testTrack'}
-    otherTestJob = {'type': 'pregen', 'problem': otherTestProblem, 'trackInfo': otherTestTrackInfo,
-                    'penalties': [100, 1000, 10000, 100000, 1000000]}
-
-    # Test Job Adding
-    jh.addJob(testJob)
-
-    assert len(jh.getAllJobs({})) == 1
-
-    # Check that duplicate jobs aren't added
-    jh.addJob(testJob)
-
-    assert len(jh.getAllJobs({})) == 1
-
-    jh.addJob(otherTestJob)
-
-    assert len(jh.getAllJobs({})) == 2
-
-    # Test getJob
-
-    job = jh.getJob({'id': 0})
-
-    # Fetch with ID doesn't update status
-    assert job['status'] == 'New'
-
-    jobData = job['data']
-
-    assert jobData['problem'] == testProblem
-    assert jobData['trackInfo'] == testTrackInfo
-
-    job = jh.getJob({})
-
-    assert job['status'] == 'Processing'
-
-    jobData = job['data']
-
-    assert jobData['problem'] == testProblem
-    assert jobData['trackInfo'] == testTrackInfo
-
-    # Test Update Job
-
-    jh.updateJob({'id': 0, 'status': 'testStatus'})
-
-    job = jh.getJob({'id': 0})
-
-    assert job['status'] == 'testStatus'
-
-    # Test removing jobs
-
-    jh.removeJob({'id': 0})
-
-    assert len(jh.getAllJobs({})) == 1
-
-    # If job is done, remove it from jobs list
-    jh.updateJob({'id': 1, 'status': 'Done'})
-
-    assert len(jh.getAllJobs({})) == 0
-
-
+pd.set_option("display.max_rows", None, "display.max_columns", None)
 serverIp = 'http://127.0.0.1:%s' % cfg.httpServerPort
 
 
@@ -94,7 +25,7 @@ def test_serverStarted():
 def test_addHub():
     query = {'command': 'parseHub', 'args': 'https://rcdata.nau.edu/genomic-ml/PeakLearner/testHub/hub.txt'}
 
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=600)
 
     assert request.status_code == 200
 
@@ -143,7 +74,7 @@ problems = [{'ref': 'chr1', 'start':  10000, 'end': 177417},
 
 
 
-rangeArgs = {'name': 'TestHub/aorta_ENCFF115HTK',
+rangeArgs = {'name': 'TestHub/aorta_ENCFF115HTK', 'user': 1, 'hub': 'TestHub', 'track': 'aorta_ENCFF115HTK',
              'ref': 'chr1', 'start': 0, 'end': 120000000}
 
 
@@ -236,9 +167,9 @@ def test_labels():
 
     assert createdJob['status'] == 'New'
 
-    jobData = createdJob['data']
+    jobData = createdJob['jobData']
 
-    assert jobData['type'] == 'pregen'
+    assert createdJob['jobType'] == 'pregen'
 
     jobProblem = jobData['problem']
 
@@ -358,12 +289,12 @@ def test_models():
 
         if request.status_code == 200:
             models = request.json()
-            print('lenModels\n', len(models))
-            contig = models[str(problem['start'])]
-            if len(contig) >= len(job['data']['penalties']):
+            problemSum = models[str(problem['start'])]
+            print('probSum\n', problemSum, '\nprobSumLen', len(problemSum), '\njob\n', job, '\njobLen', len(job), '\n')
+            if len(problemSum) >= len(job['jobData']['penalties']):
                 break
 
-        if (time.time() - startTime) > 240:
+        if (time.time() - startTime) > 30:
             raise Exception
 
         time.sleep(5)
@@ -374,7 +305,7 @@ def test_models():
                 {'errors': 1.0, 'fn': 1.0, 'fp': 0.0, 'numPeaks': 18.0, 'penalty': '100000', 'possible_fn': 1.0, 'possible_fp': 1.0, 'regions': 1.0},
                 {'errors': 0.0, 'fn': 0.0, 'fp': 0.0, 'numPeaks': 0.0, 'penalty': '1000000', 'possible_fn': 0.0, 'possible_fp': 0.0, 'regions': 0.0}]
 
-    assert contig == expected
+    assert problemSum == expected
 
     # Add label with no update
     query = {'command': 'addLabel', 'args': endLabel}
@@ -428,7 +359,7 @@ def test_models():
 
     job = jobs[0]
 
-    numModels = job['data']['numModels']
+    numModels = job['numModels']
 
     started = slurmrun.startAllNewJobs()
 
@@ -446,7 +377,7 @@ def test_models():
             if len(gridContig) >= len(contig) + numModels:
                 break
 
-        if (time.time() - startTime) > 240:
+        if (time.time() - startTime) > 600:
             raise Exception
 
         time.sleep(5)
@@ -471,4 +402,4 @@ def test_models():
 
 
 def test_shutdownServer():
-    run.shutdown()
+     run.shutdown()
