@@ -91,6 +91,7 @@ def updateAllModelLabels(data, labels):
 
         if len(modelsums.index) < 1:
             submitPregenJob(problem, data)
+            txn.commit()
             continue
 
         newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem))
@@ -244,6 +245,7 @@ def putModel(data):
     labels = db.Labels(user, hub, track, problem['ref']).get(txn=txn)
     errorSum = calculateModelLabelError(modelData, labels, penalty)
     if errorSum is None:
+        txn.commit()
         return
     db.ModelSummaries(user, hub, track, problem['ref'], problem['start']).add(errorSum, txn=txn)
 

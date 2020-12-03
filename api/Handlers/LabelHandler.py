@@ -42,7 +42,9 @@ def removeLabel(data):
                           'chromEnd': data['end']})
 
     labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-    labels.remove(toRemove)
+    txn = labels.getTxn()
+    labels.remove(toRemove, txn=txn)
+    txn.commit()
 
     mh.updateAllModelLabels(data, labels)
 
@@ -65,8 +67,6 @@ def updateLabel(data):
     labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
 
     added, after = labels.add(updateLabel)
-
-    print('Labels After Add\n', after, '\n')
 
     if mh.updateAllModelLabels(data, labels):
         return data
