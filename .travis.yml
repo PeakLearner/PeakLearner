@@ -10,9 +10,7 @@ python:
 
 before_install:
   - sudo apt-get update
-  - sudo apt-get -y install libdb5.3-dev
-  - sudo apt-get -y install slurm-wlm
-  - sudo apt-get -y install samtools
+  - sudo apt-get -y install libdb-dev libdb++-dev slurm-wlm samtools
   # Setup python dependencies
   - python --version
   - pip install -U pip

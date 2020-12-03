@@ -1,6 +1,4 @@
 import os
-import pickle
-import pandas as pd
 import api.PLConfig as cfg
 import simpleBDB as db
 
