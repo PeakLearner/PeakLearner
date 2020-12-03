@@ -1,4 +1,6 @@
 # PeakLearner
+![](https://travis-ci.com/deltarod/PeakLearner.svg?branch=master&status=unknown)
+
 An Interactive Labeling and model generation system for genomic data.
 
 ## Features
