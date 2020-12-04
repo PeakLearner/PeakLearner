@@ -296,7 +296,7 @@ def test_models():
             if len(problemSum) >= numModels:
                 break
 
-        if (time.time() - startTime) > 30:
+        if (time.time() - startTime) > 600:
             raise Exception
 
         time.sleep(5)
