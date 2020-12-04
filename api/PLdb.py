@@ -12,6 +12,10 @@ def close():
     db.close_db()
 
 
+def getTxn():
+    return db.env.txn_begin()
+
+
 class Model(db.Resource):
     keys = ("user", "hub", "track", "chrom", "problemstart", "penalty")
     pass
@@ -44,15 +48,11 @@ class Job(db.Container):
     def add_item(self, jobs):
         if 'id' not in self.item.keys():
             self.item['id'] = JobInfo('id').get()
-
-        print('jobs before add/update\n', jobs, '\n')
         newJobs, updated = self.updateExisting(jobs)
         if not updated:
             self.createNewJobWithItem()
             jobs.append(self.item)
-            print('jobs after initial add\n', jobs, '\n')
             return jobs
-        print('jobs after update\n', newJobs, '\n')
         return newJobs
 
     def remove_item(self, jobs):

@@ -77,46 +77,40 @@ def checkInBounds(row, data):
 
 def updateAllModelLabels(data, labels):
     data['hub'], data['track'] = data['name'].split('/')
-
-    labels = labels.get()
+    # Replace user with hub user
+    data['user'] = 1
 
     # This is the problems that the label update is in
     problems = lh.getProblems(data)
 
     for problem in problems:
-        # TODO: Replace 1 with hub user NOT current user
-        modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['ref'], problem['start'])
-        txn = modelSummaries.getTxn()
-        modelsums = modelSummaries.get(txn=txn)
+        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['ref'], problem['start'])
+        modelsums = modelSummaries.get()
 
         if len(modelsums.index) < 1:
             submitPregenJob(problem, data)
-            txn.commit()
             continue
 
         newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem))
 
-        modelSummaries.add(newSum, txn=txn)
+        txn = db.getTxn()
+
+        item, after = modelSummaries.add(newSum, txn=txn)
+        checkGenerateModels(after, problem, data)
+
         txn.commit()
-
-        checkGenerateModels(modelSummaries, problem, data)
-
-    return True
 
 
 def modelSumLabelUpdate(modelSum, labels, data, problem):
-    # TODO: Replace 1 with hub user unique identifier
-    modelob = db.Model(1, data['hub'], data['track'], problem['ref'], problem['start'], modelSum['penalty'])
+    model = db.Model(data['user'], data['hub'], data['track'],
+                     problem['ref'], problem['start'], modelSum['penalty']).get()
 
-    modeldf = modelob.get()
-
-    return calculateModelLabelError(modeldf, labels, modelSum['penalty'])
+    return calculateModelLabelError(model, labels, modelSum['penalty'])
 
 
 def checkGenerateModels(modelSums, problem, data):
-    sumdf = modelSums.get()
 
-    nonZeroRegions = sumdf[sumdf['regions'] > 0]
+    nonZeroRegions = modelSums[modelSums['regions'] > 0]
 
     if len(nonZeroRegions.index) == 0:
         return
@@ -152,7 +146,7 @@ def checkGenerateModels(modelSums, problem, data):
         model = minError.iloc[0]
         if model['fp'] > model['fn']:
             try:
-                above = sumdf.iloc[index + 1]
+                above = modelSums.iloc[index + 1]
             except IndexError:
                 submitOOMJob(problem, data, model['penalty'], '*')
                 return
@@ -167,7 +161,7 @@ def checkGenerateModels(modelSums, problem, data):
         else:
 
             try:
-                below = sumdf.iloc[index - 1]
+                below = modelSums.iloc[index - 1]
             except IndexError:
                 submitOOMJob(problem, data, model['penalty'], '/')
                 return
@@ -237,19 +231,17 @@ def putModel(data):
     hub = modelInfo['hub']
     track = modelInfo['track']
 
-    print('putting model after args setup')
-
-    txn = db.Model.getTxn()
-
+    txn = db.getTxn()
     db.Model(user, hub, track, problem['ref'], problem['start'], penalty).put(modelData, txn=txn)
     labels = db.Labels(user, hub, track, problem['ref']).get(txn=txn)
     errorSum = calculateModelLabelError(modelData, labels, penalty)
     if errorSum is None:
         txn.commit()
-        return
-    db.ModelSummaries(user, hub, track, problem['ref'], problem['start']).add(errorSum, txn=txn)
+        raise Exception
 
+    db.ModelSummaries(user, hub, track, problem['ref'], problem['start']).add(errorSum, txn=txn)
     txn.commit()
+
     return modelInfo
 
 
@@ -277,8 +269,6 @@ def calculateModelLabelError(modelDf, labels, penalty):
 
 
 def getModelSummary(data):
-    data['hub'], data['track'] = data['name'].split('/')
-
     problems = lh.getProblems(data)
 
     output = {}

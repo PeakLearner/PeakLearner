@@ -1,11 +1,11 @@
 from api.Handlers import LabelHandler, ModelHandler, JobHandler
+from api import PLdb as db
 
 
 def jsonInput(data):
     command = data['command']
     # for some reason data['args'] is a list containing a dict
     args = data['args']
-
     commandOutput = commands(command)(args)
 
     return commandOutput

@@ -21,12 +21,9 @@ def addLabel(data):
                           'chromEnd': data['end'],
                           'annotation': label})
 
-    # TODO: Replace 1 with hub user NOT current user
-    labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-
-    added, after = labels.add(newLabel)
-
-    print('Labels After Add\n', after, '\n')
+    txn = db.getTxn()
+    db.Labels(data['user'], data['hub'], data['track'], data['ref']).add(newLabel, txn=txn)
+    txn.commit()
 
     return data
 
@@ -41,14 +38,12 @@ def removeLabel(data):
                           'chromStart': data['start'],
                           'chromEnd': data['end']})
 
+    txn = db.getTxn()
     labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-    txn = labels.getTxn()
-    labels.remove(toRemove, txn=txn)
+    removed, after = labels.remove(toRemove, txn=txn)
     txn.commit()
-
     mh.updateAllModelLabels(data, labels)
-
-    return data
+    return removed.to_dict()
 
 
 def updateLabel(data):
@@ -62,14 +57,12 @@ def updateLabel(data):
                           'chromStart': data['start'],
                           'chromEnd': data['end'],
                           'annotation': label})
-
-    # TODO: Replace 1 with hub user NOT current user
-    labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-
-    added, after = labels.add(updateLabel)
-
-    if mh.updateAllModelLabels(data, labels):
-        return data
+    txn = db.getTxn()
+    labelDb = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
+    item, labels = labelDb.add(updateLabel, txn=txn)
+    txn.commit()
+    mh.updateAllModelLabels(data, labels)
+    return item.to_dict()
 
 
 def getLabels(data):

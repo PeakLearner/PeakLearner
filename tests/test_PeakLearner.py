@@ -8,6 +8,7 @@ import requests
 
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 serverIp = 'http://127.0.0.1:%s' % cfg.httpServerPort
+cfg.test = True
 
 
 def test_serverStarted():
@@ -276,6 +277,8 @@ def test_models():
 
     job = jobs[0]
 
+    numModels = job['numModels']
+
     started = slurmrun.startAllNewJobs()
 
     assert started
@@ -290,8 +293,7 @@ def test_models():
         if request.status_code == 200:
             models = request.json()
             problemSum = models[str(problem['start'])]
-            print('probSum\n', problemSum, '\nprobSumLen', len(problemSum), '\njob\n', job, '\njobLen', len(job), '\n')
-            if len(problemSum) >= len(job['jobData']['penalties']):
+            if len(problemSum) >= numModels:
                 break
 
         if (time.time() - startTime) > 30:
@@ -359,7 +361,7 @@ def test_models():
 
     job = jobs[0]
 
-    numModels = job['numModels']
+    numModels += job['numModels']
 
     started = slurmrun.startAllNewJobs()
 
@@ -374,7 +376,7 @@ def test_models():
         if request.status_code == 200:
             models = request.json()
             gridContig = models[str(problem['start'])]
-            if len(gridContig) >= len(contig) + numModels:
+            if len(gridContig) >= numModels:
                 break
 
         if (time.time() - startTime) > 600:

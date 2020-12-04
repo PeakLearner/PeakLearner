@@ -3,9 +3,9 @@ from api import PLdb as db
 
 # Adds new job to list for slurm server to process
 def updateJob(data):
-    jobs = db.Job('jobs')
-
-    updated, current = jobs.add(data)
+    txn = db.getTxn()
+    updated, current = db.Job('jobs').add(data, txn=txn)
+    txn.commit()
 
     return updated
 
@@ -19,14 +19,14 @@ def getJob(data):
     for job in jobs:
         if job['id'] == data['id']:
             jobOutput = job
-
     return jobOutput
 
 
 def removeJob(data):
-    jobs = db.Job('jobs')
-
-    return jobs.remove(data)
+    txn = db.getTxn()
+    output = db.Job('jobs').remove(data, txn=txn)
+    txn.commit()
+    return output
 
 
 def getAllJobs(data):

@@ -63,6 +63,8 @@ def generateModel(dataPath, stepData):
         lf.close()
         db.close()
         sendSegments(segmentsPath, stepData)
+        os.remove(sf.name)
+        os.remove(lf.name)
 
 
 def sendSegments(segmentsFile, stepData):
