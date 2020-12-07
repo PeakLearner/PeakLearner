@@ -5,7 +5,6 @@ import time
 import numpy as np
 import pandas as pd
 import tempfile
-import PeakSegDisk
 import requests
 import threading
 
@@ -45,26 +44,21 @@ def model(job):
 
 def generateModel(dataPath, stepData):
     coveragePath = os.path.join(dataPath, 'coverage.bedGraph')
-    cf = open(coveragePath)
-    segmentsPath = os.path.join(dataPath, '%s-segments.bed' % stepData['penalty'])
-    sf = open(segmentsPath, 'w')
-    lossPath = os.path.join(dataPath, '%s-loss.tsv' % stepData['penalty'])
-    lf = open(lossPath, 'w')
 
-    penalty = str(stepData['penalty'])
+    command = 'Rscript %s %s %f' % (modelGenPath, coveragePath, stepData['penalty'])
 
-    db = tempfile.NamedTemporaryFile(suffix='.db')
+    os.system(command)
 
-    success = PeakSegDisk.FPOP_files(cf, sf, lf, penalty, db)
+    segmentsPath = '%s_penalty=%f_segments.bed' % (coveragePath, stepData['penalty'])
+    lossPath = '%s_penalty=%loss.tsv' % (coveragePath, stepData['penalty'])
 
-    if success:
-        cf.close()
-        sf.close()
-        lf.close()
-        db.close()
+    print(segmentsPath)
+
+    if os.path.exists(segmentsPath):
         sendSegments(segmentsPath, stepData)
-        os.remove(sf.name)
-        os.remove(lf.name)
+    else:
+        print("No segments output")
+
 
 
 def sendSegments(segmentsFile, stepData):
@@ -167,8 +161,8 @@ def generateModels(job):
         modelArgs = (dataPath, modelData)
 
         modelThread = threading.Thread(target=generateModel, args=modelArgs)
-        modelThread.start()
         modelThreads.append(modelThread)
+        modelThread.start()
 
     for thread in modelThreads:
         thread.join()

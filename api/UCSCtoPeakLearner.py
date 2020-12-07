@@ -69,7 +69,7 @@ def createTrackListJson(hub, dataPath, refSeqPath, tracks):
 
     for track in trackList:
         trackFile = {'label': "%s/%s" % (hub, track['track']), 'key': track['shortLabel'],
-                     'type': 'PeakLearnerBackend/View/Track/MultiXYPlot',
+                     'type': 'PeakLearnerBackend/View/Track/Model', 'showLabels': 'true',
                      'urlTemplates': []}
 
         categories = 'Data'

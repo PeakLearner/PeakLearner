@@ -19,6 +19,8 @@ def getModel(data):
         # TODO: Replace 1 with user of hub NOT current user
         modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['ref'], problem['start']).get()
 
+        print('modelSummaries\n', modelSummaries, '\n')
+
         if len(modelSummaries.index) < 1:
             # TODO: DEFAULT LOPART HERE
             continue
@@ -91,9 +93,9 @@ def updateAllModelLabels(data, labels):
             submitPregenJob(problem, data)
             continue
 
-        newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem))
-
         txn = db.getTxn()
+
+        newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem, txn))
 
         item, after = modelSummaries.add(newSum, txn=txn)
         checkGenerateModels(after, problem, data)
@@ -101,9 +103,9 @@ def updateAllModelLabels(data, labels):
         txn.commit()
 
 
-def modelSumLabelUpdate(modelSum, labels, data, problem):
+def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
     model = db.Model(data['user'], data['hub'], data['track'],
-                     problem['ref'], problem['start'], modelSum['penalty']).get()
+                     problem['ref'], problem['start'], modelSum['penalty']).get(txn=txn)
 
     return calculateModelLabelError(model, labels, modelSum['penalty'])
 
@@ -231,8 +233,8 @@ def putModel(data):
     hub = modelInfo['hub']
     track = modelInfo['track']
 
+    db.Model(user, hub, track, problem['ref'], problem['start'], penalty).put(modelData)
     txn = db.getTxn()
-    db.Model(user, hub, track, problem['ref'], problem['start'], penalty).put(modelData, txn=txn)
     labels = db.Labels(user, hub, track, problem['ref']).get(txn=txn)
     errorSum = calculateModelLabelError(modelData, labels, penalty)
     if errorSum is None:

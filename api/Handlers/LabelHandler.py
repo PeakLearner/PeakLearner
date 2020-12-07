@@ -42,7 +42,7 @@ def removeLabel(data):
     labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
     removed, after = labels.remove(toRemove, txn=txn)
     txn.commit()
-    mh.updateAllModelLabels(data, labels)
+    mh.updateAllModelLabels(data, after)
     return removed.to_dict()
 
 

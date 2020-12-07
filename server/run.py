@@ -56,7 +56,7 @@ def startAllNewJobs():
 
 def createSlurmJob(job):
     # TODO: Calculate required CPUs for job
-    numCpus = 5
+    numCpus = job['numModels']
     if numCpus > cfg.maxCPUsPerJob:
         numCpus = cfg.maxCPUsPerJob
 
