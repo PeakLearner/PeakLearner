@@ -50,12 +50,13 @@ def generateModel(dataPath, stepData):
     os.system(command)
 
     segmentsPath = '%s_penalty=%f_segments.bed' % (coveragePath, stepData['penalty'])
-    lossPath = '%s_penalty=%loss.tsv' % (coveragePath, stepData['penalty'])
+    lossPath = '%s_penalty=%f_loss.tsv' % (coveragePath, stepData['penalty'])
 
     print(segmentsPath)
 
     if os.path.exists(segmentsPath):
         sendSegments(segmentsPath, stepData)
+        # TODO: Send Loss?
     else:
         print("No segments output")
 
