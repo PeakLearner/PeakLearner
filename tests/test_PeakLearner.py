@@ -40,10 +40,6 @@ def test_addHub():
 
     assert os.path.exists(hg19path)
 
-    indexed = os.path.join(hg19path, 'hg19.fa.fai')
-
-    assert os.path.exists(indexed)
-
     problemsTrackList = os.path.join(hg19path, 'problems', 'trackList.json')
 
     assert os.path.exists(problemsTrackList)

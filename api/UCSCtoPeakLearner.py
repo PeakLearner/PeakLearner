@@ -126,7 +126,8 @@ def getRefSeq(genome, path, includes):
     genomeFaPath = os.path.join(genomePath, genome + '.fa')
     genomeFaiPath = genomeFaPath + '.fai'
 
-    downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath)
+    if not cfg.test:
+        downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath)
 
     genomeConfigPath = os.path.join(genomePath, 'trackList.json')
 

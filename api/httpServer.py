@@ -117,7 +117,6 @@ class RangeRequestHandler(server.SimpleHTTPRequestHandler):
             self.end_headers()
 
 
-
 class ThreadingHTTPServerWithDirectory(server.ThreadingHTTPServer):
     def __init__(self, *args, directory='', **kwargs):
         if directory == '':
@@ -128,7 +127,10 @@ class ThreadingHTTPServerWithDirectory(server.ThreadingHTTPServer):
         super().__init__(*args, **kwargs)
 
     def finish_request(self, request, client_address):
-        self.RequestHandlerClass(request, client_address, self, directory=self.directory)
+        try:
+            self.RequestHandlerClass(request, client_address, self, directory=self.directory)
+        except BrokenPipeError:
+            print("Broken Pipe Error: Request: ", request)
 
 
 http_server = None
