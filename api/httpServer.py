@@ -127,10 +127,7 @@ class ThreadingHTTPServerWithDirectory(server.ThreadingHTTPServer):
         super().__init__(*args, **kwargs)
 
     def finish_request(self, request, client_address):
-        try:
-            self.RequestHandlerClass(request, client_address, self, directory=self.directory)
-        except BrokenPipeError:
-            print("Broken Pipe Error: Request: ", request)
+        self.RequestHandlerClass(request, client_address, self, directory=self.directory)
 
 
 http_server = None

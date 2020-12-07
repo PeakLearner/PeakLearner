@@ -90,7 +90,10 @@ class Job(db.Container):
         return newJobList, updated
 
     def checkSame(self, job, index):
-        return job[index] == self.item[index]
+        try:
+            return job[index] == self.item[index]
+        except KeyError:
+            return False
 
     def updateJob(self, job):
         for key in self.item.keys():
