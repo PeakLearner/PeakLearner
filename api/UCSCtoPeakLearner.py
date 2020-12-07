@@ -93,7 +93,7 @@ def createTrackListJson(hub, dataPath, refSeqPath, tracks):
 
         trackFile['storeClass'] = 'MultiBigWig/Store/SeqFeature/MultiBigWig'
         trackFile['storeConf'] = {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Labels',
-                                  'modelClass': 'PeakLearnerBackend/Store/SeqFeature/Model'}
+                                  'modelClass': 'PeakLearnerBackend/Store/SeqFeature/Models'}
 
         config['tracks'].append(trackFile)
 

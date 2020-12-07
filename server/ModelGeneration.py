@@ -52,8 +52,6 @@ def generateModel(dataPath, stepData):
     segmentsPath = '%s_penalty=%f_segments.bed' % (coveragePath, stepData['penalty'])
     lossPath = '%s_penalty=%f_loss.tsv' % (coveragePath, stepData['penalty'])
 
-    print(segmentsPath)
-
     if os.path.exists(segmentsPath):
         sendSegments(segmentsPath, stepData)
         # TODO: Send Loss?

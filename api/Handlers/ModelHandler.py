@@ -8,7 +8,7 @@ modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
 jbrowseModelColumns = ["ref", "start", "end", "type", "score"]
 
 
-def getModel(data):
+def getModels(data):
     data['hub'], data['track'] = data['name'].split('/')
 
     problems = lh.getProblems(data)
@@ -18,8 +18,6 @@ def getModel(data):
     for problem in problems:
         # TODO: Replace 1 with user of hub NOT current user
         modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['ref'], problem['start']).get()
-
-        print('modelSummaries\n', modelSummaries, '\n')
 
         if len(modelSummaries.index) < 1:
             # TODO: DEFAULT LOPART HERE

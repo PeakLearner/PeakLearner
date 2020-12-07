@@ -25,7 +25,7 @@ def commands(command):
         'updateJob': JobHandler.updateJob,
         'removeJob': JobHandler.removeJob,
         'getAllJobs': JobHandler.getAllJobs,
-        'getModel': ModelHandler.getModel,
+        'getModels': ModelHandler.getModels,
         'getModelSummary': ModelHandler.getModelSummary,
         'putModel': ModelHandler.putModel,
     }

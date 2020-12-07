@@ -50,6 +50,7 @@ after_failure:
   - cat data/PeakLearner-2.txt
   - cat data/PeakLearner-3.txt
   - cat data/PeakLearner-4.txt
+  - squeue
 
 
 
