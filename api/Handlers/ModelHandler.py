@@ -35,6 +35,9 @@ def getModels(data):
             #TODO: LOPART HERE
             continue
 
+        elif len(noError.index) > 1:
+            noError = noError[noError['numPeaks'] == noError['numPeaks'].min()]
+
         # Uses first penalty with min label error
         # This will favor the model with the lowest penalty, given that summary is sorted
         penalty = noError['penalty'].iloc[0]
