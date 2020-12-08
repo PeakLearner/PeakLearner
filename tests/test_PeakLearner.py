@@ -9,7 +9,7 @@ import requests
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 serverIp = 'http://127.0.0.1:%s' % cfg.httpServerPort
 cfg.test = True
-sleepTime = 30
+sleepTime = 600
 
 
 def test_serverStarted():
