@@ -1,6 +1,6 @@
 pandas
-numpy
+numpy >= "1.1.4"
 requests
-simpleBDB >= "1.0.9"
+simpleBDB >= "1.0.10"
 bsddb3
 pybbi

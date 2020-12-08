@@ -1,5 +1,4 @@
-from api.Handlers import LabelHandler, ModelHandler, JobHandler
-from api import PLdb as db
+from api.Handlers import LabelHandler, ModelHandler, JobHandler, HubHandler
 
 
 def jsonInput(data):
@@ -17,7 +16,7 @@ def commands(command):
         'removeLabel': LabelHandler.removeLabel,
         'updateLabel': LabelHandler.updateLabel,
         'getLabels': LabelHandler.getLabels,
-        'parseHub': LabelHandler.parseHub,
+        'parseHub': HubHandler.parseHub,
         'getProblems': LabelHandler.getProblems,
         'getGenome': LabelHandler.getGenome,
         'getTrackUrl': LabelHandler.getTrackUrl,

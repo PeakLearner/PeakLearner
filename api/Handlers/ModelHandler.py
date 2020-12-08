@@ -1,6 +1,6 @@
 import PeakError
 import pandas as pd
-from api import PLdb as db, PLConfig as pl
+from api.util import PLConfig as pl, PLdb as db
 from api.Handlers import LabelHandler as lh, JobHandler as jh
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
@@ -17,9 +17,7 @@ def getModels(data):
 
     for problem in problems:
         # TODO: Replace 1 with user of hub NOT current user
-        modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['ref'], problem['start']).get()
-
-        print('modelSummaries\n', modelSummaries, '\n')
+        modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['chrom'], problem['chromStart']).get()
 
         if len(modelSummaries.index) < 1:
             # TODO: DEFAULT LOPART HERE
@@ -46,17 +44,20 @@ def getModels(data):
 
 
         # TODO: Replace 1 with user of hub NOT current user
-        minErrorModel = db.Model(1, data['hub'], data['track'], problem['ref'], problem['start'], penalty)
+        minErrorModel = db.Model(1, data['hub'], data['track'], problem['chrom'], problem['chromStart'], penalty)
 
         # TODO: If no good model, do LOPART
 
         model = minErrorModel.getInBounds(data['ref'], data['start'], data['end'])
         onlyPeaks = model[model['annotation'] == 'peak']
+        # Organize the columns
+        onlyPeaks = onlyPeaks[modelColumns]
         onlyPeaks.columns = jbrowseModelColumns
 
         output.extend(onlyPeaks.to_dict('records'))
 
     return output
+
 
 def updateAllModelLabels(data, labels):
     data['hub'], data['track'] = data['name'].split('/')
@@ -67,7 +68,7 @@ def updateAllModelLabels(data, labels):
     problems = lh.getProblems(data)
 
     for problem in problems:
-        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['ref'], problem['start'])
+        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'])
         modelsums = modelSummaries.get()
 
         if len(modelsums.index) < 1:
@@ -85,8 +86,8 @@ def updateAllModelLabels(data, labels):
 
 
 def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
-    model = db.Model(data['user'], data['hub'], data['track'],
-                     problem['ref'], problem['start'], modelSum['penalty']).get(txn=txn)
+    model = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
+                     problem['chromStart'], modelSum['penalty']).get(txn=txn)
 
     return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
 
@@ -214,11 +215,11 @@ def putModel(data):
     hub = modelInfo['hub']
     track = modelInfo['track']
 
-    db.Model(user, hub, track, problem['ref'], problem['start'], penalty).put(modelData)
+    db.Model(user, hub, track, problem['chrom'], problem['chromStart'], penalty).put(modelData)
     txn = db.getTxn()
-    labels = db.Labels(user, hub, track, problem['ref']).get(txn=txn)
+    labels = db.Labels(user, hub, track, problem['chrom']).get(txn=txn)
     errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
-    db.ModelSummaries(user, hub, track, problem['ref'], problem['start']).add(errorSum, txn=txn)
+    db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
     txn.commit()
 
     return modelInfo
@@ -232,9 +233,12 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
     if len(labels.index) < 1 > numPeaks:
         return getErrorSeries(penalty, numPeaks)
 
-    labelsIsInProblem = labels.apply(db.checkInBounds, axis=1, args=(problem['ref'], problem['start'], problem['end']))
+    labelsIsInProblem = labels.apply(db.checkInBounds, axis=1, args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
 
     labelsInProblem = labels[labelsIsInProblem]
+
+    if len(labels.index) < 1:
+        return getErrorSeries(penalty, numPeaks)
 
     error = PeakError.error(peaks, labelsInProblem)
 
@@ -258,12 +262,12 @@ def getModelSummary(data):
 
     for problem in problems:
         # TODO: Replace 1 with user of hub NOT current user
-        modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['ref'], problem['start']).get()
+        modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['chrom'], problem['chromStart']).get()
 
         if len(modelSummaries.index) < 1:
             continue
 
-        output[problem['start']] = modelSummaries.to_dict('records')
+        output[problem['chromStart']] = modelSummaries.to_dict('records')
 
     return output
 

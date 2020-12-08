@@ -1,5 +1,5 @@
 import os
-import api.PLConfig as cfg
+import api.util.PLConfig as cfg
 import simpleBDB as db
 
 
@@ -25,6 +25,24 @@ class Model(db.Resource):
         isInBounds = model.apply(checkInBounds, axis=1, args=(chrom, start, end))
 
         return model[isInBounds]
+    pass
+
+
+class Problems(db.Resource):
+    keys = ("Genome",)
+
+    def getInBounds(self, chrom, start, end, txn=None):
+        problems = self.get(txn=txn)
+
+        if problems is None:
+            return None
+
+        isInBounds = problems.apply(checkInBounds, axis=1, args=(chrom, start, end))
+
+        return problems[isInBounds]
+
+    def make_details(self):
+        return None
     pass
 
 

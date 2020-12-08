@@ -1,4 +1,4 @@
-from api import PLdb as db
+from api.util import PLdb as db
 
 
 # Adds new job to list for slurm server to process

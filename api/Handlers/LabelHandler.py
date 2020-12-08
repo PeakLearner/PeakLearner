@@ -1,11 +1,12 @@
 import os
 import json
 import pandas as pd
-from api import HubParse as hubParse, UCSCtoPeakLearner as UCSCtoPeakLearner
-from api import PLConfig as cfg, PLdb as db
-from api.Handlers import ModelHandler as mh
+from api.util import PLConfig as cfg, PLdb as db
+from api.Handlers import HubHandler, ModelHandler as mh
 
+labelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
 jbrowseLabelColumns = ['ref', 'start', 'end', 'label']
+problemColumns = ['chrom', 'chromStart', 'chromEnd']
 
 
 def addLabel(data):
@@ -74,56 +75,34 @@ def getLabels(data):
     if len(labelsDf.index) < 1:
         return {}
 
-    labelsDf = labelsDf[['chrom', 'chromStart', 'chromEnd', 'annotation']]
+    labelsDf = labelsDf[labelColumns]
     labelsDf.columns = jbrowseLabelColumns
 
     return labelsDf.to_dict('records')
-
-
-def parseHub(data):
-    hub = hubParse.parse(data)
-    # Add a way to configure hub here somehow instead of just loading everything
-    return UCSCtoPeakLearner.convert(hub)
 
 
 def getProblems(data):
     if 'genome' not in data:
         data['genome'] = getGenome(data)
 
-    rel_path = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'genomes', data['genome'], 'problems.bed')
-    refseq = data['ref']
-    start = data['start']
-    end = data['end']
+    problems = db.Problems(data['genome'])
 
-    output = []
+    problemsInBounds = problems.getInBounds(data['ref'], data['start'], data['end'])
 
-    if not os.path.exists(rel_path):
-        return output
+    if problemsInBounds is None:
+        problemsPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'genomes', data['genome'], 'problems.bed')
 
-    with open(rel_path, 'r') as f:
+        if not os.path.exists(problemsPath):
+            location = HubHandler.generateProblems(data['genome'], problemsPath)
+            if not location == problemsPath:
+                raise Exception
 
-        current_line = f.readline()
+        problemsDf = pd.read_csv(problemsPath, sep='\t', header=None)
+        problems.put(problemsDf)
 
-        while not current_line == '':
-            lineVals = current_line.split()
+        problemsInBounds = problemsDf.apply(db.checkInBounds, axis=1, args=(data['ref'], data['start'], data['end']))
 
-            lineStart = int(lineVals[1])
-
-            lineEnd = int(lineVals[2])
-
-            if lineVals[0] == refseq:
-
-                lineIfStartIn = (lineStart >= start) and (lineStart <= end)
-                lineIfEndIn = (lineEnd >= start) and (lineEnd <= end)
-                wrap = (lineStart < start) and (lineEnd > end)
-
-                if lineIfStartIn or lineIfEndIn or wrap:
-                    output.append({"ref": refseq, "start": lineStart,
-                                   "end": lineEnd})
-
-            current_line = f.readline()
-
-    return output
+    return problemsInBounds.to_dict('records')
 
 
 def getGenome(data):

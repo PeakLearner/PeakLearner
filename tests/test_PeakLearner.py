@@ -1,4 +1,4 @@
-from api import PLConfig as cfg
+from api.util import PLConfig as cfg
 import server.run as slurmrun
 import pandas as pd
 import run
@@ -9,6 +9,7 @@ import requests
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 serverIp = 'http://127.0.0.1:%s' % cfg.httpServerPort
 cfg.test = True
+sleepTime = 30
 
 
 def test_serverStarted():
@@ -55,18 +56,18 @@ def test_getGenome():
     assert request.json() == 'hg19'
 
 
-problems = [{'ref': 'chr1', 'start':  10000, 'end': 177417},
-            {'ref': 'chr1', 'start':  227417, 'end': 267719},
-            {'ref': 'chr1', 'start':  317719, 'end': 471368},
-            {'ref': 'chr1', 'start': 521368, 'end': 2634220},
-            {'ref': 'chr1', 'start': 2684220, 'end': 3845268},
-            {'ref': 'chr1', 'start': 3995268, 'end': 13052998},
-            {'ref': 'chr1', 'start': 13102998, 'end': 13219912},
-            {'ref': 'chr1', 'start': 13319912, 'end': 13557162},
-            {'ref': 'chr1', 'start': 13607162, 'end': 17125658},
-            {'ref': 'chr1', 'start': 17175658, 'end': 29878082},
-            {'ref': 'chr1', 'start': 30028082, 'end': 103863906},
-            {'ref': 'chr1', 'start': 103913906, 'end':  120697156}]
+problems = [{'chrom': 'chr1', 'chromStart':  10000, 'chromEnd': 177417},
+            {'chrom': 'chr1', 'chromStart':  227417, 'chromEnd': 267719},
+            {'chrom': 'chr1', 'chromStart':  317719, 'chromEnd': 471368},
+            {'chrom': 'chr1', 'chromStart': 521368, 'chromEnd': 2634220},
+            {'chrom': 'chr1', 'chromStart': 2684220, 'chromEnd': 3845268},
+            {'chrom': 'chr1', 'chromStart': 3995268, 'chromEnd': 13052998},
+            {'chrom': 'chr1', 'chromStart': 13102998, 'chromEnd': 13219912},
+            {'chrom': 'chr1', 'chromStart': 13319912, 'chromEnd': 13557162},
+            {'chrom': 'chr1', 'chromStart': 13607162, 'chromEnd': 17125658},
+            {'chrom': 'chr1', 'chromStart': 17175658, 'chromEnd': 29878082},
+            {'chrom': 'chr1', 'chromStart': 30028082, 'chromEnd': 103863906},
+            {'chrom': 'chr1', 'chromStart': 103913906, 'chromEnd':  120697156}]
 
 
 
@@ -81,7 +82,11 @@ def test_getProblems():
 
     assert request.status_code == 200
 
-    assert problems == request.json()
+    out = request.json()
+
+    print('getProblemsOutput\n', out, '\n')
+
+    assert problems == out
 
 
 expectedUrl = 'https://rcdata.nau.edu/genomic-ml/PeakSegFPOP/labels/H3K4me3_TDH_ENCODE/samples/aorta/ENCFF115HTK/coverage.bigWig'
@@ -170,9 +175,9 @@ def test_labels():
 
     jobProblem = jobData['problem']
 
-    assert jobProblem['ref'] == 'chr1'
-    assert jobProblem['start'] == 13607162
-    assert jobProblem['end'] == 17125658
+    assert jobProblem['chrom'] == 'chr1'
+    assert jobProblem['chromStart'] == 13607162
+    assert jobProblem['chromEnd'] == 17125658
 
     # Try adding another label
     query = {'command': 'addLabel', 'args': endLabel}
@@ -288,11 +293,11 @@ def test_models():
 
         if request.status_code == 200:
             models = request.json()
-            problemSum = models[str(problem['start'])]
+            problemSum = models[str(problem['chromStart'])]
             if len(problemSum) >= numModels:
                 break
 
-        if (time.time() - startTime) > 600:
+        if (time.time() - startTime) > sleepTime:
             raise Exception
 
         time.sleep(5)
@@ -326,7 +331,7 @@ def test_models():
 
     sums = request.json()
 
-    contig = sums[str(problem['start'])]
+    contig = sums[str(problem['chromStart'])]
 
     expected = [{'regions': 2, 'fp': 2, 'possible_fp': 2, 'fn': 0, 'possible_fn': 2, 'errors': 2, 'penalty': '100', 'numPeaks': 6306},
                 {'regions': 2, 'fp': 2, 'possible_fp': 2, 'fn': 0, 'possible_fn': 2, 'errors': 2, 'penalty': '1000', 'numPeaks': 262},
@@ -371,11 +376,11 @@ def test_models():
 
         if request.status_code == 200:
             models = request.json()
-            gridContig = models[str(problem['start'])]
+            gridContig = models[str(problem['chromStart'])]
             if len(gridContig) >= numModels:
                 break
 
-        if (time.time() - startTime) > 600:
+        if (time.time() - startTime) > sleepTime:
             raise Exception
 
         time.sleep(5)

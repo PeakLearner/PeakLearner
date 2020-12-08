@@ -97,8 +97,8 @@ def getCoverageFile(job, dataPath):
     if not os.path.exists(coveragePath):
         with bbi.open(coverageUrl) as coverage:
             try:
-                coverageInterval = coverage.fetch_intervals(problem['ref'], problem['start'],
-                                                            problem['end'], iterator=True)
+                coverageInterval = coverage.fetch_intervals(problem['chrom'], problem['chromStart'],
+                                                            problem['chromEnd'], iterator=True)
                 return fixAndSaveCoverage(coverageInterval, coveragePath, problem)
             except KeyError:
                 return
@@ -109,13 +109,13 @@ def getCoverageFile(job, dataPath):
 def fixAndSaveCoverage(interval, outputPath, problem):
     output = []
 
-    prevEnd = problem['start']
+    prevEnd = problem['chromStart']
 
     for data in interval:
         # If current data's start doesn't have the previous end
         if prevEnd < data[1]:
             # Add zero valued data from prev end to current start
-            output.append((problem['ref'], prevEnd, data[1], 0))
+            output.append((problem['chrom'], prevEnd, data[1], 0))
 
         output.append(data)
 
@@ -123,9 +123,9 @@ def fixAndSaveCoverage(interval, outputPath, problem):
 
     # If end of data doesn't completely go to end of problem
     # I don't think this is strictly necessary
-    if prevEnd < problem['end']:
+    if prevEnd < problem['chromEnd']:
         # Output[0][0] = the chrom
-        output.append((problem['ref'], prevEnd, problem['end'], 0))
+        output.append((problem['chrom'], prevEnd, problem['chromEnd'], 0))
 
     output = pd.DataFrame(output)
 
