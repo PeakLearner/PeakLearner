@@ -19,6 +19,8 @@ def getModels(data):
         # TODO: Replace 1 with user of hub NOT current user
         modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['ref'], problem['start']).get()
 
+        print('modelSummaries\n', modelSummaries, '\n')
+
         if len(modelSummaries.index) < 1:
             # TODO: DEFAULT LOPART HERE
             continue
@@ -48,35 +50,13 @@ def getModels(data):
 
         # TODO: If no good model, do LOPART
 
-        model = loadModelDf(minErrorModel.get(), data)
+        model = minErrorModel.getInBounds(data['ref'], data['start'], data['end'])
+        onlyPeaks = model[model['annotation'] == 'peak']
+        onlyPeaks.columns = jbrowseModelColumns
 
-        output.extend(model)
+        output.extend(onlyPeaks.to_dict('records'))
 
     return output
-
-
-def loadModelDf(df, data):
-    onlyPeaks = df[df['annotation'] == 'peak']
-
-    inView = onlyPeaks.apply(checkInBounds, axis=1, args=(data, ))
-
-    output = onlyPeaks[inView]
-
-    output.columns = jbrowseModelColumns
-
-    return output.to_dict('records')
-
-
-def checkInBounds(row, data):
-    if not data['ref'] == row['chrom']:
-        return False
-
-    startIn = (data['start'] <= row['chromStart'] <= data['end'])
-    endIn = (data['start'] <= row['chromEnd'] <= data['end'])
-    wrap = (row['chromStart'] < data['start']) and (row['chromEnd'] > data['end'])
-
-    return startIn or endIn or wrap
-
 
 def updateAllModelLabels(data, labels):
     data['hub'], data['track'] = data['name'].split('/')
@@ -108,7 +88,7 @@ def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
     model = db.Model(data['user'], data['hub'], data['track'],
                      problem['ref'], problem['start'], modelSum['penalty']).get(txn=txn)
 
-    return calculateModelLabelError(model, labels, modelSum['penalty'])
+    return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
 
 
 def checkGenerateModels(modelSums, problem, data):
@@ -237,18 +217,14 @@ def putModel(data):
     db.Model(user, hub, track, problem['ref'], problem['start'], penalty).put(modelData)
     txn = db.getTxn()
     labels = db.Labels(user, hub, track, problem['ref']).get(txn=txn)
-    errorSum = calculateModelLabelError(modelData, labels, penalty)
-    if errorSum is None:
-        txn.commit()
-        raise Exception
-
+    errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
     db.ModelSummaries(user, hub, track, problem['ref'], problem['start']).add(errorSum, txn=txn)
     txn.commit()
 
     return modelInfo
 
 
-def calculateModelLabelError(modelDf, labels, penalty):
+def calculateModelLabelError(modelDf, labels, problem, penalty):
     labels = labels[labels['annotation'] != 'unknown']
     peaks = modelDf[modelDf['annotation'] == 'peak']
     numPeaks = len(peaks.index)
@@ -256,7 +232,11 @@ def calculateModelLabelError(modelDf, labels, penalty):
     if len(labels.index) < 1 > numPeaks:
         return getErrorSeries(penalty, numPeaks)
 
-    error = PeakError.error(peaks, labels)
+    labelsIsInProblem = labels.apply(db.checkInBounds, axis=1, args=(problem['ref'], problem['start'], problem['end']))
+
+    labelsInProblem = labels[labelsIsInProblem]
+
+    error = PeakError.error(peaks, labelsInProblem)
 
     if error is None:
         return getErrorSeries(penalty, numPeaks)

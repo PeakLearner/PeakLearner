@@ -18,6 +18,13 @@ def getTxn():
 
 class Model(db.Resource):
     keys = ("user", "hub", "track", "chrom", "problemstart", "penalty")
+
+    def getInBounds(self, chrom, start, end, txn=None):
+        model = self.get(txn=txn)
+
+        isInBounds = model.apply(checkInBounds, axis=1, args=(chrom, start, end))
+
+        return model[isInBounds]
     pass
 
 
@@ -132,7 +139,26 @@ class Labels(db.PandasDf):
 
         return df.drop(columns='floatStart')
 
+    def getInBounds(self, chrom, start, end, txn=None):
+        labels = self.get(txn=txn)
+
+        isInBounds = labels.apply(checkInBounds, axis=1, args=(chrom, start, end))
+
+        return labels[isInBounds]
+
     pass
+
+
+def checkInBounds(row, chrom, chromStart, end):
+    if not chrom == row['chrom']:
+        return False
+
+    if chromStart <= row['chromStart'] <= end:
+        return True
+    elif chromStart <= row['chromEnd'] <= end:
+        return True
+    else:
+        return (row['chromStart'] < end) and (row['chromEnd'] > end)
 
 
 def checkLabelExists(row, dfToCheck):

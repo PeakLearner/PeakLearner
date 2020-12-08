@@ -70,13 +70,8 @@ def getLabels(data):
     data['user'] = 1
     data['hub'], data['track'] = data['name'].split('/')
     labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-    labelsDf = labels.get()
+    labelsDf = labels.getInBounds(data['ref'], data['start'], data['end'])
     if len(labelsDf.index) < 1:
-        return {}
-    labelsDf['inBounds'] = labelsDf.apply(mh.checkInBounds, axis=1, args=(data,))
-    labelsDf = labelsDf[labelsDf['inBounds']].drop(columns='inBounds')
-
-    if labelsDf is None:
         return {}
 
     labelsDf = labelsDf[['chrom', 'chromStart', 'chromEnd', 'annotation']]
