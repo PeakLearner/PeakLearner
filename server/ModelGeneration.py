@@ -59,7 +59,6 @@ def generateModel(dataPath, stepData):
         print("No segments output")
 
 
-
 def sendSegments(segmentsFile, stepData):
     strPenalty = str(stepData['penalty'])
 
@@ -76,7 +75,11 @@ def sendSegments(segmentsFile, stepData):
 
     r = requests.post(cfg.remoteServer, json=query)
 
-    if not r.status_code == 200 or r.status_code == 204:
+    if r.status_code == 200:
+        print('model successfully sent with penalty', strPenalty, 'and with modelInfo:\n', modelInfo, '\n')
+        return
+
+    if not r.status_code == 204:
         print("Send Model Request Error", r.status_code)
 
 

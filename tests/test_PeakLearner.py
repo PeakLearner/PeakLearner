@@ -82,11 +82,7 @@ def test_getProblems():
 
     assert request.status_code == 200
 
-    out = request.json()
-
-    print('getProblemsOutput\n', out, '\n')
-
-    assert problems == out
+    assert problems == request.json()
 
 
 expectedUrl = 'https://rcdata.nau.edu/genomic-ml/PeakSegFPOP/labels/H3K4me3_TDH_ENCODE/samples/aorta/ENCFF115HTK/coverage.bigWig'
@@ -286,21 +282,7 @@ def test_models():
 
     startTime = time.time()
 
-    while True:
-        query = {'command': 'getModelSummary', 'args': startLabel}
-        request = requests.post(serverIp, json=query, timeout=5)
-        print('time:', time.time(), '\nstatusCode:', request.status_code, '\n')
-
-        if request.status_code == 200:
-            models = request.json()
-            problemSum = models[str(problem['chromStart'])]
-            if len(problemSum) >= numModels:
-                break
-
-        if (time.time() - startTime) > sleepTime:
-            raise Exception
-
-        time.sleep(5)
+    problemSum = checkModelSumLoop(startLabel, startTime, problem, numModels)
 
     expected = [{'errors': 1.0, 'fn': 0.0, 'fp': 1.0, 'numPeaks': 6306.0, 'penalty': '100', 'possible_fn': 1.0, 'possible_fp': 1.0, 'regions': 1.0},
                 {'errors': 1.0, 'fn': 0.0, 'fp': 1.0, 'numPeaks': 262.0, 'penalty': '1000', 'possible_fn': 1.0, 'possible_fp': 1.0, 'regions': 1.0},
@@ -370,20 +352,7 @@ def test_models():
 
     startTime = time.time()
 
-    while True:
-        query = {'command': 'getModelSummary', 'args': startLabel}
-        request = requests.post(serverIp, json=query, timeout=5)
-
-        if request.status_code == 200:
-            models = request.json()
-            gridContig = models[str(problem['chromStart'])]
-            if len(gridContig) >= numModels:
-                break
-
-        if (time.time() - startTime) > sleepTime:
-            raise Exception
-
-        time.sleep(5)
+    gridContig = checkModelSumLoop(startLabel, startTime, problem, numModels)
 
     expected = [{'regions': 3, 'fp': 3, 'possible_fp': 3, 'fn': 0, 'possible_fn': 2, 'errors': 3, 'penalty': '100', 'numPeaks': 6306},
                 {'regions': 3, 'fp': 3, 'possible_fp': 3, 'fn': 0, 'possible_fn': 2, 'errors': 3, 'penalty': '1000', 'numPeaks': 262},
@@ -402,6 +371,23 @@ def test_models():
                 {'regions': 0, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0, 'errors': 0, 'penalty': '1000000', 'numPeaks': 0}]
 
     assert gridContig == expected
+
+
+def checkModelSumLoop(label, startTime, problem, numModels):
+    while True:
+        query = {'command': 'getModelSummary', 'args': label}
+        request = requests.post(serverIp, json=query, timeout=5)
+
+        if request.status_code == 200:
+            models = request.json()
+            gridContig = models[str(problem['chromStart'])]
+            if len(gridContig) >= numModels:
+                return gridContig
+
+        if (time.time() - startTime) > sleepTime:
+            raise Exception
+
+        time.sleep(5)
 
 
 def test_shutdownServer():
