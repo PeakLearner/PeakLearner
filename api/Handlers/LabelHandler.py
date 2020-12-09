@@ -98,6 +98,7 @@ def getProblems(data):
                 raise Exception
 
         problemsDf = pd.read_csv(problemsPath, sep='\t', header=None)
+        problemsDf.columns = problemColumns
         problems.put(problemsDf)
 
         problemsInBounds = problemsDf.apply(db.checkInBounds, axis=1, args=(data['ref'], data['start'], data['end']))
