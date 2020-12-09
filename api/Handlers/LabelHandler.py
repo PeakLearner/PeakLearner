@@ -87,7 +87,9 @@ def getProblems(data):
 
     problems = db.Problems(data['genome'])
 
-    problemsInBounds = problems.getInBounds(data['ref'], data['start'], data['end'])
+    txn = db.getTxn()
+
+    problemsInBounds = problems.getInBounds(data['ref'], data['start'], data['end'], txn=txn)
 
     if problemsInBounds is None:
         problemsPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'genomes', data['genome'], 'problems.bed')
@@ -99,13 +101,15 @@ def getProblems(data):
 
         problemsDf = pd.read_csv(problemsPath, sep='\t', header=None)
         problemsDf.columns = problemColumns
-        problems.put(problemsDf)
+        problems.put(problemsDf, txn=txn)
+        txn.commit()
 
-        problemsInBounds = problemsDf.apply(db.checkInBounds, axis=1, args=(data['ref'], data['start'], data['end']))
+        problemsIsInBounds = problemsDf.apply(db.checkInBounds, axis=1, args=(data['ref'], data['start'], data['end']))
 
+        return problemsDf[problemsIsInBounds].to_dict('records')
+    else:
+        txn.commit()
         return problemsInBounds.to_dict('records')
-
-    return problemsInBounds.to_dict('records')
 
 
 
