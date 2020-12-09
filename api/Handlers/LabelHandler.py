@@ -102,7 +102,11 @@ def getProblems(data):
 
         problemsInBounds = problemsDf.apply(db.checkInBounds, axis=1, args=(data['ref'], data['start'], data['end']))
 
+        return problemsInBounds.to_dict('records')
+
     return problemsInBounds.to_dict('records')
+
+
 
 
 def getGenome(data):
