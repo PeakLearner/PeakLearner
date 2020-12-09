@@ -176,6 +176,7 @@ def checkInBounds(row, chrom, chromStart, chromEnd):
             return False
     except KeyError:
         print("CheckInBoundsKeyError\nRow\n", row, '\n chrom', chrom, 'start', chromStart, 'end', chromEnd)
+        return False
 
     if chromStart <= row['chromStart'] <= chromEnd:
         return True
