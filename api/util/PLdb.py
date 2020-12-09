@@ -160,6 +160,9 @@ class Labels(db.PandasDf):
     def getInBounds(self, chrom, start, end, txn=None):
         labels = self.get(txn=txn)
 
+        if labels is None:
+            return None
+
         isInBounds = labels.apply(checkInBounds, axis=1, args=(chrom, start, end))
 
         return labels[isInBounds]
@@ -167,16 +170,19 @@ class Labels(db.PandasDf):
     pass
 
 
-def checkInBounds(row, chrom, chromStart, end):
-    if not chrom == row['chrom']:
-        return False
+def checkInBounds(row, chrom, chromStart, chromEnd):
+    try:
+        if not chrom == row['chrom']:
+            return False
+    except KeyError:
+        print("CheckInBoundsKeyError\nRow\n", row, '\n chrom', chrom, 'start', chromStart, 'end', chromEnd)
 
-    if chromStart <= row['chromStart'] <= end:
+    if chromStart <= row['chromStart'] <= chromEnd:
         return True
-    elif chromStart <= row['chromEnd'] <= end:
+    elif chromStart <= row['chromEnd'] <= chromEnd:
         return True
     else:
-        return (row['chromStart'] < end) and (row['chromEnd'] > end)
+        return (row['chromStart'] < chromEnd) and (row['chromEnd'] > chromEnd)
 
 
 def checkLabelExists(row, dfToCheck):

@@ -215,8 +215,8 @@ def putModel(data):
     hub = modelInfo['hub']
     track = modelInfo['track']
 
-    db.Model(user, hub, track, problem['chrom'], problem['chromStart'], penalty).put(modelData)
     txn = db.getTxn()
+    db.Model(user, hub, track, problem['chrom'], problem['chromStart'], penalty).put(modelData, txn=txn)
     labels = db.Labels(user, hub, track, problem['chrom']).get(txn=txn)
     errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
     db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
