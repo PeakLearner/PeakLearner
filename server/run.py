@@ -43,7 +43,7 @@ def startAllNewJobs():
                 if not startRequest.status_code == 200:
                     continue
 
-                print("Starting job with ID", job['id'], "and type", job['data']['type'])
+                print("Starting job with ID", job['id'], "and type", job['jobType'])
                 if cfg.useSlurm:
                     createSlurmJob(job)
                 else:
@@ -56,7 +56,7 @@ def startAllNewJobs():
 
 def createSlurmJob(job):
     # TODO: Calculate required CPUs for job
-    numCpus = 5
+    numCpus = job['numModels']
     if numCpus > cfg.maxCPUsPerJob:
         numCpus = cfg.maxCPUsPerJob
 

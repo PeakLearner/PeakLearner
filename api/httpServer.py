@@ -2,11 +2,8 @@ import http.server as server
 import os
 import re
 import json
-import socketserver
-import threading
-from api import TrackHandler
+from api import CommandDispatcher
 from signal import signal, SIGINT
-import sys
 
 # https://github.com/danvk/RangeHTTPServer
 # see link above for original code which we copied here to properly extend
@@ -107,7 +104,7 @@ class RangeRequestHandler(server.SimpleHTTPRequestHandler):
         json_val = json.loads(decode)
 
         # Sends data to TrackHandler
-        output = TrackHandler.jsonInput(json_val)
+        output = CommandDispatcher.jsonInput(json_val)
 
         # TODO: Add better error handling
         if output:

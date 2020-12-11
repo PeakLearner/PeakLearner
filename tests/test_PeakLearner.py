@@ -1,82 +1,15 @@
-from api import JobHandler as jh, PLConfig as cfg
+from api.util import PLConfig as cfg
 import server.run as slurmrun
+import pandas as pd
 import run
 import time
 import os
 import requests
 
-
-def test_JobHandler():
-    testProblem = {'ref': 'chr1', 'start': 521368, 'end': 2634220}
-    testTrackInfo = {'ref': 'chr1', 'start': 1506599, 'end': 1510099,
-                     'genome': 'hg19', 'hub': 'testHub', 'track': 'testTrack',
-                     'name': 'testHub/testTrack'}
-    testJob = {'type': 'pregen', 'problem': testProblem, 'trackInfo': testTrackInfo,
-               'penalties': [100, 1000, 10000, 100000, 1000000]}
-
-    otherTestProblem = {'ref': 'chr1', 'start': 2684221, 'end': 3845268}
-    otherTestTrackInfo = {'ref': 'chr1', 'start': 2971999, 'end': 2986999,
-                          'genome': 'hg19', 'hub': 'testHub', 'track': 'testTrack',
-                          'name': 'testHub/testTrack'}
-    otherTestJob = {'type': 'pregen', 'problem': otherTestProblem, 'trackInfo': otherTestTrackInfo,
-                    'penalties': [100, 1000, 10000, 100000, 1000000]}
-
-    # Test Job Adding
-    jh.addJob(testJob)
-
-    assert len(jh.getAllJobs({})) == 1
-
-    # Check that duplicate jobs aren't added
-    jh.addJob(testJob)
-
-    assert len(jh.getAllJobs({})) == 1
-
-    jh.addJob(otherTestJob)
-
-    assert len(jh.getAllJobs({})) == 2
-
-    # Test getJob
-
-    job = jh.getJob({'id': 0})
-
-    # Fetch with ID doesn't update status
-    assert job['status'] == 'New'
-
-    jobData = job['data']
-
-    assert jobData['problem'] == testProblem
-    assert jobData['trackInfo'] == testTrackInfo
-
-    job = jh.getJob({})
-
-    assert job['status'] == 'Processing'
-
-    jobData = job['data']
-
-    assert jobData['problem'] == testProblem
-    assert jobData['trackInfo'] == testTrackInfo
-
-    # Test Update Job
-
-    jh.updateJob({'id': 0, 'status': 'testStatus'})
-
-    job = jh.getJob({'id': 0})
-
-    assert job['status'] == 'testStatus'
-
-    # Test removing jobs
-
-    jh.removeJob({'id': 0})
-
-    assert len(jh.getAllJobs({})) == 1
-
-    # If job is done, remove it from jobs list
-    jh.updateJob({'id': 1, 'status': 'Done'})
-
-    assert len(jh.getAllJobs({})) == 0
-
-
+pd.set_option("display.max_rows", None, "display.max_columns", None)
 serverIp = 'http://127.0.0.1:%s' % cfg.httpServerPort
+cfg.test = True
+sleepTime = 600
 
 
 def test_serverStarted():
@@ -94,7 +27,7 @@ def test_serverStarted():
 def test_addHub():
     query = {'command': 'parseHub', 'args': 'https://rcdata.nau.edu/genomic-ml/PeakLearner/testHub/hub.txt'}
 
-    request = requests.post(serverIp, json=query)
+    request = requests.post(serverIp, json=query, timeout=600)
 
     assert request.status_code == 200
 
@@ -107,10 +40,6 @@ def test_addHub():
     hg19path = os.path.join(dataPath, 'genomes', 'hg19')
 
     assert os.path.exists(hg19path)
-
-    indexed = os.path.join(hg19path, 'hg19.fa.fai')
-
-    assert os.path.exists(indexed)
 
     problemsTrackList = os.path.join(hg19path, 'problems', 'trackList.json')
 
@@ -127,23 +56,23 @@ def test_getGenome():
     assert request.json() == 'hg19'
 
 
-problems = [{'ref': 'chr1', 'start':  10000, 'end': 177417},
-            {'ref': 'chr1', 'start':  227417, 'end': 267719},
-            {'ref': 'chr1', 'start':  317719, 'end': 471368},
-            {'ref': 'chr1', 'start': 521368, 'end': 2634220},
-            {'ref': 'chr1', 'start': 2684220, 'end': 3845268},
-            {'ref': 'chr1', 'start': 3995268, 'end': 13052998},
-            {'ref': 'chr1', 'start': 13102998, 'end': 13219912},
-            {'ref': 'chr1', 'start': 13319912, 'end': 13557162},
-            {'ref': 'chr1', 'start': 13607162, 'end': 17125658},
-            {'ref': 'chr1', 'start': 17175658, 'end': 29878082},
-            {'ref': 'chr1', 'start': 30028082, 'end': 103863906},
-            {'ref': 'chr1', 'start': 103913906, 'end':  120697156}]
+problems = [{'chrom': 'chr1', 'chromStart':  10000, 'chromEnd': 177417},
+            {'chrom': 'chr1', 'chromStart':  227417, 'chromEnd': 267719},
+            {'chrom': 'chr1', 'chromStart':  317719, 'chromEnd': 471368},
+            {'chrom': 'chr1', 'chromStart': 521368, 'chromEnd': 2634220},
+            {'chrom': 'chr1', 'chromStart': 2684220, 'chromEnd': 3845268},
+            {'chrom': 'chr1', 'chromStart': 3995268, 'chromEnd': 13052998},
+            {'chrom': 'chr1', 'chromStart': 13102998, 'chromEnd': 13219912},
+            {'chrom': 'chr1', 'chromStart': 13319912, 'chromEnd': 13557162},
+            {'chrom': 'chr1', 'chromStart': 13607162, 'chromEnd': 17125658},
+            {'chrom': 'chr1', 'chromStart': 17175658, 'chromEnd': 29878082},
+            {'chrom': 'chr1', 'chromStart': 30028082, 'chromEnd': 103863906},
+            {'chrom': 'chr1', 'chromStart': 103913906, 'chromEnd':  120697156}]
 
 
 
 
-rangeArgs = {'name': 'TestHub/aorta_ENCFF115HTK',
+rangeArgs = {'name': 'TestHub/aorta_ENCFF115HTK', 'user': 1, 'hub': 'TestHub', 'track': 'aorta_ENCFF115HTK',
              'ref': 'chr1', 'start': 0, 'end': 120000000}
 
 
@@ -236,15 +165,15 @@ def test_labels():
 
     assert createdJob['status'] == 'New'
 
-    jobData = createdJob['data']
+    jobData = createdJob['jobData']
 
-    assert jobData['type'] == 'pregen'
+    assert createdJob['jobType'] == 'pregen'
 
     jobProblem = jobData['problem']
 
-    assert jobProblem['ref'] == 'chr1'
-    assert jobProblem['start'] == 13607162
-    assert jobProblem['end'] == 17125658
+    assert jobProblem['chrom'] == 'chr1'
+    assert jobProblem['chromStart'] == 13607162
+    assert jobProblem['chromEnd'] == 17125658
 
     # Try adding another label
     query = {'command': 'addLabel', 'args': endLabel}
@@ -345,28 +274,15 @@ def test_models():
 
     job = jobs[0]
 
+    numModels = job['numModels']
+
     started = slurmrun.startAllNewJobs()
 
     assert started
 
     startTime = time.time()
 
-    while True:
-        query = {'command': 'getModelSummary', 'args': startLabel}
-        request = requests.post(serverIp, json=query, timeout=5)
-        print('time:', time.time(), '\nstatusCode:', request.status_code, '\n')
-
-        if request.status_code == 200:
-            models = request.json()
-            print('lenModels\n', len(models))
-            contig = models[str(problem['start'])]
-            if len(contig) >= len(job['data']['penalties']):
-                break
-
-        if (time.time() - startTime) > 240:
-            raise Exception
-
-        time.sleep(5)
+    problemSum = checkModelSumLoop(startLabel, startTime, problem, numModels)
 
     expected = [{'errors': 1.0, 'fn': 0.0, 'fp': 1.0, 'numPeaks': 6306.0, 'penalty': '100', 'possible_fn': 1.0, 'possible_fp': 1.0, 'regions': 1.0},
                 {'errors': 1.0, 'fn': 0.0, 'fp': 1.0, 'numPeaks': 262.0, 'penalty': '1000', 'possible_fn': 1.0, 'possible_fp': 1.0, 'regions': 1.0},
@@ -374,7 +290,7 @@ def test_models():
                 {'errors': 1.0, 'fn': 1.0, 'fp': 0.0, 'numPeaks': 18.0, 'penalty': '100000', 'possible_fn': 1.0, 'possible_fp': 1.0, 'regions': 1.0},
                 {'errors': 0.0, 'fn': 0.0, 'fp': 0.0, 'numPeaks': 0.0, 'penalty': '1000000', 'possible_fn': 0.0, 'possible_fp': 0.0, 'regions': 0.0}]
 
-    assert contig == expected
+    assert problemSum == expected
 
     # Add label with no update
     query = {'command': 'addLabel', 'args': endLabel}
@@ -397,7 +313,7 @@ def test_models():
 
     sums = request.json()
 
-    contig = sums[str(problem['start'])]
+    contig = sums[str(problem['chromStart'])]
 
     expected = [{'regions': 2, 'fp': 2, 'possible_fp': 2, 'fn': 0, 'possible_fn': 2, 'errors': 2, 'penalty': '100', 'numPeaks': 6306},
                 {'regions': 2, 'fp': 2, 'possible_fp': 2, 'fn': 0, 'possible_fn': 2, 'errors': 2, 'penalty': '1000', 'numPeaks': 262},
@@ -428,7 +344,7 @@ def test_models():
 
     job = jobs[0]
 
-    numModels = job['data']['numModels']
+    numModels += job['numModels']
 
     started = slurmrun.startAllNewJobs()
 
@@ -436,20 +352,7 @@ def test_models():
 
     startTime = time.time()
 
-    while True:
-        query = {'command': 'getModelSummary', 'args': startLabel}
-        request = requests.post(serverIp, json=query, timeout=5)
-
-        if request.status_code == 200:
-            models = request.json()
-            gridContig = models[str(problem['start'])]
-            if len(gridContig) >= len(contig) + numModels:
-                break
-
-        if (time.time() - startTime) > 240:
-            raise Exception
-
-        time.sleep(5)
+    gridContig = checkModelSumLoop(startLabel, startTime, problem, numModels)
 
     expected = [{'regions': 3, 'fp': 3, 'possible_fp': 3, 'fn': 0, 'possible_fn': 2, 'errors': 3, 'penalty': '100', 'numPeaks': 6306},
                 {'regions': 3, 'fp': 3, 'possible_fp': 3, 'fn': 0, 'possible_fn': 2, 'errors': 3, 'penalty': '1000', 'numPeaks': 262},
@@ -470,5 +373,22 @@ def test_models():
     assert gridContig == expected
 
 
+def checkModelSumLoop(label, startTime, problem, numModels):
+    while True:
+        query = {'command': 'getModelSummary', 'args': label}
+        request = requests.post(serverIp, json=query, timeout=5)
+
+        if request.status_code == 200:
+            models = request.json()
+            gridContig = models[str(problem['chromStart'])]
+            if len(gridContig) >= numModels:
+                return gridContig
+
+        if (time.time() - startTime) > sleepTime:
+            raise Exception
+
+        time.sleep(5)
+
+
 def test_shutdownServer():
-    run.shutdown()
+     run.shutdown()

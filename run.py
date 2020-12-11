@@ -1,5 +1,6 @@
 import threading
-from api import httpServer, PLConfig as cfg, PLdb
+from api import httpServer
+from api.util import PLConfig as cfg, PLdb
 
 httpArgs = (cfg.httpServerPort, cfg.jbrowsePath)
 
