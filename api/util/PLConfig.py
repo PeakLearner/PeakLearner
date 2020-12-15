@@ -3,6 +3,7 @@ import configparser
 minScale = 0.5
 gridSearchSize = 10
 stopScaling = 1
+test = False
 
 
 configFile = 'PeakLearner.cfg'

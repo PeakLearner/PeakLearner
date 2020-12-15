@@ -1,5 +1,4 @@
 import configparser
-import os
 
 configFile = 'PeakLearnerSlurm.cfg'
 
@@ -33,7 +32,7 @@ if 'slurm' not in configSections:
     config['slurm']['username'] = 'slurmUser'
     config['slurm']['anaconda3venvPath'] = '/'
     config['slurm']['monsoon'] = 'False'
-    config['slurm']['maxCPUsPerJob'] = '1'
+    config['slurm']['maxCPUsPerJob'] = '2'
 
     save = True
 

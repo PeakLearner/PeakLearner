@@ -2,15 +2,22 @@ import os
 import requests
 import threading
 import json
-import api.PLConfig as cfg
-import api.generateProblems as gp
+import tempfile
+import gzip
+import pandas as pd
+from api.util import PLConfig as cfg, PLdb as db
 
+
+def parseHub(data):
+    parsed = parseUCSC(data)
+    # Add a way to configure hub here somehow instead of just loading everything
+    return createHubFromParse(parsed)
 
 # All this should probably be done asynchronously
-def convert(data, user=1):
+def createHubFromParse(parsed):
     # Will need to add a way to add additional folder depth for userID once authentication is added
-    hub = data['hub']
-    genomesFile = data['genomesFile']
+    hub = parsed['hub']
+    genomesFile = parsed['genomesFile']
 
     # This will need to be updated if there are multiple genomes in file
     genome = genomesFile['genome']
@@ -20,7 +27,7 @@ def convert(data, user=1):
     includes = getGeneTracks(genome, dataPath)
 
     # Generate problems for this genome
-    problems = gp.generateProblems(genome, dataPath)
+    problems = generateProblems(genome, dataPath)
 
     problemPath = generateProblemTrack(problems)
 
@@ -69,7 +76,7 @@ def createTrackListJson(hub, dataPath, refSeqPath, tracks):
 
     for track in trackList:
         trackFile = {'label': "%s/%s" % (hub, track['track']), 'key': track['shortLabel'],
-                     'type': 'InteractivePeakAnnotator/View/Track/MultiXYPlot',
+                     'type': 'PeakLearnerBackend/View/Track/Model', 'showLabels': 'true',
                      'urlTemplates': []}
 
         categories = 'Data'
@@ -79,28 +86,21 @@ def createTrackListJson(hub, dataPath, refSeqPath, tracks):
         trackFile['category'] = categories
 
         # Determine which track is the coverage data
-        coverage = peaks = None
+        coverage = None
         for child in track['children']:
             file = child['bigDataUrl'].rsplit('/', 1)
             if 'coverage' in file[1]:
                 coverage = child
-            if 'joint_peaks' in file[1]:
-                peaks = child
 
         # Add Data Url to config
         if coverage is not None:
             trackFile['urlTemplates'].append(
-                {'url': coverage['bigDataUrl'], 'name': '%s/%s' % (hub, coverage['shortLabel']), 'color': '#235'}
-            )
-
-        if peaks is not None:
-            trackFile['urlTemplates'].append(
-                {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Model', 'name': '%s/%s' % (hub, peaks['shortLabel']),
-                 'color': 'red', 'lineWidth': 5}
+                {'url': coverage['bigDataUrl'], 'name': '%s/%s' % (hub, track['track']), 'color': '#235'}
             )
 
         trackFile['storeClass'] = 'MultiBigWig/Store/SeqFeature/MultiBigWig'
-        trackFile['storeConf'] = {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Labels'}
+        trackFile['storeConf'] = {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Labels',
+                                  'modelClass': 'PeakLearnerBackend/Store/SeqFeature/Models'}
 
         config['tracks'].append(trackFile)
 
@@ -133,7 +133,8 @@ def getRefSeq(genome, path, includes):
     genomeFaPath = os.path.join(genomePath, genome + '.fa')
     genomeFaiPath = genomeFaPath + '.fai'
 
-    downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath)
+    if not cfg.test:
+        downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath)
 
     genomeConfigPath = os.path.join(genomePath, 'trackList.json')
 
@@ -279,3 +280,176 @@ def formatIncludes(includes, prePath):
         output.append(os.path.relpath(include, start=prePath))
 
     return output
+
+
+def parseUCSC(url):
+    # TODO: Add error handling
+    hubReq = requests.get(url, allow_redirects=True)
+    path = ""
+    if url.find('/'):
+        vals = url.rsplit('/', 1)
+        path = vals[0]
+
+    lines = hubReq.text.split('\n')
+
+    hub = readUCSCLines(lines)
+
+    if hub['genomesFile']:
+        hub['genomesFile'] = loadGenomeUCSC(hub, path)
+
+    return hub
+
+
+def loadGenomeUCSC(hub, path):
+    genomeUrl = path + '/' + hub['genomesFile']
+
+    genomeReq = requests.get(genomeUrl, allow_redirects=True)
+
+    lines = genomeReq.text.split('\n')
+
+    output = readUCSCLines(lines)
+
+    if output['trackDb'] is not None:
+        output['trackDb'] = loadTrackDbUCSC(output, path)
+
+    return output
+
+
+def loadTrackDbUCSC(genome, path):
+    trackUrl = path + '/' + genome['trackDb']
+
+    trackReq = requests.get(trackUrl, allow_redirects=True)
+
+    lines = trackReq.text.split('\n')
+
+    return readUCSCLines(lines)
+
+
+# Reads the lines of the current file
+def readUCSCLines(lines):
+    output = []
+    current = {}
+
+    outputList = False
+
+    start = True
+
+    added = False
+
+    for line in lines:
+        line = line.strip()
+        if line == "":
+            if start:
+                start = False
+                continue
+            else:
+                if not added:
+                    added = True
+                    output.append(current)
+                    current = {}
+        else:
+            # If it gets to this point after adding one, then there are multiple
+            if added:
+                outputList = True
+                added = False
+            vals = line.split(" ", 1)
+
+            current[vals[0]] = vals[1]
+
+    if outputList:
+        return output
+    else:
+        return output[0]
+
+
+def generateProblems(genome, path):
+    ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/' + genome + '/database/'
+    genomePath = os.path.join(path, 'genomes', genome)
+
+    if not os.path.exists(genomePath):
+        try:
+            os.makedirs(genomePath)
+        except OSError:
+            return
+
+    files = []
+
+    for file in ['chromInfo', 'gap']:
+        fileUrl = ucscUrl + file + '.txt.gz'
+        output = os.path.join(genomePath, file + '.txt')
+
+        files.append(downloadAndUnpackFile(fileUrl, output))
+
+    chromInfo = pd.read_csv(files[0], sep='\t', header=None).iloc[:, 0:2]
+    chromInfo.columns = ['chrom', 'bases']
+
+    gap = pd.read_csv(files[1], sep='\t', header=None).iloc[:, 1:4]
+    gap.columns = ['chrom', 'gapStart', 'gapEnd']
+
+    join = gap.merge(chromInfo, on='chrom', how='outer')
+
+    nan = join.isnull()['gapStart' and 'gapEnd']
+    nonNan = join.notnull()['gapStart' and 'gapEnd']
+
+    nanOutput = join[nan].groupby(['chrom']).apply(createNanProblems)
+
+    nonNanOutput = join[nonNan].groupby(['chrom']).apply(createProblems)
+
+    frames = [nonNanOutput, nanOutput]
+
+    output = pd.concat(frames, sort=False)
+
+    # Removes all entries with an _, not needed because these are genome "Fixes"
+    output = output[~output['chrom'].str.contains('_')]
+
+    output['chromStart'] = output['chromStart'].astype(int)
+    output['chromEnd'] = output['chromEnd'].astype(int)
+
+    db.Problems(genome).put(output)
+
+    outputFile = os.path.join(genomePath, 'problems.bed')
+
+    output.to_csv(outputFile, sep='\t', index=False, header=False)
+
+    return outputFile
+
+
+def createNanProblems(args):
+    data = {'chrom': args['chrom'], 'chromStart': [0], 'chromEnd': args['bases']}
+
+    return pd.DataFrame(data)
+
+
+def createProblems(group):
+    chrom = group['chrom'].iloc[0]
+    bases = group['bases'].iloc[0]
+    chromStart = [0, ]
+    gapEnd = group['gapEnd'].tolist()
+    chromEnd = group['gapStart'].tolist()
+    chromStart.extend(gapEnd)
+    chromEnd.append(bases)
+
+    if len(chromStart) != len(chromStart):
+        return
+
+    data = {'chrom': chrom, 'chromStart': chromStart, 'chromEnd': chromEnd}
+
+    df = pd.DataFrame(data)
+    return df[df['chromStart'] < df['chromEnd']]
+
+
+def downloadAndUnpackFile(url, path):
+    if not os.path.exists(path):
+        with tempfile.NamedTemporaryFile(suffix='.txt.gz') as temp:
+            # Gets FASTA file for genome
+            with requests.get(url, allow_redirects=True) as r:
+                temp.write(r.content)
+                temp.flush()
+                temp.seek(0)
+            with gzip.GzipFile(fileobj=temp, mode='r') as gz:
+                # uncompress the flatfile
+                with open(path, 'w+b') as faFile:
+                    # Save to file
+                    faFile.write(gz.read())
+    return path
+

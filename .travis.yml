@@ -5,15 +5,11 @@ sudo: required
 dist: focal
 
 python:
-  - 3.7
   - 3.8
 
 before_install:
   - sudo apt-get update
-  - sudo apt-get -y install libdb5.3-dev
-  - sudo apt-get -y install slurm-wlm
-  - sudo apt-get -y install r-base-dev
-  - sudo apt-get -y install samtools
+  - sudo apt-get -y install libdb-dev libdb++-dev slurm-wlm samtools r-base-dev
   - sudo Rscript -e 'install.packages("PeakSegDisk")'
   # Setup python dependencies
   - python --version
@@ -48,9 +44,12 @@ after_failure:
   - sudo systemctl -l status slurmctld.service
   - sudo systemctl -l status slurmd.service
   - cat runlog.txt
+  - cat data/PeakLearner-0.txt
+  - cat data/PeakLearner-1.txt
   - cat data/PeakLearner-2.txt
   - cat data/PeakLearner-3.txt
   - cat data/PeakLearner-4.txt
+  - squeue
 
 
 
