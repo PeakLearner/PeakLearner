@@ -162,6 +162,8 @@ class Labels(db.PandasDf):
 
         if labels is None:
             return None
+        if len(labels.index) < 1:
+            return labels
 
         isInBounds = labels.apply(checkInBounds, axis=1, args=(chrom, start, end))
 
@@ -217,3 +219,14 @@ def updateSummaryInDf(row, item):
     if row['penalty'] == item['penalty']:
         return item
     return row
+
+
+class HubInfo(db.Resource):
+    keys = ("User", "Hub")
+
+    def make_details(self):
+        return None
+
+    pass
+
+

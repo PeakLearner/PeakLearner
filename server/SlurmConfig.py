@@ -20,7 +20,7 @@ if 'general' not in configSections:
 # Setup a default config if doesn't exist
 if 'remoteServer' not in configSections:
     config.add_section('remoteServer')
-    config['remoteServer']['url'] = 'http://127.0.0.1'
+    config['remoteServer']['url'] = 'http://localhost'
     config['remoteServer']['port'] = '8081'
     config['remoteServer']['dataPath'] = 'data/'
     save = True
@@ -45,7 +45,7 @@ if save:
     with open(configFile, 'w') as cfg:
         config.write(cfg)
 
-remoteServer = "%s:%s" % (config['remoteServer']['url'], config['remoteServer']['port'])
+remoteServer = "%s:%s/" % (config['remoteServer']['url'], config['remoteServer']['port'])
 useSlurm = config['general']['useSlurm'].lower() == 'true'
 useCron = config['general']['useCron'].lower() == 'true'
 debug = config['general']['debug'].lower() == 'true'
@@ -58,3 +58,4 @@ condaVenvPath = config['slurm']['anaconda3venvPath']
 monsoon = config['slurm']['monsoon'].lower() == 'true'
 maxCPUsPerJob = int(config['slurm']['maxCPUsPerJob'])
 timeToRun = int(config['cron']['timeToRun'])
+jobUrl = '%sjobs/' % remoteServer

@@ -6,21 +6,66 @@ import tempfile
 import gzip
 import pandas as pd
 from api.util import PLConfig as cfg, PLdb as db
+from api.Handlers.Handler import Handler
+
+
+class HubHandler(Handler):
+    """Handles Hub Commands"""
+    def do_GET(self, data):
+        args = data['args']
+        if args['file'] == 'trackList.json':
+
+            hubInfo = db.HubInfo(self.query['user'], self.query['hub']).get()
+
+            return createTrackListWithHubInfo(hubInfo)
+        else:
+            print('no handler for %s' % self.query['handler'])
+
+
+def createTrackListWithHubInfo(info):
+    if info is None:
+        return
+    refSeqPath = os.path.join('genomes', info['genome'], 'trackList.json')
+
+    tracklist = {'include': [refSeqPath], 'tracks': []}
+
+    tracks = info['tracks']
+
+    for track in tracks.keys():
+        trackData = tracks[track]
+        trackConf = {'label': track, 'key': trackData['key'], 'type': 'PeakLearnerBackend/View/Track/Model',
+                     'showLabels': 'true', 'urlTemplates': [], 'category': trackData['categories']}
+
+        urlTemplate = {'url': trackData['url'], 'name': track, 'color': '#235'}
+
+        trackConf['urlTemplates'].append(urlTemplate)
+
+        trackConf['storeClass'] = 'MultiBigWig/Store/SeqFeature/MultiBigWig'
+        trackConf['storeConf'] = {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Labels',
+                                  'modelClass': 'PeakLearnerBackend/Store/SeqFeature/Models'}
+
+        tracklist['tracks'].append(trackConf)
+
+    return tracklist
 
 
 def parseHub(data):
     parsed = parseUCSC(data)
-    # Add a way to configure hub here somehow instead of just loading everything
+    # Add a way to configure hub here somehow instead of just loading everythingS
     return createHubFromParse(parsed)
+
 
 # All this should probably be done asynchronously
 def createHubFromParse(parsed):
     # Will need to add a way to add additional folder depth for userID once authentication is added
     hub = parsed['hub']
+    user = parsed['user']
     genomesFile = parsed['genomesFile']
 
     # This will need to be updated if there are multiple genomes in file
     genome = genomesFile['genome']
+
+    hubInfo = {'genome': genome}
 
     dataPath = os.path.join(cfg.jbrowsePath, cfg.dataPath)
 
@@ -33,27 +78,17 @@ def createHubFromParse(parsed):
 
     includes.append(problemPath)
 
-    refSeqPath = getRefSeq(genome, dataPath, includes)
+    getRefSeq(genome, dataPath, includes)
 
-    outputPath = createTrackListJson(hub, dataPath, refSeqPath, genomesFile['trackDb'])
+    path = storeHubInfo(user, hub, genomesFile['trackDb'], hubInfo)
 
-    return outputPath
+    return path
 
 
-def createTrackListJson(hub, dataPath, refSeqPath, tracks):
-    hubPath = os.path.join(dataPath, hub)
-
-    if not os.path.exists(hubPath):
-        try:
-            os.makedirs(hubPath)
-        except OSError:
-            return
-
-    # Include here provides the required assembly, as well as generated genes
-    config = {'include': ['../%s' % refSeqPath], 'tracks': []}
-
+def storeHubInfo(user, hub, tracks, hubInfo):
     superList = []
     trackList = []
+    hubInfoTracks = {}
 
     # Load the track list into something which can be converted
     for track in tracks:
@@ -75,16 +110,6 @@ def createTrackListJson(hub, dataPath, refSeqPath, tracks):
                         parent['children'].append(track)
 
     for track in trackList:
-        trackFile = {'label': "%s/%s" % (hub, track['track']), 'key': track['shortLabel'],
-                     'type': 'PeakLearnerBackend/View/Track/Model', 'showLabels': 'true',
-                     'urlTemplates': []}
-
-        categories = 'Data'
-        for category in track['longLabel'].split(' | ')[:-1]:
-            categories = categories + ' / %s' % category
-
-        trackFile['category'] = categories
-
         # Determine which track is the coverage data
         coverage = None
         for child in track['children']:
@@ -94,23 +119,21 @@ def createTrackListJson(hub, dataPath, refSeqPath, tracks):
 
         # Add Data Url to config
         if coverage is not None:
-            trackFile['urlTemplates'].append(
-                {'url': coverage['bigDataUrl'], 'name': '%s/%s' % (hub, track['track']), 'color': '#235'}
-            )
+            categories = 'Data'
+            for category in track['longLabel'].split(' | ')[:-1]:
+                categories = categories + ' / %s' % category
 
-        trackFile['storeClass'] = 'MultiBigWig/Store/SeqFeature/MultiBigWig'
-        trackFile['storeConf'] = {'storeClass': 'PeakLearnerBackend/Store/SeqFeature/Labels',
-                                  'modelClass': 'PeakLearnerBackend/Store/SeqFeature/Models'}
+            hubInfoTracks[track['track']] = {'categories': categories,
+                                             'key': track['shortLabel'],
+                                             'url': coverage['bigDataUrl']}
 
-        config['tracks'].append(trackFile)
+    hubInfo['tracks'] = hubInfoTracks
 
-    trackPath = os.path.join(hubPath, 'trackList.json')
+    txn = db.getTxn()
+    db.HubInfo(user, hub).put(hubInfo, txn=txn)
+    txn.commit()
 
-    with open(trackPath, 'w') as conf:
-        json.dump(config, conf)
-
-    # TODO: maybe add user ID to this if not eventually just storing trackLists?
-    return os.path.join(cfg.dataPath, hub)
+    return '/%s/' % os.path.join(str(user), hub)
 
 
 def getRefSeq(genome, path, includes):
@@ -282,9 +305,11 @@ def formatIncludes(includes, prePath):
     return output
 
 
-def parseUCSC(url):
-    # TODO: Add error handling
+def parseUCSC(data):
+    url = data['url']
     hubReq = requests.get(url, allow_redirects=True)
+    if not hubReq.status_code == 200:
+        return None
     path = ""
     if url.find('/'):
         vals = url.rsplit('/', 1)
@@ -293,6 +318,10 @@ def parseUCSC(url):
     lines = hubReq.text.split('\n')
 
     hub = readUCSCLines(lines)
+
+    # TODO: Add User to query
+
+    hub['user'] = data['user']
 
     if hub['genomesFile']:
         hub['genomesFile'] = loadGenomeUCSC(hub, path)
@@ -452,4 +481,10 @@ def downloadAndUnpackFile(url, path):
                     # Save to file
                     faFile.write(gz.read())
     return path
+
+
+def getHubInfo(user, hub):
+    return db.HubInfo(user, hub).get()
+
+
 

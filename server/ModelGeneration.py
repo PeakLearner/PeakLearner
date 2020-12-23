@@ -13,10 +13,7 @@ try:
 except ModuleNotFoundError:
     import SlurmConfig as cfg
 
-if __name__ == '__main__':
-    modelGenPath = os.path.join('server', 'GenerateModel.R')
-else:
-    modelGenPath = 'GenerateModel.R'
+modelGenPath = os.path.join('server', 'GenerateModel.R')
 
 
 def model(job):
@@ -30,19 +27,20 @@ def model(job):
         except OSError:
             return False
 
-    getCoverageFile(job, dataPath)
+    trackUrl = '%s%s/%s/%s/' % (cfg.remoteServer, job['user'], job['hub'], job['track'])
+    getCoverageFile(job, dataPath, trackUrl)
 
-    generateModel(dataPath, job)
+    generateModel(dataPath, job, trackUrl)
 
-    finishQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'Done'}}
+    finishQuery = {'command': 'update', 'args': {'id': job['id'], 'status': 'Done'}}
 
-    r = requests.post(cfg.remoteServer, json=finishQuery)
+    r = requests.post(cfg.jobUrl, json=finishQuery)
 
     if not r.status_code == 200:
         print("Model Request Error", r.status_code)
 
 
-def generateModel(dataPath, stepData):
+def generateModel(dataPath, stepData, trackUrl):
     coveragePath = os.path.join(dataPath, 'coverage.bedGraph')
 
     command = 'Rscript %s %s %f' % (modelGenPath, coveragePath, stepData['penalty'])
@@ -53,13 +51,14 @@ def generateModel(dataPath, stepData):
     lossPath = '%s_penalty=%f_loss.tsv' % (coveragePath, stepData['penalty'])
 
     if os.path.exists(segmentsPath):
-        sendSegments(segmentsPath, stepData)
-        # TODO: Send Loss?
+        sendSegments(segmentsPath, stepData, trackUrl)
     else:
         print("No segments output")
 
+    # TODO: Send Loss?
 
-def sendSegments(segmentsFile, stepData):
+
+def sendSegments(segmentsFile, stepData, trackUrl):
     strPenalty = str(stepData['penalty'])
 
     modelData = pd.read_csv(segmentsFile, sep='\t', header=None)
@@ -70,10 +69,12 @@ def sendSegments(segmentsFile, stepData):
                  'problem': stepData['jobData']['problem'],
                  'jobId': stepData['id']}
 
-    query = {'command': 'putModel',
+    modelUrl = '%smodels/' % trackUrl
+
+    query = {'command': 'put',
              'args': {'modelInfo': modelInfo, 'penalty': strPenalty, 'modelData': modelData.to_json()}}
 
-    r = requests.post(cfg.remoteServer, json=query)
+    r = requests.post(modelUrl, json=query)
 
     if r.status_code == 200:
         print('model successfully sent with penalty', strPenalty, 'and with modelInfo:\n', modelInfo, '\n')
@@ -83,20 +84,19 @@ def sendSegments(segmentsFile, stepData):
         print("Send Model Request Error", r.status_code)
 
 
-def getCoverageFile(job, dataPath):
+def getCoverageFile(job, dataPath, trackUrl):
     problem = job['jobData']['problem']
 
-    query = {'command': 'getTrackUrl', 'args': {'user': job['user'], 'hub': job['hub'], 'track': job['track']}}
+    requestUrl = '%s%s/' % (trackUrl, 'info')
+    urlReq = requests.get(requestUrl)
 
-    hubInfo = requests.post(cfg.remoteServer, json=query)
-
-    if not hubInfo.status_code == 200:
-        print("GetCoverageFile track Url Error", hubInfo.status_code)
+    if not urlReq.status_code == 200:
+        print("GetCoverageFile track Url Error", urlReq.status_code)
         return
 
     coveragePath = os.path.join(dataPath, 'coverage.bedGraph')
 
-    coverageUrl = hubInfo.json()
+    coverageUrl = urlReq.json()['url']
     if not os.path.exists(coveragePath):
         with bbi.open(coverageUrl) as coverage:
             try:
@@ -142,6 +142,7 @@ def generateModels(job):
     penalties = data['penalties']
 
     dataPath = os.path.join(cfg.dataPath, 'PeakLearner-%s' % job['id'])
+    trackUrl = '%s%s/%s/%s/' % (cfg.remoteServer, job['user'], job['hub'], job['track'])
 
     if not os.path.exists(dataPath):
         try:
@@ -149,7 +150,7 @@ def generateModels(job):
         except OSError:
             return False
 
-    coveragePath = getCoverageFile(job, dataPath)
+    coveragePath = getCoverageFile(job, dataPath, trackUrl)
 
     if not os.path.exists(coveragePath):
         return False
@@ -160,7 +161,7 @@ def generateModels(job):
         modelData = job.copy()
         modelData['penalty'] = penalty
 
-        modelArgs = (dataPath, modelData)
+        modelArgs = (dataPath, modelData, trackUrl)
 
         modelThread = threading.Thread(target=generateModel, args=modelArgs)
         modelThreads.append(modelThread)
@@ -169,9 +170,9 @@ def generateModels(job):
     for thread in modelThreads:
         thread.join()
 
-    finishQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'Done'}}
+    finishQuery = {'command': 'update', 'args': {'id': job['id'], 'status': 'Done'}}
 
-    r = requests.post(cfg.remoteServer, json=finishQuery)
+    r = requests.post(cfg.jobUrl, json=finishQuery)
 
     if not r.status_code == 200:
         print("Job Finish Request Error", r.status_code)
@@ -195,9 +196,9 @@ def startJob(jobId):
     jobId = int(jobId)
     startTime = time.time()
     print("Starting job with ID", jobId)
-    jobQuery = {'command': 'updateJob', 'args': {'id': jobId, 'status': 'Processing'}}
+    jobQuery = {'command': 'update', 'args': {'id': jobId, 'status': 'Processing'}}
 
-    r = requests.post(cfg.remoteServer, json=jobQuery)
+    r = requests.post(cfg.jobUrl, json=jobQuery)
 
     if not r.status_code == 200:
         print("No job on server with job id", jobId)
