@@ -4,8 +4,5 @@ requests~=2.23.0
 simpleBDB >= "1.0.10"
 bsddb3
 pybbi
-
-simpleBDB~=1.0.9
-PeakError~=0.0.3
-numpy~=1.19.4
-pyramid~=1.10.5
+pyramid-jinja2
+pyramid
