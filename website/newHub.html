@@ -1,0 +1,14 @@
+{% extends "templates/base.jinja2" %}
+
+{% block inner_head %}
+    <title>Upload New Hub</title>
+{% endblock %}
+
+{% block content %}
+    <form action="/uploadHubUrl/" method="post">
+        <label for="hubUrl">Hub Url</label><br>
+        <input type="text" id="hubUrl" name="hubUrl"><br><br>
+        <input type="submit" value="Submit">
+    </form>
+
+{% endblock %}
