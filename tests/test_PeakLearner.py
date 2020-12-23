@@ -390,6 +390,7 @@ def test_models():
 
     assert gridContig == expected
 
+
 def checkModelSumLoop(label, startTime, problem, numModels):
     while True:
         query = {'command': 'getModelSummary', 'args': label}
@@ -398,6 +399,7 @@ def checkModelSumLoop(label, startTime, problem, numModels):
         if not len(request.json()) == 0:
             models = request.json()
             gridContig = models[str(problem['chromStart'])]
+            print('lenGridContig', len(gridContig))
             if len(gridContig) >= numModels:
                 return gridContig
 
