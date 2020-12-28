@@ -27,7 +27,7 @@ def test_addHub():
 
     uploadHubUrl = '%suploadHubUrl/' % serverURL
 
-    request = requests.post(uploadHubUrl, json=query, timeout=sleepTime)
+    request = requests.post(uploadHubUrl, json=query)
 
     assert request.status_code == 200
 
