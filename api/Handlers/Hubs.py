@@ -8,8 +8,6 @@ import pandas as pd
 from api.util import PLConfig as cfg, PLdb as db
 from api.Handlers.Handler import Handler
 
-ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/'
-
 
 class HubHandler(Handler):
     """Handles Hub Commands"""
@@ -152,12 +150,11 @@ def getRefSeq(genome, path, includes):
             print(genomePath, "does not exist")
             return
 
-    genomeUrl = ucscUrl + genome + '/bigZips/' + genome + '.fa.gz'
+    genomeUrl = cfg.geneUrl + genome + '/bigZips/' + genome + '.fa.gz'
     genomeFaPath = os.path.join(genomePath, genome + '.fa')
     genomeFaiPath = genomeFaPath + '.fai'
 
-    if not cfg.test:
-        downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath)
+    downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath)
 
     genomeConfigPath = os.path.join(genomePath, 'trackList.json')
 
@@ -198,7 +195,7 @@ def getGeneTracks(genome, dataPath):
         except OSError:
             return
 
-    genesUrl = "%s%s/database/" % (ucscUrl, genome)
+    genesUrl = "%s%s/database/" % (cfg.geneUrl, genome)
 
     genes = ['ensGene', 'knownGene', 'ncbiRefSeq', 'refGene', 'ccdsGene']
 
@@ -211,18 +208,15 @@ def getGeneTracks(genome, dataPath):
     for gene in genes:
         geneTrackPath = os.path.join(genomePath, gene)
 
-        if not cfg.test:
-            args = (gene, genesUrl, genesPath, geneTrackPath)
+        args = (gene, genesUrl, genesPath, geneTrackPath)
 
-            geneThread = threading.Thread(target=getAndProcessGeneTrack, args=args)
-            geneThreads.append(geneThread)
-            geneThread.start()
+        geneThread = threading.Thread(target=getAndProcessGeneTrack, args=args)
+        geneThreads.append(geneThread)
+        geneThread.start()
 
         includes.append(os.path.join(geneTrackPath, 'trackList.json'))
-
-    if not cfg.test:
-        for thread in geneThreads:
-            thread.join()
+    for thread in geneThreads:
+        thread.join()
 
     return includes
 
@@ -272,9 +266,6 @@ def generateProblemTrack(path):
 
 def getDbFiles(name, url, output):
     files = ['%s.txt.gz' % name, '%s.sql' % name]
-
-    if cfg.test:
-        return
 
     for file in files:
         path = os.path.join(output, file)
@@ -395,7 +386,7 @@ def readUCSCLines(lines):
 
 
 def generateProblems(genome, path):
-    dbUrl = ucscUrl + genome + '/database/'
+    genesUrl = "%s%s/database/" % (cfg.geneUrl, genome)
     genomePath = os.path.join(path, 'genomes', genome)
 
     if not os.path.exists(genomePath):
@@ -408,21 +399,8 @@ def generateProblems(genome, path):
 
     for file in ['chromInfo', 'gap']:
         outputPath = os.path.join(genomePath, file + '.txt')
-        if cfg.test:
-            fileUrl = 'https://rcdata.nau.edu/genomic-ml/PeakLearner/files/genomes/hg19/%s.txt' % file
-            if not os.path.exists(outputPath):
-                with open(outputPath, 'wb') as f:
-                    with requests.get(fileUrl) as r:
-                        if not r.status_code == 200:
-                            print('get problem file error')
-                            return
-                        f.write(r.content)
-                        f.flush()
-                        f.seek(0)
-            files.append(outputPath)
-        else:
-            fileUrl = dbUrl + file + '.txt.gz'
-            files.append(downloadAndUnpackFile(fileUrl, outputPath))
+        fileUrl = genesUrl + file + '.txt.gz'
+        files.append(downloadAndUnpackFile(fileUrl, outputPath))
 
     chromInfo = pd.read_csv(files[0], sep='\t', header=None).iloc[:, 0:2]
     chromInfo.columns = ['chrom', 'bases']

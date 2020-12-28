@@ -4,6 +4,7 @@ minScale = 0.5
 gridSearchSize = 10
 stopScaling = 1
 test = False
+geneUrl = 'https://hgdownload.soe.ucsc.edu/goldenPath/'
 
 
 configFile = 'PeakLearner.cfg'
@@ -39,3 +40,9 @@ httpServerPort = int(config['http']['port'])
 jbrowsePath = config['http']['path']
 
 dataPath = config['data']['path']
+
+
+def testing():
+    global test, geneUrl
+    test = True
+    geneUrl = 'https://rcdata.nau.edu/genomic-ml/PeakLearner/files/'
