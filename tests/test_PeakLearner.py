@@ -8,7 +8,7 @@ import requests
 
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 serverURL = 'http://127.0.0.1:%s/' % cfg.httpServerPort
-cfg.test = True
+cfg.testing()
 sleepTime = 600
 
 
