@@ -407,10 +407,22 @@ def generateProblems(genome, path):
     files = []
 
     for file in ['chromInfo', 'gap']:
-        fileUrl = dbUrl + file + '.txt.gz'
         outputPath = os.path.join(genomePath, file + '.txt')
-
-        files.append(downloadAndUnpackFile(fileUrl, outputPath))
+        if cfg.test:
+            fileUrl = 'https://rcdata.nau.edu/genomic-ml/PeakLearner/files/genomes/hg19/%s.txt' % file
+            if not os.path.exists(outputPath):
+                with open(outputPath, 'wb') as f:
+                    with requests.get(fileUrl) as r:
+                        if not r.status_code == 200:
+                            print('get problem file error')
+                            return
+                        f.write(r.content)
+                        f.flush()
+                        f.seek(0)
+            files.append(outputPath)
+        else:
+            fileUrl = dbUrl + file + '.txt.gz'
+            files.append(downloadAndUnpackFile(fileUrl, outputPath))
 
     chromInfo = pd.read_csv(files[0], sep='\t', header=None).iloc[:, 0:2]
     chromInfo.columns = ['chrom', 'bases']
