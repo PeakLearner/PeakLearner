@@ -213,16 +213,18 @@ def getGeneTracks(genome, dataPath):
     for gene in genes:
         geneTrackPath = os.path.join(genomePath, gene)
 
-        args = (gene, genesUrl, genesPath, geneTrackPath)
+        if not cfg.test:
+            args = (gene, genesUrl, genesPath, geneTrackPath)
 
-        geneThread = threading.Thread(target=getAndProcessGeneTrack, args=args)
-        geneThreads.append(geneThread)
-        geneThread.start()
+            geneThread = threading.Thread(target=getAndProcessGeneTrack, args=args)
+            geneThreads.append(geneThread)
+            geneThread.start()
 
         includes.append(os.path.join(geneTrackPath, 'trackList.json'))
 
-    for thread in geneThreads:
-        thread.join()
+    if not cfg.test:
+        for thread in geneThreads:
+            thread.join()
 
     return includes
 
@@ -272,6 +274,9 @@ def generateProblemTrack(path):
 
 def getDbFiles(name, url, output):
     files = ['%s.txt.gz' % name, '%s.sql' % name]
+
+    if cfg.test:
+        return
 
     for file in files:
         path = os.path.join(output, file)
