@@ -27,7 +27,7 @@ def test_addHub():
 
     uploadHubUrl = '%suploadHubUrl/' % serverURL
 
-    request = requests.post(uploadHubUrl, json=query, timeout=600)
+    request = requests.post(uploadHubUrl, json=query, timeout=sleepTime)
 
     assert request.status_code == 200
 
@@ -103,16 +103,16 @@ noPeakLabel['end'] = 16091959
 def test_labels():
     # Blank Label Test
     query = {'command': 'get', 'args': rangeArgs}
-    request = requests.post(labelURL, json=query, timeout=1)
+    request = requests.post(labelURL, json=query)
 
     assert len(request.json()) == 0
 
     # Add label
     query = {'command': 'add', 'args': startLabel}
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
 
     query = {'command': 'get', 'args': rangeArgs}
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
 
     assert request.status_code == 200
 
@@ -133,12 +133,12 @@ def test_labels():
 
     query = {'command': 'update', 'args': updateLabel}
 
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
 
     assert request.status_code == 200
 
     query = {'command': 'get', 'args': rangeArgs}
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
 
     assert request.status_code == 200
 
@@ -148,7 +148,7 @@ def test_labels():
 
     query = {'command': 'getAll', 'args': {}}
 
-    request = requests.post(jobsURL, json=query, timeout=1)
+    request = requests.post(jobsURL, json=query)
 
     assert request.status_code == 200
 
@@ -169,12 +169,12 @@ def test_labels():
     # Try adding another label
     query = {'command': 'add', 'args': endLabel}
 
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
 
     assert request.status_code == 200
 
     query = {'command': 'get', 'args': rangeArgs}
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
 
     assert request.status_code == 200
 
@@ -188,13 +188,13 @@ def test_labels():
     updateAnother['label'] = 'peakEnd'
     query = {'command': 'update', 'args': updateAnother}
 
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
 
     assert request.status_code == 200
 
     query = {'command': 'getAll', 'args': {}}
 
-    request = requests.post(jobsURL, json=query, timeout=5)
+    request = requests.post(jobsURL, json=query)
 
     # Check that system doesn't create duplicate jobs
     assert len(request.json()) == 1
@@ -202,7 +202,7 @@ def test_labels():
     job = request.json()[0]
 
     query = {'command': 'get', 'args': rangeArgs}
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
 
     assert request.status_code == 200
 
@@ -216,19 +216,19 @@ def test_labels():
     # Remove Labels
     for label in labels:
         query = {'command': 'remove', 'args': label}
-        request = requests.post(labelURL, json=query, timeout=5)
+        request = requests.post(labelURL, json=query)
 
         assert request.status_code == 200
 
     query = {'command': 'get', 'args': rangeArgs}
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
 
     assert len(request.json()) == 0
 
     # Remove job, could cause issues in next test
 
     query = {'command': 'remove', 'args': job}
-    request = requests.post(jobsURL, json=query, timeout=5)
+    request = requests.post(jobsURL, json=query)
 
     assert request.status_code == 200
 
@@ -239,23 +239,23 @@ modelsUrl = '%smodels/' % trackURL
 def test_models():
     # Add initial label
     query = {'command': 'add', 'args': startLabel}
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
     assert request.status_code == 200
 
     # Update Label to create job
     updateLabel = startLabel.copy()
     updateLabel['label'] = 'peakStart'
     query = {'command': 'update', 'args': updateLabel}
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
     assert request.status_code == 200
 
     query = {'command': 'getAll', 'args': {}}
-    request = requests.post(jobsURL, json=query, timeout=5)
+    request = requests.post(jobsURL, json=query)
     jobs = request.json()
     assert len(jobs) == 1
 
     query = {'command': 'getProblems', 'args': startLabel}
-    request = requests.post(trackInfoURL, json=query, timeout=5)
+    request = requests.post(trackInfoURL, json=query)
     assert request.status_code == 200
 
     problems = request.json()
@@ -291,22 +291,22 @@ def test_models():
 
     # Add label with no update
     query = {'command': 'add', 'args': endLabel}
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
     assert request.status_code == 200
 
     updateLabel = endLabel.copy()
     updateLabel['label'] = 'peakEnd'
     query = {'command': 'update', 'args': updateLabel}
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
     assert request.status_code == 200
 
     query = {'command': 'getAll', 'args': {}}
-    request = requests.post(jobsURL, json=query, timeout=5)
+    request = requests.post(jobsURL, json=query)
 
     assert request.json() is None
 
     query = {'command': 'getModelSummary', 'args': startLabel}
-    request = requests.post(modelsUrl, json=query, timeout=5)
+    request = requests.post(modelsUrl, json=query)
     assert request.status_code == 200
 
     sums = request.json()
@@ -328,17 +328,17 @@ def test_models():
 
     # Add Label with grid search
     query = {'command': 'add', 'args': noPeakLabel}
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
     assert request.status_code == 200
 
     updateLabel = noPeakLabel.copy()
     updateLabel['label'] = 'noPeak'
     query = {'command': 'update', 'args': updateLabel}
-    request = requests.post(labelURL, json=query, timeout=5)
+    request = requests.post(labelURL, json=query)
     assert request.status_code == 200
 
     query = {'command': 'getAll', 'args': {}}
-    request = requests.post(jobsURL, json=query, timeout=5)
+    request = requests.post(jobsURL, json=query)
     assert request.status_code == 200
 
     jobs = request.json()
@@ -394,7 +394,7 @@ def test_models():
 def checkModelSumLoop(label, startTime, problem, numModels):
     while True:
         query = {'command': 'getModelSummary', 'args': label}
-        request = requests.post(modelsUrl, json=query, timeout=5)
+        request = requests.post(modelsUrl, json=query)
 
         if not len(request.json()) == 0:
             models = request.json()
