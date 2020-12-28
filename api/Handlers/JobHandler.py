@@ -1,21 +1,4 @@
 from api.util import PLdb as db
-from api.Handlers.Handler import Handler
-
-
-class JobHandler(Handler):
-    """Handles Job Commands"""
-
-    def do_POST(self, data):
-        return self.getCommands()[data['command']](data['args'])
-
-    @classmethod
-    def getCommands(cls):
-        # TODO: Add update/delete/info
-        return {'get': getJob,
-                'add': updateJob,
-                'update': updateJob,
-                'remove': removeJob,
-                'getAll': getAllJobs}
 
 
 # Adds new job to list for slurm server to process

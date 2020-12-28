@@ -1,35 +1,23 @@
 import PeakError
 import pandas as pd
 from api.util import PLConfig as pl, PLdb as db
-from api.Handlers import Labels, Jobs, Tracks, Handler
+from api.Handlers import LabelHandler as lh, JobHandler as jh
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
 jbrowseModelColumns = ["ref", "start", "end", "type", "score"]
 
 
-class ModelHandler(Handler.TrackHandler):
-    """Handles Label Commands"""
-    key = 'models'
-
-    def do_POST(self, data):
-        return self.getCommands()[data['command']](data['args'])
-
-    @classmethod
-    def getCommands(cls):
-        return {'get': getModels,
-                'getModelSummary': getModelSummary,
-                'put': putModel}
-
-
 def getModels(data):
-    problems = Tracks.getProblems(data)
+    data['hub'], data['track'] = data['name'].split('/')
+
+    problems = lh.getProblems(data)
 
     output = []
 
     for problem in problems:
         # TODO: Replace 1 with user of hub NOT current user
-        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart']).get()
+        modelSummaries = db.ModelSummaries(1, data['hub'], data['track'], problem['chrom'], problem['chromStart']).get()
 
         if len(modelSummaries.index) < 1:
             # TODO: DEFAULT LOPART HERE
@@ -54,8 +42,9 @@ def getModels(data):
         # This will favor the model with the lowest penalty, given that summary is sorted
         penalty = noError['penalty'].iloc[0]
 
+
         # TODO: Replace 1 with user of hub NOT current user
-        minErrorModel = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'], penalty)
+        minErrorModel = db.Model(1, data['hub'], data['track'], problem['chrom'], problem['chromStart'], penalty)
 
         # TODO: If no good model, do LOPART
 
@@ -71,8 +60,12 @@ def getModels(data):
 
 
 def updateAllModelLabels(data, labels):
+    data['hub'], data['track'] = data['name'].split('/')
+    # Replace user with hub user
+    data['user'] = 1
+
     # This is the problems that the label update is in
-    problems = Tracks.getProblems(data)
+    problems = lh.getProblems(data)
 
     for problem in problems:
         modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'])
@@ -100,6 +93,7 @@ def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
 
 
 def checkGenerateModels(modelSums, problem, data):
+
     nonZeroRegions = modelSums[modelSums['regions'] > 0]
 
     if len(nonZeroRegions.index) == 0:
@@ -186,7 +180,7 @@ def submitOOMJob(problem, data, penalty, jobType):
     else:
         print("Invalid OOM Job")
         return
-    Jobs.updateJob(job)
+    jh.updateJob(job)
 
 
 def submitPregenJob(problem, data):
@@ -197,7 +191,7 @@ def submitPregenJob(problem, data):
            'track': data['track'],
            'jobType': 'pregen',
            'jobData': {'problem': problem, 'penalties': penalties}}
-    Jobs.updateJob(job)
+    jh.updateJob(job)
 
 
 def submitGridSearch(problem, data, minPenalty, maxPenalty, num=pl.gridSearchSize):
@@ -208,7 +202,7 @@ def submitGridSearch(problem, data, minPenalty, maxPenalty, num=pl.gridSearchSiz
            'jobType': 'gridSearch',
            'jobData': {'problem': problem, 'minPenalty': float(minPenalty), 'maxPenalty': float(maxPenalty)}}
 
-    Jobs.updateJob(job)
+    jh.updateJob(job)
 
 
 def putModel(data):
@@ -262,7 +256,7 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
 
 
 def getModelSummary(data):
-    problems = Tracks.getProblems(data)
+    problems = lh.getProblems(data)
 
     output = {}
 
@@ -289,19 +283,3 @@ def getPrePenalties(problem, data):
     # TODO: Make this actually learn based on previous data
 
     return [100, 1000, 10000, 100000, 1000000]
-
-
-def generateLOPARTModel(data, problem):
-    print('data\n', data, '\nproblem', problem)
-    # Get URL
-
-    # Get Summary Data
-
-    # Get LOPART Penalty
-
-    # Generate LOPART Model
-
-    # Format LOPART Model
-
-    # Return LOPART Model
-

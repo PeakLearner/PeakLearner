@@ -33,7 +33,7 @@ script:
   - sudo systemctl restart slurmd
   - sinfo
   # Test
-  - travis_wait 20 pytest tests/
+  - pytest tests/
 
 after_success:
   - codecov

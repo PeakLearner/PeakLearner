@@ -12,8 +12,10 @@ else:
 
 
 def startAllNewJobs():
+    query = {'command': 'getAllJobs', 'args': {'status': 'New'}}
+
     try:
-        jobs = requests.get(cfg.jobUrl)
+        jobs = requests.post(cfg.remoteServer, json=query)
     except requests.exceptions.ConnectionError:
         return False
 
@@ -30,13 +32,13 @@ def startAllNewJobs():
     if jobs.status_code == 200:
         infoForJobs = jobs.json()
 
-        if infoForJobs is None:
-            return False
+        print(len(infoForJobs))
 
         for job in infoForJobs:
             if job['status'].lower() == 'new':
-                startQuery = {'command': 'update', 'args': {'id': job['id'], 'status': 'Queued'}}
-                startRequest = requests.post(cfg.jobUrl, json=startQuery)
+
+                startQuery = {'command': 'updateJob', 'args': {'id': job['id'], 'status': 'Queued'}}
+                startRequest = requests.post(cfg.remoteServer, json=startQuery)
 
                 if not startRequest.status_code == 200:
                     continue
@@ -64,7 +66,7 @@ def createSlurmJob(job):
 
     jobString += '#SBATCH --job-name=%s\n' % jobName
 
-    jobString += '#SBATCH --output=%s\n' % os.path.join(os.getcwd(), cfg.dataPath, jobName + '.txt')
+    jobString += '#SBATCH --output=%s\n' % os.path.join(os.getcwd(), 'data/', jobName + '.txt')
     jobString += '#SBATCH --chdir=%s\n' % os.getcwd()
 
     # TODO: Make resource allocation better
