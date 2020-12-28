@@ -275,6 +275,9 @@ def generateProblemTrack(path):
 def getDbFiles(name, url, output):
     files = ['%s.txt.gz' % name, '%s.sql' % name]
 
+    if cfg.test:
+        return
+
     for file in files:
         path = os.path.join(output, file)
         if not os.path.exists(path):
