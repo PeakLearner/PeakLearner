@@ -64,7 +64,7 @@ def createSlurmJob(job):
 
     jobString += '#SBATCH --job-name=%s\n' % jobName
 
-    jobString += '#SBATCH --output=%s\n' % os.path.join(os.getcwd(), 'slurmdata/', jobName + '.txt')
+    jobString += '#SBATCH --output=%s\n' % os.path.join(os.getcwd(), cfg.dataPath, jobName + '.txt')
     jobString += '#SBATCH --chdir=%s\n' % os.getcwd()
 
     # TODO: Make resource allocation better

@@ -176,8 +176,9 @@ def generateModels(job):
 
     if not r.status_code == 200:
         print("Job Finish Request Error", r.status_code)
+        return
 
-    # TODO: Save models to /projects/
+    os.remove(coveragePath)
 
 
 def gridSearch(job):
