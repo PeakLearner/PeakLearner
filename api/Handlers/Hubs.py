@@ -8,6 +8,8 @@ import pandas as pd
 from api.util import PLConfig as cfg, PLdb as db
 from api.Handlers.Handler import Handler
 
+ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/'
+
 
 class HubHandler(Handler):
     """Handles Hub Commands"""
@@ -137,8 +139,6 @@ def storeHubInfo(user, hub, tracks, hubInfo):
 
 
 def getRefSeq(genome, path, includes):
-    ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/'
-
     genomeRelPath = os.path.join('genomes', genome)
 
     genomePath = os.path.join(path, genomeRelPath)
@@ -188,8 +188,6 @@ def downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath):
 
 
 def getGeneTracks(genome, dataPath):
-    ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/'
-
     genomePath = os.path.join(dataPath, 'genomes', genome)
 
     genesPath = os.path.join(genomePath, 'genes')
@@ -397,7 +395,7 @@ def readUCSCLines(lines):
 
 
 def generateProblems(genome, path):
-    ucscUrl = 'http://hgdownload.soe.ucsc.edu/goldenPath/' + genome + '/database/'
+    dbUrl = ucscUrl + genome + '/database/'
     genomePath = os.path.join(path, 'genomes', genome)
 
     if not os.path.exists(genomePath):
@@ -409,10 +407,22 @@ def generateProblems(genome, path):
     files = []
 
     for file in ['chromInfo', 'gap']:
-        fileUrl = ucscUrl + file + '.txt.gz'
-        output = os.path.join(genomePath, file + '.txt')
-
-        files.append(downloadAndUnpackFile(fileUrl, output))
+        outputPath = os.path.join(genomePath, file + '.txt')
+        if cfg.test:
+            fileUrl = 'https://rcdata.nau.edu/genomic-ml/PeakLearner/files/genomes/hg19/%s.txt' % file
+            if not os.path.exists(outputPath):
+                with open(outputPath, 'wb') as f:
+                    with requests.get(fileUrl) as r:
+                        if not r.status_code == 200:
+                            print('get problem file error')
+                            return
+                        f.write(r.content)
+                        f.flush()
+                        f.seek(0)
+            files.append(outputPath)
+        else:
+            fileUrl = dbUrl + file + '.txt.gz'
+            files.append(downloadAndUnpackFile(fileUrl, outputPath))
 
     chromInfo = pd.read_csv(files[0], sep='\t', header=None).iloc[:, 0:2]
     chromInfo.columns = ['chrom', 'bases']
