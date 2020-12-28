@@ -1,11 +1,9 @@
 import threading
-from api import httpServer
-from api.util import PLConfig as cfg, PLdb
-
-httpArgs = (cfg.httpServerPort, cfg.jbrowsePath)
+from api.util import PLdb
+import PeakLearnerWsgi
 
 # start httpServer
-server = threading.Thread(target=httpServer.httpserver, args=httpArgs)
+server = threading.Thread(target=PeakLearnerWsgi.startServer)
 
 
 def startServer():
@@ -13,7 +11,7 @@ def startServer():
 
 
 def shutdown():
-    httpServer.shutdownServer()
+    PeakLearnerWsgi.shutdownServer()
     server.join()
     PLdb.close()
 

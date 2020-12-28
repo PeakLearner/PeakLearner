@@ -6,4 +6,5 @@
 *PeakLearnerSlurm.cfg
 /data/
 */data/
+/slurmdata/
 /runlog.txt
