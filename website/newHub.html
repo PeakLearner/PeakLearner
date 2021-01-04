@@ -5,10 +5,11 @@
 {% endblock %}
 
 {% block content %}
+<div class="container-fluid d-flex flex-column flex-grow h-100">
     <form action="/uploadHubUrl/" method="post">
         <label for="hubUrl">Hub Url</label><br>
         <input type="text" id="hubUrl" name="hubUrl"><br><br>
         <input type="submit" value="Submit">
     </form>
-
+</div>
 {% endblock %}

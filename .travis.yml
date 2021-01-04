@@ -11,6 +11,13 @@ before_install:
   - sudo apt-get update
   - sudo apt-get -y install libdb-dev libdb++-dev slurm-wlm samtools r-base-dev
   - sudo Rscript -e 'install.packages("PeakSegDisk")'
+  - mkdir bin/
+  - cd bin/
+  - wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigSummary
+  - wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigToBedGraph
+  - sudo chmod a+x bigWigSummary
+  - sudo chmod a+x bigWigToBedGraph
+  - cd ..
   # Setup python dependencies
   - python --version
   - pip install -U pip
