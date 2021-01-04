@@ -179,10 +179,10 @@ def downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath):
                     temp.flush()
                     temp.seek(0)
 
-            subprocess.run(['gzip', '-d', '%s.gz' % genomeFaPath])
+            os.system('gzip -d %s' % genomeFaPath + '.gz')
 
         # Run samtools faidx {genome Fasta File}, creating an indexed Fasta file
-        subprocess.run(['samtools', 'faidx', genomeFaPath])
+        os.system('samtools faidx %s' % genomeFaPath)
 
 
 def getGeneTracks(genome, dataPath):
@@ -236,8 +236,10 @@ def getAndProcessGeneTrack(gene, genesUrl, genesPath, geneTrackPath):
     if not os.path.exists(trackListPath):
         command = os.path.join(cfg.jbrowsePath, 'bin', 'ucsc-to-json.pl')
 
+        generateTrack = "%s -q --in %s --out %s --track %s" % (command, genesPath, geneTrackPath, gene)
+
         # This will use Jbrowse perl files to generate a track for that specific gene
-        subprocess.run([command, '-q', '--in %s' % genesPath, '--out %s' % geneTrackPath, '--track' % gene])
+        os.system(generateTrack)
 
         addGeneCategory(geneTrackPath, 'Reference / Genes')
 
@@ -253,8 +255,10 @@ def generateProblemTrack(path):
 
         command = os.path.join(cfg.jbrowsePath, 'bin', 'flatfile-to-json.pl')
 
+        generateTrack = '%s --bed %s --out %s --trackLabel Problems' % (command, path, trackFolder)
+
         # Will generate a jbrowse track using the problems.bed flatfile
-        subprocess.run([command, '--bed %s' % path, '--out %s' % trackFolder, '--trackLabel Problems'])
+        os.system(generateTrack)
 
         addGeneCategory(trackFolder, 'Reference')
 
