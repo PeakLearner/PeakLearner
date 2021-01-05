@@ -1,8 +1,9 @@
-pandas~=1.1.4
-numpy >= "1.1.4"
-requests
-simpleBDB >= "1.0.10"
-bsddb3
-pybbi
-pyramid-jinja2
-pyramid
+numpy==1.19.4
+pandas==1.1.4
+pyramid==1.10.5
+pyramid-jinja2==2.8
+requests==2.23.0
+simpleBDB==1.0.10
+git+git://github.com/deltarod/PeakError
+git+git://github.com/deltarod/PeakSegDisk
+git+git://github.com/deltarod/LOPART

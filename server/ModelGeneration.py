@@ -2,9 +2,10 @@ import bbi
 import os
 import sys
 import time
+import tempfile
 import numpy as np
 import pandas as pd
-import tempfile
+import PeakSegDisk
 import requests
 import threading
 
@@ -43,12 +44,11 @@ def model(job):
 def generateModel(dataPath, stepData, trackUrl):
     coveragePath = os.path.join(dataPath, 'coverage.bedGraph')
 
-    command = 'Rscript %s %s %f' % (modelGenPath, coveragePath, stepData['penalty'])
-
-    os.system(command)
-
     segmentsPath = '%s_penalty=%f_segments.bed' % (coveragePath, stepData['penalty'])
     lossPath = '%s_penalty=%f_loss.tsv' % (coveragePath, stepData['penalty'])
+
+    with tempfile.NamedTemporaryFile(suffix='.db') as db:
+        PeakSegDisk.FPOP_files(coveragePath, segmentsPath, lossPath, str(stepData['penalty']), db.name)
 
     if os.path.exists(segmentsPath):
         sendSegments(segmentsPath, stepData, trackUrl)
