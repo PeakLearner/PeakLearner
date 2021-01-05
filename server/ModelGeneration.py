@@ -47,8 +47,7 @@ def generateModel(dataPath, stepData, trackUrl):
     segmentsPath = '%s_penalty=%f_segments.bed' % (coveragePath, stepData['penalty'])
     lossPath = '%s_penalty=%f_loss.tsv' % (coveragePath, stepData['penalty'])
 
-    with tempfile.NamedTemporaryFile(suffix='.db') as db:
-        PeakSegDisk.FPOP_files(coveragePath, segmentsPath, lossPath, str(stepData['penalty']), db.name)
+    PeakSegDisk.FPOP_files(coveragePath, segmentsPath, lossPath, str(stepData['penalty']))
 
     if os.path.exists(segmentsPath):
         sendSegments(segmentsPath, stepData, trackUrl)
