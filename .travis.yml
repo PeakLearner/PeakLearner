@@ -9,8 +9,7 @@ python:
 
 before_install:
   - sudo apt-get update
-  - sudo apt-get -y install libdb-dev libdb++-dev slurm-wlm samtools r-base-dev
-  - sudo Rscript -e 'install.packages("PeakSegDisk")'
+  - sudo apt-get -y install libdb-dev libdb++-dev slurm-wlm samtools
   - mkdir bin/
   - cd bin/
   - wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigSummary
@@ -22,7 +21,6 @@ before_install:
   - python --version
   - pip install -U pip
   - pip install -U pytest
-  - pip install git+https://github.com/deltarod/PeakError.git
   - pip install codecov
   - sudo mkdir /var/spool/slurm-llnl/
   - sudo chown slurm /var/spool/slurm-llnl/
