@@ -19,22 +19,33 @@ The Slurm Server should work with 3.6 and up but this is also untested.
 ### Web Server
 1. `git clone https://github.com/deltarod/PeakLearner.git`
 2. `cd PeakLearner/`
-3. `git submodule update --init --recursive` - Initializes recursive submodules
-4. `sudo apt update && sudo apt install samtools libdb5.3-dev`
-5. `python3 -m pip install -r requirements.txt` - Installs Python Requirements
-6. `cd jbrowse`
-7. `./setup.sh`
-8. `cd ..`
-9. Install [PeakError](https://github.com/deltarod/PeakError/)
-10. `python3 run.py`
+3. `mkdir bin`
+4. `cd bin/`
+5. `wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigSummary`
+6. `sudo chmod a+x bigWigSummary`
+7. `cd ..`
+8. `git submodule update --init --recursive` - Initializes recursive submodules
+9. `sudo apt update && sudo apt install samtools libdb5.3-dev`
+10. `python3 -m pip install -r requirements.txt` - Installs Python Requirements
+11. `cd jbrowse`
+12. `./setup.sh`
+13. `cd ..`
+14. Install [pyPeakError](https://github.com/deltarod/PeakError/)
+15. Install [pyLOPART](https://github.com/deltarod/LOPART)
+16. `python3 run.py`
 
 The PeakLearner + Jbrowse webserver should now be started, and can be access at 127.0.0.1:8081.
 
 ### Slurm Server
 1. `git clone https://github.com/deltarod/PeakLearner.git`
-2. `cd PeakLearner/server/`
-3. `python3 run.py` - This will generate the intial config
-4. Setup PeakLearnerSlurm.cfg, for more information see the [configuration section](#configuration)
+2. `cd PeakLearner/`
+3. `mkdir bin`
+4. `cd bin/`
+5. `wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigToBedGraph`
+6. `sudo chmod a+x bigWigToBedGraph`
+7. `cd ../server/`
+8. `python3 run.py` - This will generate the intial config
+9. Setup PeakLearnerSlurm.cfg, for more information see the [configuration section](#configuration)
 
 
 ## Configuration

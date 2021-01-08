@@ -1,5 +1,6 @@
 from pyramid.view import view_config
 from api.Handlers import Jobs, Hubs
+import json
 
 
 @view_config(route_name='jobInfo', renderer='json')
@@ -21,7 +22,10 @@ def jobs(request):
 def uploadHubUrl(request):
     if 'POST' == request.method:
         # TODO: Implement user authentication (and maybe an anonymous user?)
-        return Hubs.parseHub({'user': 1, 'url': request.json_body['args']['hubUrl']})
+        try:
+            return Hubs.parseHub({'user': 1, 'url': request.json_body['args']['hubUrl']})
+        except json.decoder.JSONDecodeError:
+            return Hubs.parseHub({'user': 1, 'url': request.POST['hubUrl']})
     return
 
 

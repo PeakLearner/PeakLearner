@@ -38,3 +38,9 @@ def trackData(request):
 @view_config(route_name='newHub', renderer='newHub.html')
 def newHub(request):
     return {}
+
+
+@view_config(route_name='tutorial', renderer='tutorial.html')
+def tutorial(request):
+    return {}
+
