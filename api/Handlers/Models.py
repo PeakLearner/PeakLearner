@@ -1,5 +1,8 @@
 import PeakError
+import LOPART
+import subprocess
 import pandas as pd
+import numpy as np
 from api.util import PLConfig as pl, PLdb as db
 from api.Handlers import Labels, Jobs, Tracks, Handler
 
@@ -29,22 +32,29 @@ def getModels(data):
 
     for problem in problems:
         # TODO: Replace 1 with user of hub NOT current user
-        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart']).get()
+        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
+                                           problem['chromStart']).get()
 
         if len(modelSummaries.index) < 1:
             # TODO: DEFAULT LOPART HERE
+            lopartOutput = generateLOPARTModel(data, problem)
+            output.extend(lopartOutput)
             continue
 
         nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
 
         if len(nonZeroRegions.index) < 1:
+            lopartOutput = generateLOPARTModel(data, problem)
+            print('nonZero lopart output\n', lopartOutput)
             # TODO: DEFAULT LOPART HERE
             continue
 
         noError = nonZeroRegions[nonZeroRegions['errors'] < 1]
 
         if len(noError.index) < 1:
-            #TODO: LOPART HERE
+            lopartOutput = generateLOPARTModel(data, problem)
+            print('noError lopart output\n', lopartOutput)
+            # TODO: LOPART HERE
             continue
 
         elif len(noError.index) > 1:
@@ -55,7 +65,8 @@ def getModels(data):
         penalty = noError['penalty'].iloc[0]
 
         # TODO: Replace 1 with user of hub NOT current user
-        minErrorModel = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'], penalty)
+        minErrorModel = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'],
+                                 penalty)
 
         # TODO: If no good model, do LOPART
 
@@ -64,9 +75,9 @@ def getModels(data):
         # Organize the columns
         onlyPeaks = onlyPeaks[modelColumns]
         onlyPeaks.columns = jbrowseModelColumns
-
+        print(onlyPeaks.to_dict('records'))
         output.extend(onlyPeaks.to_dict('records'))
-
+    print('getModels output', output)
     return output
 
 
@@ -75,7 +86,8 @@ def updateAllModelLabels(data, labels):
     problems = Tracks.getProblems(data)
 
     for problem in problems:
-        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'])
+        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
+                                           problem['chromStart'])
         modelsums = modelSummaries.get()
 
         if len(modelsums.index) < 1:
@@ -239,7 +251,8 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
     if len(labels.index) < 1 > numPeaks:
         return getErrorSeries(penalty, numPeaks)
 
-    labelsIsInProblem = labels.apply(db.checkInBounds, axis=1, args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
+    labelsIsInProblem = labels.apply(db.checkInBounds, axis=1,
+                                     args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
 
     labelsInProblem = labels[labelsIsInProblem]
 
@@ -280,7 +293,7 @@ def getModelSummary(data):
 
 def getErrorSeries(penalty, numPeaks):
     return pd.Series({'regions': 0, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
-                             'errors': 0, 'penalty': penalty, 'numPeaks': numPeaks})
+                      'errors': 0, 'penalty': penalty, 'numPeaks': numPeaks})
 
 
 def getPrePenalties(problem, data):
@@ -288,20 +301,104 @@ def getPrePenalties(problem, data):
 
     # TODO: Make this actually learn based on previous data
 
-    return [100, 1000, 10000, 100000, 1000000]
+    return [1000, 10000, 100000, 1000000]
+
+
+# TODO: This could be better (learning a penalty based on PeakSegDisk Models?)
+def getLOPARTPenalty(data):
+    tempPenalties = {0.005: 2000, 0.02: 5000, 0.1: 10000}
+    try:
+        return tempPenalties[data['scale']]
+    except KeyError:
+        return 5000
 
 
 def generateLOPARTModel(data, problem):
-    print('data\n', data, '\nproblem', problem)
-    # Get URL
+    hubInfo = db.HubInfo(data['user'], data['hub']).get()
 
-    # Get Summary Data
+    if not db.checkInBounds(problem, data['ref'], data['start'], data['end']):
+        return
 
-    # Get LOPART Penalty
+    trackUrl = hubInfo['tracks'][data['track']]['url']
 
-    # Generate LOPART Model
+    sumOut = subprocess.run(['bin/bigWigSummary',
+                             trackUrl,
+                             data['ref'],
+                             str(data['start']),
+                             str(data['end']),
+                             str(data['width'])],
+                            stdout=subprocess.PIPE).stdout.decode('utf-8')
 
-    # Format LOPART Model
+    sumData = sumOut.split()
+    floatData = []
+    for i in sumData:
+        if i == 'n/a':
+            floatData.append(0)
+        else:
+            floatData.append(float(i))
 
-    # Return LOPART Model
+    dbLabels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
+    labels = dbLabels.getInBounds(data['ref'], data['start'], data['end'])
+    denom = data['end'] - data['start']
 
+    if len(labels.index) < 1:
+        labelsToUse = pd.DataFrame({'start': [1], 'end': [2], 'change': [-1]})
+    else:
+        lopartLabels = labels[(labels['annotation'] != 'unknown') & (labels['annotation'] != 'peak')]
+
+        if len(lopartLabels.index) < 1:
+            labelsToUse = pd.DataFrame({'start': [1], 'end': [2], 'change': [-1]})
+        else:
+            labelsToUse = labels.apply(ConvertLabelsToLopart, axis=1, args=(data['start'], denom, data['width']))
+
+    lopartOut = LOPART.runSlimLOPART(floatData, labelsToUse, getLOPARTPenalty(data))
+
+    if len(lopartOut.index) <= 0:
+        return []
+
+    lopartOut['ref'] = data['ref']
+
+    output = []
+
+    prev = None
+    justStarted = False
+    for index, row in lopartOut.iterrows():
+        if prev is None:
+            prev = row
+            justStarted = True
+            continue
+        if justStarted:
+            justStarted = False
+            if prev['height'] > row['height']:
+                output.append({'ref': prev['ref'],
+                               'start': prev['start'],
+                               'end': prev['end'],
+                               'score': prev['height'],
+                               'type': 'lopart'})
+        if prev['height'] < row['height']:
+            output.append({'ref': row['ref'],
+                           'start': row['start'],
+                           'end': row['end'],
+                           'score': row['height'],
+                           'type': 'lopart'})
+
+        prev = row
+
+    return output
+
+
+def ConvertLabelsToLopart(row, modelStart, denom, width):
+    scaledStart = round(((row['chromStart'] - modelStart) * width) / denom)
+    scaledEnd = round(((row['chromEnd'] - modelStart) * width) / denom)
+    if scaledStart < 0:
+        scaledStart = 0
+    row['start'] = scaledStart
+    if scaledEnd > width:
+        scaledEnd = width
+    row['end'] = scaledEnd
+
+    if row['annotation'] == 'peakStart' or row['annotation'] == 'peakEnd':
+        row['change'] = 1
+    else:
+        row['change'] = 0
+    return row

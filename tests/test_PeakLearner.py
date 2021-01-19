@@ -276,9 +276,7 @@ def test_models():
 
     problemSum = checkModelSumLoop(startLabel, startTime, problem, numModels)
 
-    expected = [{'errors': 1.0, 'fn': 0.0, 'fp': 1.0, 'numPeaks': 6306.0, 'penalty': '100', 'possible_fn': 1.0,
-                 'possible_fp': 1.0, 'regions': 1.0},
-                {'errors': 1.0, 'fn': 0.0, 'fp': 1.0, 'numPeaks': 262.0, 'penalty': '1000', 'possible_fn': 1.0,
+    expected = [{'errors': 1.0, 'fn': 0.0, 'fp': 1.0, 'numPeaks': 262.0, 'penalty': '1000', 'possible_fn': 1.0,
                  'possible_fp': 1.0, 'regions': 1.0},
                 {'errors': 0.0, 'fn': 0.0, 'fp': 0.0, 'numPeaks': 48.0, 'penalty': '10000', 'possible_fn': 1.0,
                  'possible_fp': 1.0, 'regions': 1.0},
@@ -313,9 +311,7 @@ def test_models():
 
     contig = sums[str(problem['chromStart'])]
 
-    expected = [{'regions': 2, 'fp': 2, 'possible_fp': 2, 'fn': 0, 'possible_fn': 2, 'errors': 2, 'penalty': '100',
-                 'numPeaks': 6306},
-                {'regions': 2, 'fp': 2, 'possible_fp': 2, 'fn': 0, 'possible_fn': 2, 'errors': 2, 'penalty': '1000',
+    expected = [{'regions': 2, 'fp': 2, 'possible_fp': 2, 'fn': 0, 'possible_fn': 2, 'errors': 2, 'penalty': '1000',
                  'numPeaks': 262},
                 {'regions': 2, 'fp': 0, 'possible_fp': 2, 'fn': 0, 'possible_fn': 2, 'errors': 0,
                  'penalty': '10000', 'numPeaks': 48},
@@ -357,9 +353,7 @@ def test_models():
 
     gridContig = checkModelSumLoop(startLabel, startTime, problem, numModels)
 
-    expected = [{'regions': 3, 'fp': 3, 'possible_fp': 3, 'fn': 0, 'possible_fn': 2, 'errors': 3, 'penalty': '100',
-                 'numPeaks': 6306},
-                {'regions': 3, 'fp': 3, 'possible_fp': 3, 'fn': 0, 'possible_fn': 2, 'errors': 3, 'penalty': '1000',
+    expected = [{'regions': 3, 'fp': 3, 'possible_fp': 3, 'fn': 0, 'possible_fn': 2, 'errors': 3, 'penalty': '1000',
                  'numPeaks': 262},
                 {'regions': 3, 'fp': 1, 'possible_fp': 3, 'fn': 0, 'possible_fn': 2, 'errors': 1,
                  'penalty': '10000', 'numPeaks': 48},
