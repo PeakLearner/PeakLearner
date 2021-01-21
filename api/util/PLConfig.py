@@ -30,6 +30,13 @@ if 'data' not in configSections:
 
     save = True
 
+if 'learning' not in configSections:
+    config.add_section('learning')
+    config['learning']['timeBetween'] = '600'
+    config['learning']['numChanges'] = '10'
+
+    save = True
+
 # If a section was missing, save that to the config
 if save:
     with open(configFile, 'w') as cfg:
@@ -40,6 +47,8 @@ httpServerPort = int(config['http']['port'])
 jbrowsePath = config['http']['path']
 
 dataPath = config['data']['path']
+timeBetween = int(config['learning']['timeBetween'])
+numChanges = int(config['learning']['numChanges'])
 
 
 def testing():

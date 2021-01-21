@@ -1,3 +1,3 @@
-from . import PLConfig, PLdb
+from . import PLConfig, PLdb, bigWigUtil
 
-__all__ = ['PLConfig', 'PLdb']
+__all__ = ['PLConfig', 'PLdb', 'bigWigUtil']

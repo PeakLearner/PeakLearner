@@ -1,8 +1,7 @@
-import os
-import json
 import pandas as pd
 from api.util import PLdb as db
 from api.Handlers import Models, Handler
+from api.Prediction import PeakSegDiskPredict as psgPredict
 
 labelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
 jbrowseLabelColumns = ['ref', 'start', 'end', 'label']

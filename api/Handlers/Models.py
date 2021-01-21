@@ -3,7 +3,7 @@ import LOPART
 import subprocess
 import pandas as pd
 import numpy as np
-from api.util import PLConfig as pl, PLdb as db
+from api.util import PLConfig as pl, PLdb as db, bigWigUtil as bw
 from api.Handlers import Labels, Jobs, Tracks, Handler
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
@@ -36,28 +36,30 @@ def getModels(data):
                                            problem['chromStart']).get()
 
         if len(modelSummaries.index) < 1:
-            # TODO: DEFAULT LOPART HERE
             lopartOutput = generateLOPARTModel(data, problem)
             output.extend(lopartOutput)
+            if len(problems) <= 1:
+                submitPregenJob(problem, data)
             continue
 
         nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
 
         if len(nonZeroRegions.index) < 1:
             lopartOutput = generateLOPARTModel(data, problem)
-            print('nonZero lopart output\n', lopartOutput)
-            # TODO: DEFAULT LOPART HERE
+            output.extend(lopartOutput)
             continue
 
         noError = nonZeroRegions[nonZeroRegions['errors'] < 1]
 
         if len(noError.index) < 1:
             lopartOutput = generateLOPARTModel(data, problem)
-            print('noError lopart output\n', lopartOutput)
-            # TODO: LOPART HERE
+            output.extend(lopartOutput)
             continue
 
         elif len(noError.index) > 1:
+            # Uses highest penalty with 0 label error
+            # This will result in underfitting
+            # TODO: make model choice a function
             noError = noError[noError['numPeaks'] == noError['numPeaks'].min()]
 
         # Uses first penalty with min label error
@@ -314,32 +316,24 @@ def getLOPARTPenalty(data):
 
 
 def generateLOPARTModel(data, problem):
-    hubInfo = db.HubInfo(data['user'], data['hub']).get()
+    user = data['user']
+    hub = data['hub']
+    track = data['track']
+    chrom = data['ref']
+    start = data['start']
+    end = data['end']
+    hubInfo = db.HubInfo(user, hub).get()
+    trackUrl = hubInfo['tracks'][data['track']]['url']
+    bins = data['width']
 
-    if not db.checkInBounds(problem, data['ref'], data['start'], data['end']):
+    if not db.checkInBounds(problem, chrom, start, end):
         return
 
-    trackUrl = hubInfo['tracks'][data['track']]['url']
+    sumData = bw.bigWigSummary(trackUrl, chrom, start, end, bins)
 
-    sumOut = subprocess.run(['bin/bigWigSummary',
-                             trackUrl,
-                             data['ref'],
-                             str(data['start']),
-                             str(data['end']),
-                             str(data['width'])],
-                            stdout=subprocess.PIPE).stdout.decode('utf-8')
-
-    sumData = sumOut.split()
-    floatData = []
-    for i in sumData:
-        if i == 'n/a':
-            floatData.append(0)
-        else:
-            floatData.append(float(i))
-
-    dbLabels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-    labels = dbLabels.getInBounds(data['ref'], data['start'], data['end'])
-    denom = data['end'] - data['start']
+    dbLabels = db.Labels(user, hub, track, chrom)
+    labels = dbLabels.getInBounds(chrom, start, end)
+    denom = end - start
 
     if len(labels.index) < 1:
         labelsToUse = pd.DataFrame({'start': [1], 'end': [2], 'change': [-1]})
@@ -349,14 +343,14 @@ def generateLOPARTModel(data, problem):
         if len(lopartLabels.index) < 1:
             labelsToUse = pd.DataFrame({'start': [1], 'end': [2], 'change': [-1]})
         else:
-            labelsToUse = labels.apply(ConvertLabelsToLopart, axis=1, args=(data['start'], denom, data['width']))
+            labelsToUse = labels.apply(ConvertLabelsToLopart, axis=1, args=(start, denom, bins))
 
-    lopartOut = LOPART.runSlimLOPART(floatData, labelsToUse, getLOPARTPenalty(data))
+    lopartOut = LOPART.runSlimLOPART(sumData, labelsToUse, getLOPARTPenalty(data))
 
     if len(lopartOut.index) <= 0:
         return []
 
-    lopartOut['ref'] = data['ref']
+    lopartOut['ref'] = chrom
 
     output = []
 
@@ -387,14 +381,14 @@ def generateLOPARTModel(data, problem):
     return output
 
 
-def ConvertLabelsToLopart(row, modelStart, denom, width):
-    scaledStart = round(((row['chromStart'] - modelStart) * width) / denom)
-    scaledEnd = round(((row['chromEnd'] - modelStart) * width) / denom)
+def ConvertLabelsToLopart(row, modelStart, denom, bins):
+    scaledStart = round(((row['chromStart'] - modelStart) * bins) / denom)
+    scaledEnd = round(((row['chromEnd'] - modelStart) * bins) / denom)
     if scaledStart < 0:
         scaledStart = 0
     row['start'] = scaledStart
-    if scaledEnd > width:
-        scaledEnd = width
+    if scaledEnd > bins:
+        scaledEnd = bins
     row['end'] = scaledEnd
 
     if row['annotation'] == 'peakStart' or row['annotation'] == 'peakEnd':
