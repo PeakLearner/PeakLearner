@@ -27,7 +27,7 @@ The Slurm Server should work with 3.6 and up but this is also untested.
 8. `git submodule update --init --recursive` - Initializes recursive submodules
 9. `sudo apt update && sudo apt install samtools libdb5.3-dev`
 10. `python3 -m pip install -r requirements.txt` - Installs Python Requirements
-11. `cd jbrowse`
+11. `cd jbrowse/jbrowse`
 12. `./setup.sh`
 13. `cd ..`
 14. Install [pyPeakError](https://github.com/deltarod/PeakError/)
