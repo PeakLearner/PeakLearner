@@ -9,3 +9,4 @@
 /slurmdata/
 /runlog.txt
 bin/
+/PeakLearner.egg-info/

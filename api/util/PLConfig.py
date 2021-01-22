@@ -20,7 +20,7 @@ save = False
 if 'http' not in configSections:
     config.add_section('http')
     config['http']['port'] = '8081'
-    config['http']['path'] = 'jbrowse/'
+    config['http']['path'] = 'jbrowse/jbrowse/'
 
     save = True
 

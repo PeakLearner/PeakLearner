@@ -31,15 +31,11 @@ def getModels(data):
     output = []
 
     for problem in problems:
-        # TODO: Replace 1 with user of hub NOT current user
         modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart']).get()
-
         if len(modelSummaries.index) < 1:
             lopartOutput = generateLOPARTModel(data, problem)
             output.extend(lopartOutput)
-            if len(problems) <= 1:
-                submitPregenJob(problem, data)
             continue
 
         nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
@@ -66,11 +62,8 @@ def getModels(data):
         # This will favor the model with the lowest penalty, given that summary is sorted
         penalty = noError['penalty'].iloc[0]
 
-        # TODO: Replace 1 with user of hub NOT current user
         minErrorModel = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'],
                                  penalty)
-
-        # TODO: If no good model, do LOPART
 
         model = minErrorModel.getInBounds(data['ref'], data['start'], data['end'])
         onlyPeaks = model[model['annotation'] == 'peak']
@@ -79,7 +72,6 @@ def getModels(data):
         onlyPeaks.columns = jbrowseModelColumns
         print(onlyPeaks.to_dict('records'))
         output.extend(onlyPeaks.to_dict('records'))
-    print('getModels output', output)
     return output
 
 
@@ -343,7 +335,7 @@ def generateLOPARTModel(data, problem):
         if len(lopartLabels.index) < 1:
             labelsToUse = pd.DataFrame({'start': [1], 'end': [2], 'change': [-1]})
         else:
-            labelsToUse = labels.apply(ConvertLabelsToLopart, axis=1, args=(start, denom, bins))
+            labelsToUse = labels.apply(ConvertLabelsToLopart, axis=1, args=(start, end, denom, bins))
 
     lopartOut = LOPART.runSlimLOPART(sumData, labelsToUse, getLOPARTPenalty(data))
 
@@ -381,11 +373,11 @@ def generateLOPARTModel(data, problem):
     return output
 
 
-def ConvertLabelsToLopart(row, modelStart, denom, bins):
+def ConvertLabelsToLopart(row, modelStart, modelEnd, denom, bins):
     scaledStart = round(((row['chromStart'] - modelStart) * bins) / denom)
     scaledEnd = round(((row['chromEnd'] - modelStart) * bins) / denom)
-    if scaledStart < 0:
-        scaledStart = 0
+    if scaledStart <= 1:
+        scaledStart = 1
     row['start'] = scaledStart
     if scaledEnd > bins:
         scaledEnd = bins

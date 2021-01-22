@@ -1,6 +1,7 @@
 import os
 import api.util.PLConfig as cfg
 import simpleBDB as db
+import atexit
 
 
 dbPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'db')
@@ -10,6 +11,9 @@ db.createEnvWithDir(dbPath)
 
 def close():
     db.close_db()
+
+
+# atexit.register(close)
 
 
 def getTxn():

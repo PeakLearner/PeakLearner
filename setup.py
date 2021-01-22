@@ -4,7 +4,6 @@ from setuptools import setup
 # by virtue of the Setuptools `install_requires` value below.
 requires = [
     'pyramid',
-    'pyramid_chameleon',
     'pyramid_jinja2',
     'waitress',
     'pandas',
@@ -22,13 +21,14 @@ dev_requires = [
 
 setup(
     name='PeakLearner',
+    version='0.0.1',
     install_requires=requires,
     extras_require={
         'dev': dev_requires,
     },
     entry_points={
         'paste.app_factory': [
-            'main = website:main'
+            'main = PeakLearner:main'
         ],
     },
 )

@@ -25,9 +25,9 @@ def runLearning():
 def learn():
     print()
 
-    if # Enough labeled regions
+    # if # Enough labeled regions
 
-        if changes > cfg.numChanges:
+    #    if changes > cfg.numChanges:
 
 
     # if conditions to learn, start learning
