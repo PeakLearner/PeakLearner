@@ -29,7 +29,7 @@ before_install:
   - cd jbrowse/jbrowse
   - ./setup.sh
   - cd ../../
-  - pip install ".[dev]"
+  - pip install -e ".[dev]"
 
 script:
   # Setup slurm.conf for testing
