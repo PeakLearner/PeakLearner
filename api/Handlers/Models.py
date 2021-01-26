@@ -45,7 +45,12 @@ def getModels(data):
             output.extend(lopartOutput)
             continue
 
-        noError = nonZeroRegions[nonZeroRegions['errors'] < 1]
+        withPeaks = nonZeroRegions[nonZeroRegions['numPeaks'] > 0]
+
+        if len(withPeaks.index) < 1:
+            continue
+
+        noError = withPeaks[withPeaks['errors'] < 1]
 
         if len(noError.index) < 1:
             lopartOutput = generateLOPARTModel(data, problem)
@@ -70,8 +75,8 @@ def getModels(data):
         # Organize the columns
         onlyPeaks = onlyPeaks[modelColumns]
         onlyPeaks.columns = jbrowseModelColumns
-        print(onlyPeaks.to_dict('records'))
         output.extend(onlyPeaks.to_dict('records'))
+
     return output
 
 
@@ -88,30 +93,26 @@ def updateAllModelLabels(data, labels):
             submitPregenJob(problem, data)
             continue
 
-        txn = db.getTxn()
+        newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem))
 
-        newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem, txn))
-
-        item, after = modelSummaries.add(newSum, txn=txn)
+        item, after = modelSummaries.add(newSum)
         checkGenerateModels(after, problem, data)
 
-        txn.commit()
 
-
-def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
+def modelSumLabelUpdate(modelSum, labels, data, problem):
     model = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
-                     problem['chromStart'], modelSum['penalty']).get(txn=txn)
+                     problem['chromStart'], modelSum['penalty']).get()
 
     return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
 
 
 def checkGenerateModels(modelSums, problem, data):
-    nonZeroRegions = modelSums[modelSums['regions'] > 0]
+    nonZeroLabels = modelSums[modelSums['regions'] > 0]
 
-    if len(nonZeroRegions.index) == 0:
+    if len(nonZeroLabels.index) == 0:
         return
 
-    minError = nonZeroRegions[nonZeroRegions['errors'] == nonZeroRegions['errors'].min()]
+    minError = nonZeroLabels[nonZeroLabels['errors'] == nonZeroLabels['errors'].min()]
 
     if len(minError.index) == 0:
         return
@@ -227,12 +228,10 @@ def putModel(data):
     hub = modelInfo['hub']
     track = modelInfo['track']
 
-    txn = db.getTxn()
-    db.Model(user, hub, track, problem['chrom'], problem['chromStart'], penalty).put(modelData, txn=txn)
-    labels = db.Labels(user, hub, track, problem['chrom']).get(txn=txn)
+    db.Model(user, hub, track, problem['chrom'], problem['chromStart'], penalty).put(modelData)
+    labels = db.Labels(user, hub, track, problem['chrom']).get()
     errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
-    db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
-    txn.commit()
+    db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum)
 
     return modelInfo
 
@@ -241,22 +240,28 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
     labels = labels[labels['annotation'] != 'unknown']
     peaks = modelDf[modelDf['annotation'] == 'peak']
     numPeaks = len(peaks.index)
+    numLabels = len(labels.index)
 
-    if len(labels.index) < 1 > numPeaks:
-        return getErrorSeries(penalty, numPeaks)
+    if numLabels < 1:
+        return getErrorSeries(penalty, numPeaks, numLabels)
 
     labelsIsInProblem = labels.apply(db.checkInBounds, axis=1,
                                      args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
 
+    if numPeaks < 1:
+        return getErrorSeries(penalty, numPeaks, numLabels)
+
     labelsInProblem = labels[labelsIsInProblem]
 
-    if len(labels.index) < 1:
-        return getErrorSeries(penalty, numPeaks)
+    numLabelsInProblem = len(labelsInProblem.index)
+
+    if numLabelsInProblem < 1:
+        return getErrorSeries(penalty, numPeaks, numLabels)
 
     error = PeakError.error(peaks, labelsInProblem)
 
     if error is None:
-        return getErrorSeries(penalty, numPeaks)
+        return getErrorSeries(penalty, numPeaks, numLabels)
 
     summary = PeakError.summarize(error)
     summary.columns = summaryColumns
@@ -285,8 +290,8 @@ def getModelSummary(data):
     return output
 
 
-def getErrorSeries(penalty, numPeaks):
-    return pd.Series({'regions': 0, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
+def getErrorSeries(penalty, numPeaks, regions=0):
+    return pd.Series({'regions': regions, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
                       'errors': 0, 'penalty': penalty, 'numPeaks': numPeaks})
 
 

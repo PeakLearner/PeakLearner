@@ -24,6 +24,7 @@ class LabelHandler(Handler.TrackHandler):
 
 def addLabel(data):
     label = 'unknown'
+    print('adding label for track', data['track'])
 
     # Duplicated because calls from updateLabel are causing freezing
     newLabel = pd.Series({'chrom': data['ref'],
@@ -31,9 +32,7 @@ def addLabel(data):
                           'chromEnd': data['end'],
                           'annotation': label})
 
-    txn = db.getTxn()
-    db.Labels(data['user'], data['hub'], data['track'], data['ref']).add(newLabel, txn=txn)
-    txn.commit()
+    db.Labels(data['user'], data['hub'], data['track'], data['ref']).add(newLabel)
 
     return data
 
@@ -44,10 +43,8 @@ def removeLabel(data):
                           'chromStart': data['start'],
                           'chromEnd': data['end']})
 
-    txn = db.getTxn()
     labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-    removed, after = labels.remove(toRemove, txn=txn)
-    txn.commit()
+    removed, after = labels.remove(toRemove)
     Models.updateAllModelLabels(data, after)
     return removed.to_dict()
 
@@ -59,10 +56,8 @@ def updateLabel(data):
                           'chromStart': data['start'],
                           'chromEnd': data['end'],
                           'annotation': label})
-    txn = db.getTxn()
     labelDb = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-    item, labels = labelDb.add(updateLabel, txn=txn)
-    txn.commit()
+    item, labels = labelDb.add(updateLabel)
     Models.updateAllModelLabels(data, labels)
     return item.to_dict()
 

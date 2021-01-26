@@ -20,9 +20,8 @@ class JobHandler(Handler):
 
 # Adds new job to list for slurm server to process
 def updateJob(data):
-    txn = db.getTxn()
-    updated, current = db.Job('jobs').add(data, txn=txn)
-    txn.commit()
+    print('updating job')
+    updated, current = db.Job('jobs').add(data)
 
     return updated
 
@@ -40,13 +39,12 @@ def getJob(data):
 
 
 def removeJob(data):
-    txn = db.getTxn()
-    output = db.Job('jobs').remove(data, txn=txn)
-    txn.commit()
+    output = db.Job('jobs').remove(data)
     return output
 
 
 def getAllJobs(data):
     output = db.Job('jobs').get()
+    print('getting all jobs', output)
     if len(output) >= 1:
         return output
