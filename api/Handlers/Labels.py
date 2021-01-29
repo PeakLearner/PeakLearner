@@ -32,7 +32,9 @@ def addLabel(data):
                           'chromEnd': data['end'],
                           'annotation': label})
 
-    db.Labels(data['user'], data['hub'], data['track'], data['ref']).add(newLabel)
+    txn = db.getTxn()
+    db.Labels(data['user'], data['hub'], data['track'], data['ref']).add(newLabel, txn)
+    txn.commit()
 
     return data
 
@@ -43,9 +45,11 @@ def removeLabel(data):
                           'chromStart': data['start'],
                           'chromEnd': data['end']})
 
+    txn = db.getTxn()
     labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
     removed, after = labels.remove(toRemove)
     Models.updateAllModelLabels(data, after)
+    txn.commit()
     return removed.to_dict()
 
 
@@ -56,9 +60,11 @@ def updateLabel(data):
                           'chromStart': data['start'],
                           'chromEnd': data['end'],
                           'annotation': label})
+    txn = db.getTxn()
     labelDb = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
     item, labels = labelDb.add(updateLabel)
     Models.updateAllModelLabels(data, labels)
+    txn.commit()
     return item.to_dict()
 
 

@@ -4,7 +4,7 @@ import subprocess
 import pandas as pd
 import numpy as np
 from api.util import PLConfig as pl, PLdb as db, bigWigUtil as bw
-from api.Handlers import Labels, Jobs, Tracks, Handler
+from api.Handlers import Jobs, Tracks, Handler
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
@@ -87,21 +87,23 @@ def updateAllModelLabels(data, labels):
     for problem in problems:
         modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart'])
-        modelsums = modelSummaries.get()
+        txn = db.getTxn()
+        modelsums = modelSummaries.get(txn=txn, write=True)
 
         if len(modelsums.index) < 1:
             submitPregenJob(problem, data)
             continue
 
-        newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem))
+        newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem, txn))
 
-        item, after = modelSummaries.add(newSum)
+        item, after = modelSummaries.add(newSum, txn=txn)
         checkGenerateModels(after, problem, data)
+        txn.commit()
 
 
-def modelSumLabelUpdate(modelSum, labels, data, problem):
+def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
     model = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
-                     problem['chromStart'], modelSum['penalty']).get()
+                     problem['chromStart'], modelSum['penalty']).get(txn=txn)
 
     return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
 
@@ -228,11 +230,13 @@ def putModel(data):
     hub = modelInfo['hub']
     track = modelInfo['track']
 
-    db.Model(user, hub, track, problem['chrom'], problem['chromStart'], penalty).put(modelData)
-    labels = db.Labels(user, hub, track, problem['chrom']).get()
+    txn = db.getTxn()
+    db.Model(user, hub, track, problem['chrom'], problem['chromStart'], penalty).put(modelData, txn=txn)
+    labels = db.Labels(user, hub, track, problem['chrom']).get(txn=txn)
     errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
-    db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum)
-
+    db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
+    txn.commit()
+    
     return modelInfo
 
 

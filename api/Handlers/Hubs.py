@@ -128,8 +128,9 @@ def storeHubInfo(user, hub, tracks, hubInfo):
                                              'url': coverage['bigDataUrl']}
 
     hubInfo['tracks'] = hubInfoTracks
-
+    txn = db.getTxn()
     db.HubInfo(user, hub).put(hubInfo)
+    txn.commit()
 
     return '/%s/' % os.path.join(str(user), hub)
 

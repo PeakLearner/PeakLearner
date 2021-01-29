@@ -13,7 +13,8 @@ def close():
     db.close_db()
 
 
-# atexit.register(close)
+def getTxn():
+    return db.getEnvTxn()
 
 
 class Model(db.Resource):
