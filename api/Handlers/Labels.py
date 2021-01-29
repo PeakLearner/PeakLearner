@@ -1,5 +1,3 @@
-import os
-import json
 import pandas as pd
 from api.util import PLdb as db
 from api.Handlers import Models, Handler
@@ -33,7 +31,7 @@ def addLabel(data):
                           'annotation': label})
 
     txn = db.getTxn()
-    db.Labels(data['user'], data['hub'], data['track'], data['ref']).add(newLabel, txn=txn)
+    db.Labels(data['user'], data['hub'], data['track'], data['ref']).add(newLabel, txn)
     txn.commit()
 
     return data
@@ -47,9 +45,9 @@ def removeLabel(data):
 
     txn = db.getTxn()
     labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-    removed, after = labels.remove(toRemove, txn=txn)
-    txn.commit()
+    removed, after = labels.remove(toRemove)
     Models.updateAllModelLabels(data, after)
+    txn.commit()
     return removed.to_dict()
 
 
@@ -62,9 +60,9 @@ def updateLabel(data):
                           'annotation': label})
     txn = db.getTxn()
     labelDb = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-    item, labels = labelDb.add(updateLabel, txn=txn)
-    txn.commit()
+    item, labels = labelDb.add(updateLabel)
     Models.updateAllModelLabels(data, labels)
+    txn.commit()
     return item.to_dict()
 
 

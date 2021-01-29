@@ -1,6 +1,7 @@
 import os
 import api.util.PLConfig as cfg
 import simpleBDB as db
+import atexit
 
 
 dbPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'db')
@@ -13,14 +14,14 @@ def close():
 
 
 def getTxn():
-    return db.env.txn_begin()
+    return db.getEnvTxn()
 
 
 class Model(db.Resource):
     keys = ("user", "hub", "track", "chrom", "problemstart", "penalty")
 
-    def getInBounds(self, chrom, start, end, txn=None):
-        model = self.get(txn=txn)
+    def getInBounds(self, chrom, start, end):
+        model = self.get()
 
         isInBounds = model.apply(checkInBounds, axis=1, args=(chrom, start, end))
 
@@ -31,8 +32,8 @@ class Model(db.Resource):
 class Problems(db.Resource):
     keys = ("Genome",)
 
-    def getInBounds(self, chrom, start, end, txn=None):
-        problems = self.get(txn=txn)
+    def getInBounds(self, chrom, start, end):
+        problems = self.get()
 
         if problems is None:
             return None
@@ -157,8 +158,8 @@ class Labels(db.PandasDf):
 
         return df.drop(columns='floatStart')
 
-    def getInBounds(self, chrom, start, end, txn=None):
-        labels = self.get(txn=txn)
+    def getInBounds(self, chrom, start, end):
+        labels = self.get()
 
         if labels is None:
             return None
@@ -177,6 +178,7 @@ def checkInBounds(row, chrom, chromStart, chromEnd):
         if not chrom == row['chrom']:
             return False
     except KeyError:
+        print('row count', row.count)
         print("CheckInBoundsKeyError\nRow\n", row, '\n chrom', chrom, 'start', chromStart, 'end', chromEnd)
         return False
 

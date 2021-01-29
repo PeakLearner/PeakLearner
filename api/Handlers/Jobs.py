@@ -41,7 +41,7 @@ def getJob(data):
 
 def removeJob(data):
     txn = db.getTxn()
-    output = db.Job('jobs').remove(data, txn=txn)
+    output = db.Job('jobs').remove(data)
     txn.commit()
     return output
 
