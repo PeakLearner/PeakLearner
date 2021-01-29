@@ -1,7 +1,6 @@
 import pandas as pd
 from api.util import PLdb as db
 from api.Handlers import Models, Handler
-from api.Prediction import PeakSegDiskPredict as psgPredict
 
 labelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
 jbrowseLabelColumns = ['ref', 'start', 'end', 'label']
@@ -24,7 +23,6 @@ class LabelHandler(Handler.TrackHandler):
 
 def addLabel(data):
     label = 'unknown'
-    print('adding label for track', data['track'])
 
     # Duplicated because calls from updateLabel are causing freezing
     newLabel = pd.Series({'chrom': data['ref'],
