@@ -30,11 +30,10 @@ The Slurm Server should work with 3.6 and up but this is also untested.
 11. `cd jbrowse/jbrowse`
 12. `./setup.sh`
 13. `cd ..`
-14. Install [pyPeakError](https://github.com/deltarod/PeakError/)
-15. Install [pyLOPART](https://github.com/deltarod/LOPART)
-16. `python3 run.py`
+14. `pserve development.ini`
 
 The PeakLearner + Jbrowse webserver should now be started, and can be access at 127.0.0.1:8081.
+For use in deployment, 
 
 ### Slurm Server
 1. `git clone https://github.com/deltarod/PeakLearner.git`
