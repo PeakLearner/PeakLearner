@@ -92,18 +92,19 @@ def updateAllModelLabels(data, labels):
 
         if len(modelsums.index) < 1:
             submitPregenJob(problem, data)
+            txn.commit()
             continue
 
-        newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem, txn))
+        newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem))
 
-        item, after = modelSummaries.add(newSum, txn=txn)
-        checkGenerateModels(after, problem, data)
+        modelSummaries.put(newSum, txn=txn)
+        checkGenerateModels(newSum, problem, data)
         txn.commit()
 
 
-def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
+def modelSumLabelUpdate(modelSum, labels, data, problem):
     model = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
-                     problem['chromStart'], modelSum['penalty']).get(txn=txn)
+                     problem['chromStart'], modelSum['penalty']).get()
 
     return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
 
@@ -232,11 +233,11 @@ def putModel(data):
 
     txn = db.getTxn()
     db.Model(user, hub, track, problem['chrom'], problem['chromStart'], penalty).put(modelData, txn=txn)
-    labels = db.Labels(user, hub, track, problem['chrom']).get(txn=txn)
+    labels = db.Labels(user, hub, track, problem['chrom']).get(txn=txn, write=True)
     errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
     db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
     txn.commit()
-    
+
     return modelInfo
 
 
@@ -328,9 +329,11 @@ def generateLOPARTModel(data, problem):
     bins = data['width']
 
     if not db.checkInBounds(problem, chrom, start, end):
-        return
+        return []
 
     sumData = bw.bigWigSummary(trackUrl, chrom, start, end, bins)
+    if len(sumData) < 1:
+        return []
 
     dbLabels = db.Labels(user, hub, track, chrom)
     labels = dbLabels.getInBounds(chrom, start, end)
