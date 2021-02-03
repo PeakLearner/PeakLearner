@@ -19,8 +19,8 @@ save = False
 # Setup a default config if doesn't exist
 if 'http' not in configSections:
     config.add_section('http')
-    config['http']['port'] = '8081'
     config['http']['path'] = 'jbrowse/jbrowse/'
+    config['http']['backupPath'] = 'backup'
 
     save = True
 
@@ -43,12 +43,12 @@ if save:
         config.write(cfg)
 
 # get ports from config
-httpServerPort = int(config['http']['port'])
 jbrowsePath = config['http']['path']
 
 dataPath = config['data']['path']
 timeBetween = int(config['learning']['timeBetween'])
 numChanges = int(config['learning']['numChanges'])
+backupPath = config['http']['backupPath']
 
 
 def testing():

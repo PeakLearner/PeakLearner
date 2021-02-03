@@ -16,9 +16,9 @@ def runLearning():
         while not shutdownServer:
             if timeDiff() > cfg.timeBetween or firstStart:
                 firstStart = False
+                lastRun = time.time()
                 print('starting Learning')
                 learn()
-                lastRun = time.time()
             else:
                 time.sleep(1)
     except (KeyboardInterrupt, SystemExit):

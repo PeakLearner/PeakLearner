@@ -31,7 +31,8 @@ def addLabel(data):
                           'annotation': label})
 
     txn = db.getTxn()
-    db.Labels(data['user'], data['hub'], data['track'], data['ref']).add(newLabel, txn)
+    item, labels = db.Labels(data['user'], data['hub'], data['track'], data['ref']).add(newLabel, txn)
+    Models.updateAllModelLabels(data, labels)
     txn.commit()
 
     return data

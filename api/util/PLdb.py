@@ -1,4 +1,6 @@
 import os
+import json
+import datetime
 import api.util.PLConfig as cfg
 import simpleBDB as db
 import atexit
@@ -17,7 +19,7 @@ def getTxn():
     return db.getEnvTxn()
 
 
-class Model(db.Resource):
+class Model(db.PandasDf):
     keys = ("user", "hub", "track", "chrom", "problemstart", "penalty")
 
     def getInBounds(self, chrom, start, end):
@@ -29,7 +31,7 @@ class Model(db.Resource):
     pass
 
 
-class Problems(db.Resource):
+class Problems(db.PandasDf):
     keys = ("Genome",)
 
     def getInBounds(self, chrom, start, end):
@@ -217,6 +219,24 @@ class ModelSummaries(db.PandasDf):
     pass
 
 
+class Features(db.Resource):
+    keys = ("user", "hub", "track", "chrom", "problemstart")
+
+    def make_details(self):
+        return {}
+
+    def get(self, txn=None, write=False):
+        return json.loads(db.Resource.get(self, txn, write))
+
+    def put(self, value, txn=None):
+        db.Resource.put(self, json.dumps(value), txn)
+
+    def convert(self, value, *args):
+        return db.Resource.convert(self, value[0])
+
+    pass
+
+
 def updateSummaryInDf(row, item):
     if row['penalty'] == item['penalty']:
         return item
@@ -230,5 +250,68 @@ class HubInfo(db.Resource):
         return None
 
     pass
+
+
+backup_restore = [HubInfo, Features, ModelSummaries, Labels, Problems, Model]
+
+
+def getLastBackup():
+    if not os.path.exists(cfg.backupPath):
+        return
+
+    last_backup = None
+    firstCheck = True
+
+    for backup in os.listdir(cfg.backupPath):
+        backupTime = datetime.datetime.strptime(backup, '%Y-%m-%d %H:%M:%S.%f')
+        if firstCheck:
+            firstCheck = False
+            last_backup = backupTime
+            continue
+
+        if backupTime > last_backup:
+            last_backup = backupTime
+
+    return last_backup
+
+
+def doBackup(*args):
+    if not os.path.exists(cfg.backupPath):
+        try:
+            os.makedirs(cfg.backupPath)
+        except OSError:
+            return False
+
+    backupTime = str(datetime.datetime.now())
+
+    currentBackupPath = os.path.join(cfg.backupPath, backupTime)
+
+    if not os.path.exists(currentBackupPath):
+        try:
+            os.makedirs(currentBackupPath)
+        except OSError:
+            return False
+    for backup in backup_restore:
+        backup.doBackup(currentBackupPath, args)
+
+    return True
+
+
+def doRestore():
+    if not os.path.exists(cfg.backupPath):
+        return False
+
+    lastBackup = getLastBackup()
+
+    backupPath = os.path.join(cfg.backupPath, str(lastBackup))
+
+    for restore in backup_restore:
+        restore.doRestore(backupPath)
+
+
+
+    return True
+
+
 
 

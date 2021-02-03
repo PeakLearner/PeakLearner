@@ -4,7 +4,8 @@ import subprocess
 import pandas as pd
 import numpy as np
 from api.util import PLConfig as pl, PLdb as db, bigWigUtil as bw
-from api.Handlers import Jobs, Tracks, Handler
+from api.Handlers import Jobs, Tracks, Handler, Prediction
+
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
@@ -81,6 +82,7 @@ def getModels(data):
 
 
 def updateAllModelLabels(data, labels):
+    Prediction.change()
     # This is the problems that the label update is in
     problems = Tracks.getProblems(data)
 

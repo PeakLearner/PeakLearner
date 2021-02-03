@@ -10,6 +10,7 @@ def main(global_config, **settings):
     config.add_route('jbrowse', '/jbrowse/')
     config.add_route('newHub', '/newHub/')
     config.add_route('tutorial', '/tutorial/')
+    config.add_route('backup', '/backup/')
     config.add_static_view(name='tutorial/static', path='website:static/tutorial')
     config.add_route('uploadHubUrl', '/uploadHubUrl/')
     config.add_route('jobs', '/jobs/')
@@ -19,6 +20,8 @@ def main(global_config, **settings):
     config.scan('website.views')
 
     config.add_route('api', '/api/')
+    config.add_route('doBackup', '/doBackup/')
+    config.add_route('doRestore', '/doRestore/')
     config.add_route('hubInfo', '/{user}/{hub}/info/')
     config.add_route('hubData', '/{user}/{hub}/data/{handler}')
     config.add_route('trackData', '/{user}/{hub}/{track}/{handler}/')

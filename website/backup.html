@@ -1,0 +1,65 @@
+{% extends "templates/base.jinja2" %}
+
+{% block inner_head %}
+    <title>Backup Current System</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script type="text/javascript">
+
+        function backupCallback(data, status)
+        {
+            console.log(data)
+            console.log(status)
+        }
+
+        function restoreCallback(data, status)
+        {
+
+        }
+
+        function doBackup() {
+            $.ajax('/doBackup/', {
+                type: 'GET',
+                timeout: 60000,
+                success: backupCallback,
+            });
+        }
+
+        function doRestore(){
+            $.ajax('/doRestore/', {
+                type: 'GET',
+                timeout: 60000,
+                success: backupCallback,
+            });
+        }
+    </script>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Backup</h1><br>
+    <p id="backupStatus" hidden="true"></p>
+    <div class="row">
+        <div class="col-sm">
+            <p>last backup was: {{last_backup}}</p>
+            <p hidden="true"></p>
+        </div>
+        <div class="col-sm">
+            <button type="button" class="btn btn-light" onclick="doBackup()">Backup Data</button>
+        </div>
+    </div>
+    <h1>Restore</h1>
+        <p id="restoreStatus" hidden="true"></p>
+        <div class="row">
+        <div class="col-sm">
+            <p>last backup was: {{last_backup}}</p>
+            <p hidden="true"></p>
+        </div>
+        <div class="col-sm">
+            <button type="button" class="btn btn-light" onclick="doRestore()">Restore Data</button>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
+

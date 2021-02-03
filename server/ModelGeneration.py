@@ -14,7 +14,7 @@ try:
 except ModuleNotFoundError:
     import SlurmConfig as cfg
 
-modelGenPath = os.path.join('server', 'GenerateModel.R')
+genFeaturesPath = os.path.join('server', 'GenerateFeatures.R')
 
 
 def model(job):
@@ -52,7 +52,11 @@ def generateModel(dataPath, stepData, trackUrl):
     if os.path.exists(segmentsPath):
         sendSegments(segmentsPath, stepData, trackUrl)
     else:
-        print("No segments output")
+        raise Exception
+
+    if not cfg.debug:
+        os.remove(segmentsPath)
+        os.remove(lossPath)
 
     # TODO: Send Loss?
 
@@ -83,6 +87,7 @@ def sendSegments(segmentsFile, stepData, trackUrl):
 
     if not r.status_code == 204:
         print("Send Model Request Error", r.status_code)
+
 
 
 def getCoverageFile(job, dataPath, trackUrl):
@@ -132,6 +137,7 @@ def fixAndSaveCoverage(interval, outputPath, problem):
         output.append((problem['chrom'], prevEnd, problem['chromEnd'], 0))
 
     output = pd.DataFrame(output)
+    output.columns = ['chrom', 'chromStart', 'chromEnd', 'count']
 
     output.to_csv(outputPath, sep='\t', float_format='%d', header=False, index=False)
 
@@ -171,6 +177,28 @@ def generateModels(job):
     for thread in modelThreads:
         thread.join()
 
+    if job['jobType'] == 'pregen':
+        command = 'Rscript %s %s' % (genFeaturesPath, dataPath)
+        os.system(command)
+
+        featurePath = os.path.join(dataPath, 'features.tsv')
+
+        featureDf = pd.read_csv(featurePath, sep='\t')
+
+        featureQuery = {'command': 'put', 'args': {'data': featureDf.to_dict('records'),
+                                                   'problem': job['jobData']['problem']}}
+
+        featureUrl = '%sfeatures/' % trackUrl
+
+        r = requests.post(featureUrl, json=featureQuery)
+
+        if not r.status_code == 200:
+            print('feature send error', r.status_code)
+            return
+
+        if not cfg.debug:
+            os.remove(featurePath)
+
     finishQuery = {'command': 'update', 'args': {'id': job['id'], 'status': 'Done'}}
 
     r = requests.post(cfg.jobUrl, json=finishQuery)
@@ -178,8 +206,8 @@ def generateModels(job):
     if not r.status_code == 200:
         print("Job Finish Request Error", r.status_code)
         return
-
-    os.remove(coveragePath)
+    if not cfg.debug:
+        os.remove(coveragePath)
 
 
 def gridSearch(job):
