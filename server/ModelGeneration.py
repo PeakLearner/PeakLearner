@@ -61,6 +61,8 @@ def sendSegments(segmentsFile, stepData, trackUrl):
     strPenalty = str(stepData['penalty'])
 
     modelData = pd.read_csv(segmentsFile, sep='\t', header=None)
+    modelData.columns = ['chrom', 'start', 'end', 'annotation', 'mean']
+    sortedModel = modelData.sort_values('start', ignore_index=True)
 
     modelInfo = {'user': stepData['user'],
                  'hub': stepData['hub'],
@@ -71,7 +73,7 @@ def sendSegments(segmentsFile, stepData, trackUrl):
     modelUrl = '%smodels/' % trackUrl
 
     query = {'command': 'put',
-             'args': {'modelInfo': modelInfo, 'penalty': strPenalty, 'modelData': modelData.to_json()}}
+             'args': {'modelInfo': modelInfo, 'penalty': strPenalty, 'modelData': sortedModel.to_json()}}
 
     r = requests.post(modelUrl, json=query)
 

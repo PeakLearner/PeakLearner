@@ -20,13 +20,20 @@ save = False
 if 'http' not in configSections:
     config.add_section('http')
     config['http']['port'] = '8081'
-    config['http']['path'] = 'jbrowse/'
+    config['http']['path'] = 'jbrowse/jbrowse/'
 
     save = True
 
 if 'data' not in configSections:
     config.add_section('data')
     config['data']['path'] = 'data/'
+
+    save = True
+
+if 'learning' not in configSections:
+    config.add_section('learning')
+    config['learning']['timeBetween'] = '600'
+    config['learning']['numChanges'] = '10'
 
     save = True
 
@@ -40,6 +47,8 @@ httpServerPort = int(config['http']['port'])
 jbrowsePath = config['http']['path']
 
 dataPath = config['data']['path']
+timeBetween = int(config['learning']['timeBetween'])
+numChanges = int(config['learning']['numChanges'])
 
 
 def testing():

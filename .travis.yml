@@ -26,9 +26,10 @@ before_install:
   - sudo chown slurm /var/spool/slurm-llnl/
   - sudo mkdir /var/spool/slurmd/
   - sudo chown slurm /var/spool/slurmd/
-  - cd jbrowse
+  - cd jbrowse/jbrowse
   - ./setup.sh
-  - cd ..
+  - cd ../../
+  - pip install -e ".[dev]"
 
 script:
   # Setup slurm.conf for testing

@@ -1,7 +1,10 @@
 import PeakError
+import LOPART
+import subprocess
 import pandas as pd
-from api.util import PLConfig as pl, PLdb as db
-from api.Handlers import Labels, Jobs, Tracks, Handler
+import numpy as np
+from api.util import PLConfig as pl, PLdb as db, bigWigUtil as bw
+from api.Handlers import Jobs, Tracks, Handler
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
@@ -28,43 +31,50 @@ def getModels(data):
     output = []
 
     for problem in problems:
-        # TODO: Replace 1 with user of hub NOT current user
-        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart']).get()
-
+        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
+                                           problem['chromStart']).get()
         if len(modelSummaries.index) < 1:
-            # TODO: DEFAULT LOPART HERE
+            lopartOutput = generateLOPARTModel(data, problem)
+            output.extend(lopartOutput)
             continue
 
         nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
 
         if len(nonZeroRegions.index) < 1:
-            # TODO: DEFAULT LOPART HERE
+            lopartOutput = generateLOPARTModel(data, problem)
+            output.extend(lopartOutput)
             continue
 
-        noError = nonZeroRegions[nonZeroRegions['errors'] < 1]
+        withPeaks = nonZeroRegions[nonZeroRegions['numPeaks'] > 0]
+
+        if len(withPeaks.index) < 1:
+            continue
+
+        noError = withPeaks[withPeaks['errors'] < 1]
 
         if len(noError.index) < 1:
-            #TODO: LOPART HERE
+            lopartOutput = generateLOPARTModel(data, problem)
+            output.extend(lopartOutput)
             continue
 
         elif len(noError.index) > 1:
+            # Uses highest penalty with 0 label error
+            # This will result in underfitting
+            # TODO: make model choice a function
             noError = noError[noError['numPeaks'] == noError['numPeaks'].min()]
 
         # Uses first penalty with min label error
         # This will favor the model with the lowest penalty, given that summary is sorted
         penalty = noError['penalty'].iloc[0]
 
-        # TODO: Replace 1 with user of hub NOT current user
-        minErrorModel = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'], penalty)
-
-        # TODO: If no good model, do LOPART
+        minErrorModel = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'],
+                                 penalty)
 
         model = minErrorModel.getInBounds(data['ref'], data['start'], data['end'])
         onlyPeaks = model[model['annotation'] == 'peak']
         # Organize the columns
         onlyPeaks = onlyPeaks[modelColumns]
         onlyPeaks.columns = jbrowseModelColumns
-
         output.extend(onlyPeaks.to_dict('records'))
 
     return output
@@ -75,37 +85,37 @@ def updateAllModelLabels(data, labels):
     problems = Tracks.getProblems(data)
 
     for problem in problems:
-        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'])
-        modelsums = modelSummaries.get()
+        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
+                                           problem['chromStart'])
+        txn = db.getTxn()
+        modelsums = modelSummaries.get(txn=txn, write=True)
 
         if len(modelsums.index) < 1:
             submitPregenJob(problem, data)
+            txn.commit()
             continue
 
-        txn = db.getTxn()
+        newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem))
 
-        newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem, txn))
-
-        item, after = modelSummaries.add(newSum, txn=txn)
-        checkGenerateModels(after, problem, data)
-
+        modelSummaries.put(newSum, txn=txn)
+        checkGenerateModels(newSum, problem, data)
         txn.commit()
 
 
-def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
+def modelSumLabelUpdate(modelSum, labels, data, problem):
     model = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
-                     problem['chromStart'], modelSum['penalty']).get(txn=txn)
+                     problem['chromStart'], modelSum['penalty']).get()
 
     return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
 
 
 def checkGenerateModels(modelSums, problem, data):
-    nonZeroRegions = modelSums[modelSums['regions'] > 0]
+    nonZeroLabels = modelSums[modelSums['regions'] > 0]
 
-    if len(nonZeroRegions.index) == 0:
+    if len(nonZeroLabels.index) == 0:
         return
 
-    minError = nonZeroRegions[nonZeroRegions['errors'] == nonZeroRegions['errors'].min()]
+    minError = nonZeroLabels[nonZeroLabels['errors'] == nonZeroLabels['errors'].min()]
 
     if len(minError.index) == 0:
         return
@@ -223,7 +233,7 @@ def putModel(data):
 
     txn = db.getTxn()
     db.Model(user, hub, track, problem['chrom'], problem['chromStart'], penalty).put(modelData, txn=txn)
-    labels = db.Labels(user, hub, track, problem['chrom']).get(txn=txn)
+    labels = db.Labels(user, hub, track, problem['chrom']).get(txn=txn, write=True)
     errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
     db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
     txn.commit()
@@ -235,21 +245,28 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
     labels = labels[labels['annotation'] != 'unknown']
     peaks = modelDf[modelDf['annotation'] == 'peak']
     numPeaks = len(peaks.index)
+    numLabels = len(labels.index)
 
-    if len(labels.index) < 1 > numPeaks:
-        return getErrorSeries(penalty, numPeaks)
+    if numLabels < 1:
+        return getErrorSeries(penalty, numPeaks, numLabels)
 
-    labelsIsInProblem = labels.apply(db.checkInBounds, axis=1, args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
+    labelsIsInProblem = labels.apply(db.checkInBounds, axis=1,
+                                     args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
+
+    if numPeaks < 1:
+        return getErrorSeries(penalty, numPeaks, numLabels)
 
     labelsInProblem = labels[labelsIsInProblem]
 
-    if len(labels.index) < 1:
-        return getErrorSeries(penalty, numPeaks)
+    numLabelsInProblem = len(labelsInProblem.index)
+
+    if numLabelsInProblem < 1:
+        return getErrorSeries(penalty, numPeaks, numLabels)
 
     error = PeakError.error(peaks, labelsInProblem)
 
     if error is None:
-        return getErrorSeries(penalty, numPeaks)
+        return getErrorSeries(penalty, numPeaks, numLabels)
 
     summary = PeakError.summarize(error)
     summary.columns = summaryColumns
@@ -278,9 +295,9 @@ def getModelSummary(data):
     return output
 
 
-def getErrorSeries(penalty, numPeaks):
-    return pd.Series({'regions': 0, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
-                             'errors': 0, 'penalty': penalty, 'numPeaks': numPeaks})
+def getErrorSeries(penalty, numPeaks, regions=0):
+    return pd.Series({'regions': regions, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
+                      'errors': 0, 'penalty': penalty, 'numPeaks': numPeaks})
 
 
 def getPrePenalties(problem, data):
@@ -288,20 +305,98 @@ def getPrePenalties(problem, data):
 
     # TODO: Make this actually learn based on previous data
 
-    return [100, 1000, 10000, 100000, 1000000]
+    return [1000, 10000, 100000, 1000000]
+
+
+# TODO: This could be better (learning a penalty based on PeakSegDisk Models?)
+def getLOPARTPenalty(data):
+    tempPenalties = {0.005: 2000, 0.02: 5000, 0.1: 10000}
+    try:
+        return tempPenalties[data['scale']]
+    except KeyError:
+        return 5000
 
 
 def generateLOPARTModel(data, problem):
-    print('data\n', data, '\nproblem', problem)
-    # Get URL
+    user = data['user']
+    hub = data['hub']
+    track = data['track']
+    chrom = data['ref']
+    start = data['start']
+    end = data['end']
+    hubInfo = db.HubInfo(user, hub).get()
+    trackUrl = hubInfo['tracks'][data['track']]['url']
+    bins = data['width']
 
-    # Get Summary Data
+    if not db.checkInBounds(problem, chrom, start, end):
+        return []
 
-    # Get LOPART Penalty
+    sumData = bw.bigWigSummary(trackUrl, chrom, start, end, bins)
+    if len(sumData) < 1:
+        return []
 
-    # Generate LOPART Model
+    dbLabels = db.Labels(user, hub, track, chrom)
+    labels = dbLabels.getInBounds(chrom, start, end)
+    denom = end - start
 
-    # Format LOPART Model
+    if len(labels.index) < 1:
+        labelsToUse = pd.DataFrame({'start': [1], 'end': [2], 'change': [-1]})
+    else:
+        lopartLabels = labels[(labels['annotation'] != 'unknown') & (labels['annotation'] != 'peak')]
 
-    # Return LOPART Model
+        if len(lopartLabels.index) < 1:
+            labelsToUse = pd.DataFrame({'start': [1], 'end': [2], 'change': [-1]})
+        else:
+            labelsToUse = labels.apply(ConvertLabelsToLopart, axis=1, args=(start, end, denom, bins))
 
+    lopartOut = LOPART.runSlimLOPART(sumData, labelsToUse, getLOPARTPenalty(data))
+
+    if len(lopartOut.index) <= 0:
+        return []
+
+    lopartOut['ref'] = chrom
+
+    output = []
+
+    prev = None
+    justStarted = False
+    for index, row in lopartOut.iterrows():
+        if prev is None:
+            prev = row
+            justStarted = True
+            continue
+        if justStarted:
+            justStarted = False
+            if prev['height'] > row['height']:
+                output.append({'ref': prev['ref'],
+                               'start': prev['start'],
+                               'end': prev['end'],
+                               'score': prev['height'],
+                               'type': 'lopart'})
+        if prev['height'] < row['height']:
+            output.append({'ref': row['ref'],
+                           'start': row['start'],
+                           'end': row['end'],
+                           'score': row['height'],
+                           'type': 'lopart'})
+
+        prev = row
+
+    return output
+
+
+def ConvertLabelsToLopart(row, modelStart, modelEnd, denom, bins):
+    scaledStart = round(((row['chromStart'] - modelStart) * bins) / denom)
+    scaledEnd = round(((row['chromEnd'] - modelStart) * bins) / denom)
+    if scaledStart <= 1:
+        scaledStart = 1
+    row['start'] = scaledStart
+    if scaledEnd > bins:
+        scaledEnd = bins
+    row['end'] = scaledEnd
+
+    if row['annotation'] == 'peakStart' or row['annotation'] == 'peakEnd':
+        row['change'] = 1
+    else:
+        row['change'] = 0
+    return row

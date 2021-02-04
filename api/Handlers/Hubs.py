@@ -1,5 +1,4 @@
 import os
-import subprocess
 import requests
 import threading
 import json
@@ -129,9 +128,8 @@ def storeHubInfo(user, hub, tracks, hubInfo):
                                              'url': coverage['bigDataUrl']}
 
     hubInfo['tracks'] = hubInfoTracks
-
     txn = db.getTxn()
-    db.HubInfo(user, hub).put(hubInfo, txn=txn)
+    db.HubInfo(user, hub).put(hubInfo)
     txn.commit()
 
     return '/%s/' % os.path.join(str(user), hub)
