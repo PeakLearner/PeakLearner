@@ -64,4 +64,7 @@ def runBackup(request):
 
 @view_config(route_name='doRestore', renderer='json')
 def runRestore(request):
+    if 'POST' == request.method:
+        return db.doRestoreWithSelected(request.POST['toRestore'])
+
     return db.doRestore()

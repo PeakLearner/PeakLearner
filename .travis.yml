@@ -10,6 +10,7 @@ python:
 before_install:
   - sudo apt-get update
   - sudo apt-get -y install libdb-dev libdb++-dev slurm-wlm samtools r-base
+  - sudo Rscript -e 'install.packages("data.table")'
   - mkdir bin/
   - cd bin/
   - wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigSummary

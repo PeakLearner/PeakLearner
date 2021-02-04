@@ -4,7 +4,7 @@ import subprocess
 import pandas as pd
 import numpy as np
 from api.util import PLConfig as pl, PLdb as db, bigWigUtil as bw
-from api.Handlers import Jobs, Tracks, Handler, Prediction
+from api.Handlers import Jobs, Tracks, Handler
 
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
@@ -34,6 +34,7 @@ def getModels(data):
     for problem in problems:
         modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart']).get()
+
         if len(modelSummaries.index) < 1:
             lopartOutput = generateLOPARTModel(data, problem)
             output.extend(lopartOutput)
@@ -70,7 +71,6 @@ def getModels(data):
 
         minErrorModel = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'],
                                  penalty)
-
         model = minErrorModel.getInBounds(data['ref'], data['start'], data['end'])
         onlyPeaks = model[model['annotation'] == 'peak']
         # Organize the columns
@@ -82,7 +82,6 @@ def getModels(data):
 
 
 def updateAllModelLabels(data, labels):
-    Prediction.change()
     # This is the problems that the label update is in
     problems = Tracks.getProblems(data)
 

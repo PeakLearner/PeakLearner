@@ -226,6 +226,67 @@ class PeakLearnerTests(unittest.TestCase):
 
         assert request.status_code == 200
 
+    # Tests are ran in alphabetical order?
+    def test_zbackupSystem(self):
+
+        # add label to backup
+        query = {'command': 'add', 'args': self.endLabel}
+
+        request = self.testapp.post_json(self.labelURL, query)
+
+        assert request.status_code == 200
+
+        backupUrl = '/doBackup/'
+        request = self.testapp.get(backupUrl)
+        assert request.status_code == 200
+
+        assert not isinstance(bool, type(request.json))
+
+        backupFolder = os.path.join(cfg.backupPath, request.json)
+
+        assert os.path.exists(backupFolder)
+
+    def test_zrestoreSystem(self):
+        restoreUrl = '/doRestore/'
+
+        # Make change that can be checked after restore
+        updateAnother = self.endLabel.copy()
+        updateAnother['label'] = 'peakEnd'
+        query = {'command': 'update', 'args': updateAnother}
+        request = self.testapp.post_json(self.labelURL, query)
+
+        assert request.status_code == 200
+
+        query = {'command': 'get', 'args': self.rangeArgs}
+        request = self.testapp.post_json(self.labelURL, query)
+
+        assert request.status_code == 200
+
+        labels = request.json
+
+        assert len(labels) == 1
+
+        assert labels[0]['label'] == 'peakEnd'
+
+        request = self.testapp.get(restoreUrl)
+        assert request.status_code == 200
+
+        query = {'command': 'get', 'args': self.rangeArgs}
+        request = self.testapp.post_json(self.labelURL, query)
+
+        assert request.status_code == 200
+
+        labels = request.json
+
+        assert len(labels) == 1
+
+        assert labels[0]['label'] == 'unknown'
+
+        query = {'command': 'remove', 'args': updateAnother}
+        request = self.testapp.post_json(self.labelURL, query)
+        assert request.status_code == 200
+
+
     # TODO: Fix test
     def dont_test_models(self):
         # Add initial label

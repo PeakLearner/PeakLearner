@@ -22,6 +22,7 @@ def main(global_config, **settings):
     config.add_route('api', '/api/')
     config.add_route('doBackup', '/doBackup/')
     config.add_route('doRestore', '/doRestore/')
+    config.add_route('prediction', '/prediction/')
     config.add_route('hubInfo', '/{user}/{hub}/info/')
     config.add_route('hubData', '/{user}/{hub}/data/{handler}')
     config.add_route('trackData', '/{user}/{hub}/{track}/{handler}/')

@@ -44,8 +44,9 @@ For use in deployment,
 6. `sudo chmod a+x bigWigToBedGraph`
 7. `cd ../server/`
 8. `sudo apt install r-base`
-8. `python3 run.py` - This will generate the intial config
-9. Setup PeakLearnerSlurm.cfg, for more information see the [configuration section](#configuration)
+9. `sudo Rscript -e 'install.packages("data.table")'`
+10. `python3 run.py` - This will generate the intial config
+11. Setup PeakLearnerSlurm.cfg, for more information see the [configuration section](#configuration)
 
 
 ## Configuration

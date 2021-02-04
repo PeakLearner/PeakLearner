@@ -24,7 +24,6 @@ class Model(db.PandasDf):
 
     def getInBounds(self, chrom, start, end):
         model = self.get()
-
         isInBounds = model.apply(checkInBounds, axis=1, args=(chrom, start, end))
 
         return model[isInBounds]
@@ -73,7 +72,7 @@ class Job(db.Container):
     def make_details(self):
         return []
 
-    def add_item(self, jobs):
+    def add_item(self, jobs, txn=None):
         if 'id' not in self.item.keys():
             self.item['id'] = JobInfo('id').get()
         newJobs, updated = self.updateExisting(jobs)
@@ -83,7 +82,7 @@ class Job(db.Container):
             return jobs
         return newJobs
 
-    def remove_item(self, jobs):
+    def remove_item(self, jobs, txn=None):
         newJobList = jobs.copy()
 
         for job in jobs:
@@ -225,12 +224,6 @@ class Features(db.Resource):
     def make_details(self):
         return {}
 
-    def get(self, txn=None, write=False):
-        return json.loads(db.Resource.get(self, txn, write))
-
-    def put(self, value, txn=None):
-        db.Resource.put(self, json.dumps(value), txn)
-
     def convert(self, value, *args):
         return db.Resource.convert(self, value[0])
 
@@ -248,6 +241,24 @@ class HubInfo(db.Resource):
 
     def make_details(self):
         return None
+
+    pass
+
+
+class Prediction(db.Resource):
+    keys = ("Key",)
+
+    def make_details(self):
+        return 0
+
+    def increment(self):
+        current = self.get()
+
+        incremented = current + 1
+
+        self.put(incremented)
+
+        return current
 
     pass
 
@@ -275,6 +286,14 @@ def getLastBackup():
     return last_backup
 
 
+def getAvailableBackups():
+    if not os.path.exists(cfg.backupPath):
+        return []
+
+    return os.listdir(cfg.backupPath)
+
+
+# TODO: Maybe make it so users can only backup/restore what they have permission to do?
 def doBackup(*args):
     if not os.path.exists(cfg.backupPath):
         try:
@@ -294,7 +313,7 @@ def doBackup(*args):
     for backup in backup_restore:
         backup.doBackup(currentBackupPath, args)
 
-    return True
+    return backupTime
 
 
 def doRestore():
@@ -303,14 +322,16 @@ def doRestore():
 
     lastBackup = getLastBackup()
 
-    backupPath = os.path.join(cfg.backupPath, str(lastBackup))
+    return doRestoreWithSelected(str(lastBackup))
+
+
+def doRestoreWithSelected(backup):
+    backupPath = os.path.join(cfg.backupPath, backup)
 
     for restore in backup_restore:
         restore.doRestore(backupPath)
 
-
-
-    return True
+    return backup
 
 
 

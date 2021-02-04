@@ -24,5 +24,6 @@ def tutorial(request):
 
 @view_config(route_name='backup', renderer='backup.html')
 def backup(request):
-    return {'last_backup': db.getLastBackup()}
+    return {'last_backup': db.getLastBackup(),
+            'backups': db.getAvailableBackups()}
 
