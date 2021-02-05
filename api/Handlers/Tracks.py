@@ -25,6 +25,16 @@ class TrackInfoHandler(Handler.TrackHandler):
                 'getProblems': getProblems}
 
 
+def getProblemsForChrom(data):
+    if 'genome' not in data:
+        data['genome'] = getGenome(data)
+
+    problems = db.Problems(data['genome']).get()
+
+    return problems[problems['chrom'] == data['chrom']].copy()
+
+
+
 def getProblems(data):
     if 'genome' not in data:
         data['genome'] = getGenome(data)

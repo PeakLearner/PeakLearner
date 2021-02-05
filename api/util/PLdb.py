@@ -1,5 +1,6 @@
 import os
 import json
+import pandas as pd
 import datetime
 import api.util.PLConfig as cfg
 import simpleBDB as db
@@ -30,6 +31,7 @@ class Model(db.PandasDf):
     pass
 
 
+# TODO: Add chrom as key, would lead to speed increases
 class Problems(db.PandasDf):
     keys = ("Genome",)
 
@@ -215,6 +217,10 @@ class ModelSummaries(db.PandasDf):
 
         return df.drop(columns='floatPenalty')
 
+    def fileToStorable(self, filePath):
+        df = pd.read_csv(filePath, sep='\t', dtype={'penalty': str})
+        return df
+
     pass
 
 
@@ -226,6 +232,33 @@ class Features(db.Resource):
 
     def convert(self, value, *args):
         return db.Resource.convert(self, value[0])
+    
+    def saveToFile(self, filePath, *args):
+        value = self.get()
+        if isinstance(value, pd.Series):
+            valueToWrite = value
+        elif isinstance(value, dict):
+            if len(value) < 1:
+                return True
+            else:
+                print(value)
+                raise Exception
+        elif isinstance(value, list):
+            if not len(value) == 1:
+                print(value)
+                raise Exception
+
+            valueToWrite = pd.Series(value[0])
+        else:
+            print(value)
+            raise Exception
+
+        # Load the series value into a df so pandas knows how to write it right
+        pd.DataFrame().append(valueToWrite, ignore_index=True).to_csv(filePath, sep='\t')
+        return True
+
+    def fileToStorable(self, filePath):
+        return pd.read_csv(filePath, sep='\t', squeeze=True).loc[0]
 
     pass
 

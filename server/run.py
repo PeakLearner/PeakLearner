@@ -45,7 +45,7 @@ def startAllNewJobs():
                 if cfg.useSlurm:
                     createSlurmJob(job)
                 else:
-                    mg.startJob(job['id'])
+                    mg.runJob(job['id'])
 
         return True
 

@@ -2,7 +2,6 @@ import bbi
 import os
 import sys
 import time
-import tempfile
 import numpy as np
 import pandas as pd
 import PeakSegDisk
@@ -17,7 +16,23 @@ except ModuleNotFoundError:
 genFeaturesPath = os.path.join('server', 'GenerateFeatures.R')
 
 
-def model(job):
+# Different Jobs
+def predict(job, dataPath, coveragePath, trackUrl):
+    modelUrl = '%smodels/' % trackUrl
+    query = {'command': 'predict', 'args': job}
+
+    r = requests.post(modelUrl, json=query)
+
+    if r.json() is False:
+        # No prediction can be made
+        return
+
+    job['penalty'] = 10 ** r.json()
+
+    generateModel(dataPath, job, trackUrl)
+
+
+def model(job, dataPath, coveragePath, trackUrl):
     data = job['jobData']
 
     dataPath = os.path.join(cfg.dataPath, 'PeakLearner-%s' % job['id'])
@@ -39,6 +54,59 @@ def model(job):
 
     if not r.status_code == 200:
         print("Model Request Error", r.status_code)
+
+
+def generateModels(job, dataPath, coveragePath, trackUrl):
+    data = job['jobData']
+    penalties = data['penalties']
+
+    modelThreads = []
+
+    for penalty in penalties:
+        modelData = job.copy()
+        modelData['penalty'] = penalty
+
+        modelArgs = (dataPath, modelData, trackUrl)
+
+        modelThread = threading.Thread(target=generateModel, args=modelArgs)
+        modelThreads.append(modelThread)
+        modelThread.start()
+
+    for thread in modelThreads:
+        thread.join()
+
+
+def gridSearch(job, dataPath, coveragePath, trackUrl):
+    data = job['jobData']
+    minPenalty = data['minPenalty']
+    maxPenalty = data['maxPenalty']
+    numModels = job['numModels']
+    # Remove start and end of list because that is minPenalty/maxPenalty (already calculated)
+    # Add 2 to numModels to account for start/end points (already calculated models)
+    data['penalties'] = np.linspace(minPenalty, maxPenalty, numModels + 2).tolist()[1:-1]
+
+    generateModels(job, dataPath, coveragePath, trackUrl)
+
+# Helper Functions
+
+def generateFeatureVec(job, dataPath, trackUrl):
+    command = 'Rscript %s %s' % (genFeaturesPath, dataPath)
+    os.system(command)
+
+    featurePath = os.path.join(dataPath, 'features.tsv')
+
+    featureDf = pd.read_csv(featurePath, sep='\t')
+
+    featureQuery = {'command': 'put', 'args': {'data': featureDf.to_dict('records'),
+                                               'problem': job['jobData']['problem']}}
+
+    featureUrl = '%sfeatures/' % trackUrl
+
+    r = requests.post(featureUrl, json=featureQuery)
+
+    if not r.status_code == 200:
+        print('feature send error', r.status_code)
+        return
 
 
 def generateModel(dataPath, stepData, trackUrl):
@@ -87,7 +155,6 @@ def sendSegments(segmentsFile, stepData, trackUrl):
 
     if not r.status_code == 204:
         print("Send Model Request Error", r.status_code)
-
 
 
 def getCoverageFile(job, dataPath, trackUrl):
@@ -144,85 +211,7 @@ def fixAndSaveCoverage(interval, outputPath, problem):
     return outputPath
 
 
-def generateModels(job):
-    data = job['jobData']
-    penalties = data['penalties']
-
-    dataPath = os.path.join(cfg.dataPath, 'PeakLearner-%s' % job['id'])
-    trackUrl = '%s%s/%s/%s/' % (cfg.remoteServer, job['user'], job['hub'], job['track'])
-
-    if not os.path.exists(dataPath):
-        try:
-            os.makedirs(dataPath)
-        except OSError:
-            return False
-
-    coveragePath = getCoverageFile(job, dataPath, trackUrl)
-
-    if not os.path.exists(coveragePath):
-        return False
-
-    modelThreads = []
-
-    for penalty in penalties:
-        modelData = job.copy()
-        modelData['penalty'] = penalty
-
-        modelArgs = (dataPath, modelData, trackUrl)
-
-        modelThread = threading.Thread(target=generateModel, args=modelArgs)
-        modelThreads.append(modelThread)
-        modelThread.start()
-
-    for thread in modelThreads:
-        thread.join()
-
-    if job['jobType'] == 'pregen':
-        command = 'Rscript %s %s' % (genFeaturesPath, dataPath)
-        os.system(command)
-
-        featurePath = os.path.join(dataPath, 'features.tsv')
-
-        featureDf = pd.read_csv(featurePath, sep='\t')
-
-        featureQuery = {'command': 'put', 'args': {'data': featureDf.to_dict('records'),
-                                                   'problem': job['jobData']['problem']}}
-
-        featureUrl = '%sfeatures/' % trackUrl
-
-        r = requests.post(featureUrl, json=featureQuery)
-
-        if not r.status_code == 200:
-            print('feature send error', r.status_code)
-            return
-
-        if not cfg.debug:
-            os.remove(featurePath)
-
-    finishQuery = {'command': 'update', 'args': {'id': job['id'], 'status': 'Done'}}
-
-    r = requests.post(cfg.jobUrl, json=finishQuery)
-
-    if not r.status_code == 200:
-        print("Job Finish Request Error", r.status_code)
-        return
-    if not cfg.debug:
-        os.remove(coveragePath)
-
-
-def gridSearch(job):
-    data = job['jobData']
-    minPenalty = data['minPenalty']
-    maxPenalty = data['maxPenalty']
-    numModels = job['numModels']
-    # Remove start and end of list because that is minPenalty/maxPenalty (already calculated)
-    # Add 2 to numModels to account for start/end points (already calculated models)
-    data['penalties'] = np.linspace(minPenalty, maxPenalty, numModels + 2).tolist()[1:-1]
-
-    generateModels(job)
-
-
-def startJob(jobId):
+def runJob(jobId):
     jobId = int(jobId)
     startTime = time.time()
     print("Starting job with ID", jobId)
@@ -236,25 +225,61 @@ def startJob(jobId):
 
     job = r.json()
 
-    startJobWithType(job)
+    dataPath = os.path.join(cfg.dataPath, 'PeakLearner-%s' % job['id'])
+
+    if not os.path.exists(dataPath):
+        try:
+            os.makedirs(dataPath)
+        except OSError:
+            return False
+
+    trackUrl = '%s%s/%s/%s/' % (cfg.remoteServer, job['user'], job['hub'], job['track'])
+
+    coveragePath = getCoverageFile(job, dataPath, trackUrl)
+
+    if not os.path.exists(coveragePath):
+        return False
+
+    if job['jobType'] == 'pregen' or job['jobType'] == 'predict':
+        generateFeatureVec(job, dataPath, trackUrl)
+
+    runJobWithType(job, dataPath, coveragePath, trackUrl)
+
+    if not cfg.debug:
+        os.remove(coveragePath)
+
+        if job['jobType'] == 'pregen' or job['jobType'] == 'predict':
+            featuresPath = os.path.join(dataPath, 'features.tsv')
+            os.remove(featuresPath)
+
+        os.remove(dataPath)
 
     endTime = time.time()
 
-    print("Start Time", startTime, "End Time", endTime, "total time", endTime - startTime)
+    print("total time", endTime - startTime)
+
+    finishQuery = {'command': 'update', 'args': {'id': job['id'], 'status': 'Done'}}
+
+    r = requests.post(cfg.jobUrl, json=finishQuery)
+
+    if not r.status_code == 200:
+        print("Job Finish Request Error", r.status_code)
+        return
 
 
-def startJobWithType(job):
+def runJobWithType(job, *args):
     types = {
         'model': model,
         'pregen': generateModels,
-        'gridSearch': gridSearch
+        'gridSearch': gridSearch,
+        'predict': predict,
     }
 
     jobType = types.get(job['jobType'], None)
 
-    jobType(job)
+    jobType(job, *args)
 
 
 if __name__ == '__main__':
     if len(sys.argv) == 2:
-        startJob(sys.argv[1])
+        runJob(sys.argv[1])

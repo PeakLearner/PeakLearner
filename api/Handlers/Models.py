@@ -1,8 +1,8 @@
 import PeakError
 import LOPART
-import subprocess
 import pandas as pd
 import numpy as np
+from glmnet_python import cvglmnetPredict
 from api.util import PLConfig as pl, PLdb as db, bigWigUtil as bw
 from api.Handlers import Jobs, Tracks, Handler
 
@@ -23,7 +23,9 @@ class ModelHandler(Handler.TrackHandler):
     def getCommands(cls):
         return {'get': getModels,
                 'getModelSummary': getModelSummary,
-                'put': putModel}
+                'put': putModel,
+                'checkPregen': checkPregen,
+                'predict': getPenaltyPrediction}
 
 
 def getModels(data):
@@ -401,3 +403,73 @@ def ConvertLabelsToLopart(row, modelStart, modelEnd, denom, bins):
     else:
         row['change'] = 0
     return row
+
+
+def checkPregen(data):
+    print('pregen')
+    model = db.Prediction('model').get()
+
+    # Default value is 0, dict will be when a model has been stored already
+    if not isinstance(model, dict):
+        return False
+
+    problems = Tracks.getProblemsForChrom(data)
+    problems.apply(submitJobs, axis=1, args=(data, ))
+
+
+def submitJobs(row, data):
+    modelSum = db.ModelSummaries(data['user'], data['hub'], data['track'], data['chrom'], row['chromStart']).get()
+    if modelSum.empty:
+        submitPredictJob(data, row.to_dict())
+
+
+def submitPredictJob(data, problem):
+    job = {'numModels': 1,
+           'user': data['user'],
+           'hub': data['hub'],
+           'track': data['track'],
+           'jobType': 'predict',
+           'jobData': {'problem': problem}}
+
+    Jobs.updateJob(job)
+
+
+def getPenaltyPrediction(data):
+    user = data['user']
+    hub = data['hub']
+    track = data['track']
+    problem = data['jobData']['problem']
+
+    features = db.Features(user, hub, track, problem['chrom'], problem['chromStart']).get()
+
+    model = db.Prediction('model').get()
+
+    if not isinstance(model, dict):
+        print('noModel')
+        return False
+
+    colsToDrop = db.Prediction('badCols').get()
+
+    featuresDropped = features.drop(labels=colsToDrop)
+
+    prediction = predictWithFeatures(featuresDropped, model)
+
+    if prediction is None:
+        return False
+    return prediction
+
+
+def predictWithFeatures(features, model):
+    if not isinstance(features, pd.Series):
+        raise Exception(features)
+
+    featuresDf = pd.DataFrame().append(features, ignore_index=True)
+    guess = cvglmnetPredict(model, newx=featuresDf, s='lambda_min')[0][0]
+
+    if np.isnan(guess):
+        return
+
+    return guess
+
+
+
