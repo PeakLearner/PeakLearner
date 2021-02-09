@@ -225,8 +225,6 @@ def runJob(jobId):
 
     job = r.json()
 
-
-
     dataPath = os.path.join(cfg.dataPath, 'PeakLearner-%s' % job['id'])
 
     if not os.path.exists(dataPath):
@@ -258,9 +256,11 @@ def runJob(jobId):
 
     endTime = time.time()
 
-    print("total time", endTime - startTime)
+    totalTime = endTime - startTime
 
-    finishQuery = {'command': 'update', 'args': {'id': job['id'], 'status': 'Done'}}
+    print("total time", totalTime)
+
+    finishQuery = {'command': 'update', 'args': {'id': job['id'], 'status': 'Done', 'time': totalTime}}
 
     r = requests.post(cfg.jobUrl, json=finishQuery)
 

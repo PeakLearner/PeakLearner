@@ -48,6 +48,9 @@ def addJob(job):
         if not jobToCheck['jobType'] == job['jobType']:
             continue
 
+        if jobToCheck['status'] == 'Done':
+            continue
+
         # TODO: compare given a jobType
 
         exists = True
@@ -73,32 +76,18 @@ def addJobToDb(job):
 def updateJob(job):
     txn = db.getTxn()
     jobDb = db.Job(job['id'])
-    toUpdate = jobDb.get(txn=txn)
+    toUpdate = jobDb.get(txn=txn, write=True)
 
     if len(toUpdate.keys()) < 1:
         txn.commit()
         raise Exception(job)
 
-    remove = False
-
     for key in job.keys():
-        if key == 'status':
-            if job[key] == 'Done':
-                remove = True
         toUpdate[key] = job[key]
 
-    if remove:
-        # Commit and get a new txn because the old one has a write lock on it
-        txn.commit()
-        txn = db.getTxn()
-        jobDb.put(None, txn=txn)
-        txn.commit()
-        returnVal = job
-
-    else:
-        jobDb.put(toUpdate, txn=txn)
-        returnVal = toUpdate
-        txn.commit()
+    jobDb.put(toUpdate, txn=txn)
+    returnVal = toUpdate
+    txn.commit()
 
     return returnVal
 

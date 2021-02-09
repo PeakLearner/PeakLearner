@@ -82,8 +82,8 @@ def getModels(data):
 def whichModelToDisplay(data, problem, summary):
     prediction = doPrediction(data, problem)
 
+    # If no prediction, use traditional system
     if prediction is None or prediction is False:
-        print('normal display')
         return summary[summary['numPeaks'] == summary['numPeaks'].min()]
 
     logPenalties = np.log10(summary['penalty'].astype(float))
@@ -134,7 +134,12 @@ def checkGenerateModels(modelSums, problem, data):
     if len(nonZeroLabels.index) == 0:
         return
 
-    minError = nonZeroLabels[nonZeroLabels['errors'] == nonZeroLabels['errors'].min()]
+    nonZeroRegions = nonZeroLabels[nonZeroLabels['numPeaks'] > 0]
+
+    if len(nonZeroRegions.index) == 0:
+        return
+
+    minError = nonZeroRegions[nonZeroRegions['errors'] == nonZeroRegions['errors'].min()]
 
     if len(minError.index) == 0:
         return
@@ -237,7 +242,8 @@ def submitGridSearch(problem, data, minPenalty, maxPenalty, num=pl.gridSearchSiz
            'hub': data['hub'],
            'track': data['track'],
            'jobType': 'gridSearch',
-           'jobData': {'problem': problem, 'minPenalty': float(minPenalty), 'maxPenalty': float(maxPenalty)}}
+           'problem': problem,
+           'jobData': {'minPenalty': float(minPenalty), 'maxPenalty': float(maxPenalty)}}
 
     Jobs.addJob(job)
 
@@ -446,7 +452,7 @@ def submitPredictJob(data, problem):
            'hub': data['hub'],
            'track': data['track'],
            'jobType': 'predict',
-           'jobData': {'problem': problem}}
+           'problem': problem}
 
     Jobs.addJob(job)
 
