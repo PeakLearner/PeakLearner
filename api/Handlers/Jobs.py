@@ -12,41 +12,113 @@ class JobHandler(Handler):
     def getCommands(cls):
         # TODO: Add update/delete/info
         return {'get': getJob,
-                'add': updateJob,
+                'add': addJob,
                 'update': updateJob,
                 'remove': removeJob,
                 'getAll': getAllJobs}
 
 
-# Adds new job to list for slurm server to process
-def updateJob(data):
-    txn = db.getTxn()
-    updated, current = db.Job('jobs').add(data, txn=txn)
-    txn.commit()
+def addJob(job):
+    # Get list of current job keys
+    keys = db.Job.db_key_tuples()
 
-    return updated
+    # If no jobs, just add it
+    if len(keys) < 1:
+        addJobToDb(job)
+        return job
+
+    exists = False
+    # Check for similar jobs
+    for key in keys:
+        jobToCheck = db.Job(*key).get()
+
+        # Is there a better way to do this?
+        if not jobToCheck['user'] == job['user']:
+            continue
+
+        if not jobToCheck['hub'] == job['hub']:
+            continue
+
+        if not jobToCheck['track'] == job['track']:
+            continue
+
+        if not jobToCheck['problem'] == job['problem']:
+            continue
+
+        if not jobToCheck['jobType'] == job['jobType']:
+            continue
+
+        # TODO: compare given a jobType
+
+        exists = True
+
+    if not exists:
+        addJobToDb(job)
+        return job
+
+
+def addJobToDb(job):
+    txn = db.getTxn()
+    jobId = db.JobInfo('Id').incrementId(txn=txn)
+    job['id'] = jobId
+    job['status'] = 'New'
+
+    db.Job(jobId).put(job, txn=txn)
+
+    txn.commit()
+    return job
+
+
+# Adds new job to list for slurm server to process
+def updateJob(job):
+    txn = db.getTxn()
+    jobDb = db.Job(job['id'])
+    toUpdate = jobDb.get(txn=txn)
+
+    if len(toUpdate.keys()) < 1:
+        txn.commit()
+        raise Exception(job)
+
+    remove = False
+
+    for key in job.keys():
+        if key == 'status':
+            if job[key] == 'Done':
+                remove = True
+        toUpdate[key] = job[key]
+
+    if remove:
+        # Commit and get a new txn because the old one has a write lock on it
+        txn.commit()
+        txn = db.getTxn()
+        jobDb.put(None, txn=txn)
+        txn.commit()
+        returnVal = job
+
+    else:
+        jobDb.put(toUpdate, txn=txn)
+        returnVal = toUpdate
+        txn.commit()
+
+    return returnVal
 
 
 # Will get job either by ID or next new job
 def getJob(data):
-    jobs = db.Job('jobs').get()
-
-    jobOutput = {}
-
-    for job in jobs:
-        if job['id'] == data['id']:
-            jobOutput = job
-    return jobOutput
+    return db.Job(data['id']).get()
 
 
 def removeJob(data):
     txn = db.getTxn()
-    output = db.Job('jobs').remove(data)
+    output = db.Job(data['id']).put(None, txn=txn)
     txn.commit()
     return output
 
 
 def getAllJobs(data):
-    output = db.Job('jobs').get()
-    if len(output) >= 1:
-        return output
+    jobs = []
+
+    for key in db.Job.db_key_tuples():
+        jobs.append(db.Job(*key).get())
+
+    return jobs

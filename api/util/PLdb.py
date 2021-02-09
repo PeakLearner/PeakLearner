@@ -56,91 +56,23 @@ class JobInfo(db.Resource):
     def make_details(self):
         return 0
 
-    def incrementId(self):
-        current = self.get()
+    def incrementId(self, txn=None):
+        current = self.get(txn=txn, write=True)
 
         incremented = current + 1
 
-        self.put(incremented)
+        self.put(incremented, txn=txn)
 
         return current
 
     pass
 
 
-class Job(db.Container):
-    keys = ("Key",)
+class Job(db.Resource):
+    keys = ("ID",)
 
     def make_details(self):
-        return []
-
-    def add_item(self, jobs, txn=None):
-        if 'id' not in self.item.keys():
-            self.item['id'] = JobInfo('id').get()
-        newJobs, updated = self.updateExisting(jobs)
-        if not updated:
-            self.createNewJobWithItem()
-            jobs.append(self.item)
-            return jobs
-        return newJobs
-
-    def remove_item(self, jobs, txn=None):
-        newJobList = jobs.copy()
-
-        for job in jobs:
-            if job['id'] == self.item['id']:
-                newJobList.remove(job)
-                self.removed = job
-
-        return newJobList
-
-    def updateExisting(self, jobs):
-        updated = False
-        newJobList = jobs.copy()
-        for job in jobs:
-            if job['id'] == self.item['id']:
-                newJobList.remove(job)
-                if not self.checkIfDone():
-                    newJobList.append(self.updateJob(job))
-                updated = True
-            else:
-                toCheck = ['user', 'hub', 'track', 'jobType', 'jobData']
-                notSame = True
-                for check in toCheck:
-                    if not self.checkSame(job, check):
-                        notSame = False
-                        break
-
-                if notSame:
-                    newJobList.remove(job)
-                    newJobList.append(self.updateJob(job))
-                    updated = True
-
-        return newJobList, updated
-
-    def checkSame(self, job, index):
-        try:
-            return job[index] == self.item[index]
-        except KeyError:
-            return False
-
-    def updateJob(self, job):
-        for key in self.item.keys():
-            if key == 'id':
-                continue
-            job[key] = self.item[key]
-        self.item = job
-        return job
-
-    def checkIfDone(self):
-        if 'status' in self.item.keys():
-            if self.item['status'].lower() == 'done':
-                return True
-        return False
-
-    def createNewJobWithItem(self):
-        self.item['status'] = 'New'
-        self.item['id'] = JobInfo('id').incrementId()
+        return {}
 
     pass
 

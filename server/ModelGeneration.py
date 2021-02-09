@@ -98,7 +98,7 @@ def generateFeatureVec(job, dataPath, trackUrl):
     featureDf = pd.read_csv(featurePath, sep='\t')
 
     featureQuery = {'command': 'put', 'args': {'data': featureDf.to_dict('records'),
-                                               'problem': job['jobData']['problem']}}
+                                               'problem': job['problem']}}
 
     featureUrl = '%sfeatures/' % trackUrl
 
@@ -139,7 +139,7 @@ def sendSegments(segmentsFile, stepData, trackUrl):
     modelInfo = {'user': stepData['user'],
                  'hub': stepData['hub'],
                  'track': stepData['track'],
-                 'problem': stepData['jobData']['problem'],
+                 'problem': stepData['problem'],
                  'jobId': stepData['id']}
 
     modelUrl = '%smodels/' % trackUrl
@@ -158,7 +158,7 @@ def sendSegments(segmentsFile, stepData, trackUrl):
 
 
 def getCoverageFile(job, dataPath, trackUrl):
-    problem = job['jobData']['problem']
+    problem = job['problem']
 
     requestUrl = '%s%s/' % (trackUrl, 'info')
     urlReq = requests.get(requestUrl)
@@ -224,6 +224,8 @@ def runJob(jobId):
         return
 
     job = r.json()
+
+
 
     dataPath = os.path.join(cfg.dataPath, 'PeakLearner-%s' % job['id'])
 

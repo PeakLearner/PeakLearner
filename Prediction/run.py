@@ -22,7 +22,8 @@ def runLearning():
                 lastRun = time.time()
                 # Compile and process the datapoints to learn with
                 datapoints = getDataPoints()
-                learn(*datapoints)
+                if datapoints is not None:
+                    learn(*datapoints)
             else:
                 time.sleep(1)
     except (KeyboardInterrupt, SystemExit):

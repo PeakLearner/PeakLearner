@@ -62,13 +62,9 @@ def getModels(data):
             continue
 
         elif len(noError.index) > 1:
-            # Uses highest penalty with 0 label error
-            # This will result in underfitting
-            # TODO: make model choice a function
-            noError = noError[noError['numPeaks'] == noError['numPeaks'].min()]
+            # Select which model to display from modelSums with 0 error
+            noError = whichModelToDisplay(data, problem, noError)
 
-        # Uses first penalty with min label error
-        # This will favor the model with the lowest penalty, given that summary is sorted
         penalty = noError['penalty'].iloc[0]
 
         minErrorModel = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'],
@@ -81,6 +77,26 @@ def getModels(data):
         output.extend(onlyPeaks.to_dict('records'))
 
     return output
+
+
+def whichModelToDisplay(data, problem, summary):
+    prediction = doPrediction(data, problem)
+
+    if prediction is None or prediction is False:
+        print('normal display')
+        return summary[summary['numPeaks'] == summary['numPeaks'].min()]
+
+    logPenalties = np.log10(summary['penalty'].astype(float))
+
+    compared = abs(prediction - logPenalties)
+
+    toDisplay = compared[compared == compared.min()]
+
+    toDisplayIndex = toDisplay.index[0]
+
+    outputDf = pd.DataFrame([summary.iloc[toDisplayIndex]])
+
+    return outputDf
 
 
 def updateAllModelLabels(data, labels):
@@ -190,7 +206,8 @@ def submitOOMJob(problem, data, penalty, jobType):
            'hub': data['hub'],
            'track': data['track'],
            'jobType': 'model',
-           'jobData': {'problem': problem}}
+           'problem': problem,
+           'jobData': {}}
 
     if jobType == '*':
         job['jobData']['penalty'] = float(penalty) * 10
@@ -199,7 +216,7 @@ def submitOOMJob(problem, data, penalty, jobType):
     else:
         print("Invalid OOM Job")
         return
-    Jobs.updateJob(job)
+    Jobs.addJob(job)
 
 
 def submitPregenJob(problem, data):
@@ -209,8 +226,9 @@ def submitPregenJob(problem, data):
            'hub': data['hub'],
            'track': data['track'],
            'jobType': 'pregen',
-           'jobData': {'problem': problem, 'penalties': penalties}}
-    Jobs.updateJob(job)
+           'problem': problem,
+           'jobData': {'penalties': penalties}}
+    Jobs.addJob(job)
 
 
 def submitGridSearch(problem, data, minPenalty, maxPenalty, num=pl.gridSearchSize):
@@ -221,7 +239,7 @@ def submitGridSearch(problem, data, minPenalty, maxPenalty, num=pl.gridSearchSiz
            'jobType': 'gridSearch',
            'jobData': {'problem': problem, 'minPenalty': float(minPenalty), 'maxPenalty': float(maxPenalty)}}
 
-    Jobs.updateJob(job)
+    Jobs.addJob(job)
 
 
 def putModel(data):
@@ -406,7 +424,6 @@ def ConvertLabelsToLopart(row, modelStart, modelEnd, denom, bins):
 
 
 def checkPregen(data):
-    print('pregen')
     model = db.Prediction('model').get()
 
     # Default value is 0, dict will be when a model has been stored already
@@ -431,21 +448,22 @@ def submitPredictJob(data, problem):
            'jobType': 'predict',
            'jobData': {'problem': problem}}
 
-    Jobs.updateJob(job)
+    Jobs.addJob(job)
 
 
 def getPenaltyPrediction(data):
-    user = data['user']
-    hub = data['hub']
-    track = data['track']
-    problem = data['jobData']['problem']
+    return doPrediction(data, data['problem'])
 
-    features = db.Features(user, hub, track, problem['chrom'], problem['chromStart']).get()
+
+def doPrediction(data, problem):
+    features = db.Features(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart']).get()
+
+    if features.empty:
+        return False
 
     model = db.Prediction('model').get()
 
     if not isinstance(model, dict):
-        print('noModel')
         return False
 
     colsToDrop = db.Prediction('badCols').get()
