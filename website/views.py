@@ -30,3 +30,7 @@ def tutorial(request):
 @view_config(route_name='register', renderer='register.html')
 def register(request):
     return {}
+
+@view_config(route_name='login', renderer='login.html')
+def login(request):
+    return {}
