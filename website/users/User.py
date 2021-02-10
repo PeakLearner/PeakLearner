@@ -15,3 +15,6 @@ class User(object):
 
     def check_password(self, passwd):
         return self.password == passwd
+
+    def __str__(self):
+        return "{self.login}".format(self=self)

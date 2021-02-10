@@ -4,6 +4,9 @@ from pyramid.view import view_config
 from api import CommandHandler
 from api.Handlers import Hubs
 
+from website.users.Users import USERS
+from website.users.User import User
+
 
 @view_config(route_name='home', renderer='index.html')
 def home(request):
@@ -27,25 +30,47 @@ def tutorial(request):
 
 
 # account views
-@view_config(route_name='register', renderer='register.html')
-def register(request):
-    return {}
-
 @view_config(route_name='login', renderer='login.html')
 def login(request):
     return {}
 
+@view_config(route_name='register', renderer='register.html')
+def register(request):
+    return {}
+
 @view_config(route_name='success', renderer='success.html')
 def success(request):
-    return {}
+    return {'users':USERS}
 
 # account get/post requests
 @view_config(route_name='login', request_method='POST')
 def loginAttempt(request):
-    url = request.route_url('success')
+
+    email = request.params['email']
+    password = request.params['password']
+
+    if(email in USERS):
+        
+        user = USERS[email]
+
+        if(user and user.check_password(password)):
+            url = request.route_url('success')
+            return HTTPFound(location=url)
+    
+    url = request.route_url('login')
     return HTTPFound(location=url)
+
 
 @view_config(route_name='logout', request_method='GET')
 def logout(request):
     url = request.route_url('login')
+    return HTTPFound(location=url)
+
+@view_config(route_name='register', request_method='POST')
+def createUser(request):
+    username = request.params['email']
+    password = request.params['password']
+    user = User(username, password)
+    USERS[username] = user
+    url = request.route_url('success')
     return HTTPFound(location=url)

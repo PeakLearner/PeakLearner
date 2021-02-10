@@ -10,6 +10,11 @@
         <div class="container-fluid d-flex flex-column flex-grow h-100">
             <h3 class="text-center mb-3">Logged In</h3>
             <h4>Members:</h4>
+            <ul>
+                {% for key, item in users.items() %}
+                <li>{{key}}</li>
+                {% endfor %}
+            </ul>
             <form action="/logout/" method="get">
                 <div class="form-group">
                     <input type="submit" value="Sign Out" class="btn btn-primary btn-block">
