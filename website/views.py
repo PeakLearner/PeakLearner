@@ -34,3 +34,18 @@ def register(request):
 @view_config(route_name='login', renderer='login.html')
 def login(request):
     return {}
+
+@view_config(route_name='success', renderer='success.html')
+def success(request):
+    return {}
+
+# account get/post requests
+@view_config(route_name='login', request_method='POST')
+def loginAttempt(request):
+    url = request.route_url('success')
+    return HTTPFound(location=url)
+
+@view_config(route_name='logout', request_method='GET')
+def logout(request):
+    url = request.route_url('login')
+    return HTTPFound(location=url)

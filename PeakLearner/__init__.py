@@ -21,6 +21,8 @@ def main(global_config, **settings):
     # account routes
     config.add_route('register', '/register/')
     config.add_route('login', '/login/')
+    config.add_route('success', '/success/')
+    config.add_route('logout', '/logout/')
 
     config.add_route('api', '/api/')
     config.add_route('hubInfo', '/{user}/{hub}/info/')
