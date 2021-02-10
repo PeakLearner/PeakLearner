@@ -24,7 +24,6 @@ class ModelHandler(Handler.TrackHandler):
         return {'get': getModels,
                 'getModelSummary': getModelSummary,
                 'put': putModel,
-                'checkPregen': checkPregen,
                 'predict': getPenaltyPrediction}
 
 
@@ -99,26 +98,24 @@ def whichModelToDisplay(data, problem, summary):
     return outputDf
 
 
-def updateAllModelLabels(data, labels):
+def updateAllModelLabels(data, labels, txn=None):
     # This is the problems that the label update is in
     problems = Tracks.getProblems(data)
 
     for problem in problems:
         modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart'])
-        txn = db.getTxn()
+
         modelsums = modelSummaries.get(txn=txn, write=True)
 
         if len(modelsums.index) < 1:
             submitPregenJob(problem, data)
-            txn.commit()
             continue
 
         newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem))
 
         modelSummaries.put(newSum, txn=txn)
         checkGenerateModels(newSum, problem, data)
-        txn.commit()
 
 
 def modelSumLabelUpdate(modelSum, labels, data, problem):
@@ -260,7 +257,7 @@ def putModel(data):
 
     txn = db.getTxn()
     db.Model(user, hub, track, problem['chrom'], problem['chromStart'], penalty).put(modelData, txn=txn)
-    labels = db.Labels(user, hub, track, problem['chrom']).get(txn=txn, write=True)
+    labels = db.Labels(user, hub, track, problem['chrom']).get(txn=txn)
     errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
     db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
     txn.commit()
@@ -429,34 +426,6 @@ def ConvertLabelsToLopart(row, modelStart, modelEnd, denom, bins):
     return row
 
 
-def checkPregen(data):
-    model = db.Prediction('model').get()
-
-    # Default value is 0, dict will be when a model has been stored already
-    if not isinstance(model, dict):
-        return False
-
-    problems = Tracks.getProblemsForChrom(data)
-    problems.apply(submitJobs, axis=1, args=(data, ))
-
-
-def submitJobs(row, data):
-    modelSum = db.ModelSummaries(data['user'], data['hub'], data['track'], data['chrom'], row['chromStart']).get()
-    if modelSum.empty:
-        submitPredictJob(data, row.to_dict())
-
-
-def submitPredictJob(data, problem):
-    job = {'numModels': 1,
-           'user': data['user'],
-           'hub': data['hub'],
-           'track': data['track'],
-           'jobType': 'predict',
-           'problem': problem}
-
-    Jobs.addJob(job)
-
-
 def getPenaltyPrediction(data):
     return doPrediction(data, data['problem'])
 
@@ -494,6 +463,26 @@ def predictWithFeatures(features, model):
         return
 
     return guess
+
+
+def numModels():
+    return db.Model.length()
+
+
+def numCorrectModels():
+    correct = 0
+
+    for key in db.ModelSummaries.db_key_tuples():
+        modelSum = db.ModelSummaries(*key).get()
+        
+        if modelSum.empty:
+            continue
+            
+        zeroErrors = modelSum[modelSum['errors'] < 0]
+
+        correct = correct + len(zeroErrors.index)
+
+    return correct
 
 
 

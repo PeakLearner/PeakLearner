@@ -1,5 +1,4 @@
 from pyramid.config import Configurator
-from pyramid.request import Request
 
 
 def main(global_config, **settings):
@@ -11,6 +10,10 @@ def main(global_config, **settings):
     config.add_route('newHub', '/newHub/')
     config.add_route('tutorial', '/tutorial/')
     config.add_route('backup', '/backup/')
+    config.add_route('stats', '/stats/')
+    config.add_route('modelStats', '/stats/model/')
+    config.add_route('labelStats', '/stats/label/')
+    config.add_route('jobStats', '/stats/job/')
     config.add_static_view(name='tutorial/static', path='website:static/tutorial')
     config.add_route('uploadHubUrl', '/uploadHubUrl/')
     config.add_route('jobs', '/jobs/')

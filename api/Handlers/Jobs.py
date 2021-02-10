@@ -111,3 +111,42 @@ def getAllJobs(data):
         jobs.append(db.Job(*key).get())
 
     return jobs
+
+
+def stats():
+    numJobs = newJobs = queuedJobs = processingJobs = doneJobs = 0
+
+    times = []
+    jobs = []
+
+    for key in db.Job.db_key_tuples():
+        job = db.Job(*key).get()
+        numJobs = numJobs + 1
+        jobs.append(job)
+        status = job['status'].lower()
+
+        if status == 'new':
+            newJobs = newJobs + 1
+        elif status == 'queued':
+            queuedJobs = queuedJobs + 1
+        elif status == 'processing':
+            processingJobs = processingJobs + 1
+        elif status == 'done':
+            doneJobs = doneJobs + 1
+
+            times.append(job['time'])
+
+    output = {'numJobs': numJobs,
+              'newJobs': newJobs,
+              'queuedJobs': queuedJobs,
+              'processingJobs': processingJobs,
+              'doneJobs': doneJobs,
+              'avgTime': sum(times)/len(times),
+              'jobs': jobs}
+
+    return output
+
+
+
+
+

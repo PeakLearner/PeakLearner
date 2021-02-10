@@ -18,12 +18,16 @@ def runLearning():
     try:
         while not shutdownServer:
             if timeDiff() > cfg.timeBetween or firstStart:
+                print('starting prediction model generate')
                 firstStart = False
                 lastRun = time.time()
                 # Compile and process the datapoints to learn with
                 datapoints = getDataPoints()
                 if datapoints is not None:
                     learn(*datapoints)
+                    print('end learning')
+                else:
+                    print('nonDataPoints')
             else:
                 time.sleep(1)
     except (KeyboardInterrupt, SystemExit):
