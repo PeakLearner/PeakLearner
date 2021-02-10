@@ -4,6 +4,9 @@ from pyramid.view import view_config
 from api import CommandHandler
 from api.Handlers import Hubs
 
+from pyramid.security import remember
+from pyramid.security import forget
+
 from website.users.Users import USERS
 from website.users.User import User
 
@@ -40,7 +43,10 @@ def register(request):
 
 @view_config(route_name='success', renderer='success.html')
 def success(request):
-    return {'users':USERS}
+    user = request.context
+    print("\n",user,"\n")
+    return {'user':user,
+            'users':USERS}
 
 # account get/post requests
 @view_config(route_name='login', request_method='POST')
@@ -50,12 +56,13 @@ def loginAttempt(request):
     password = request.params['password']
 
     if(email in USERS):
-        
+
         user = USERS[email]
 
         if(user and user.check_password(password)):
             url = request.route_url('success')
-            return HTTPFound(location=url)
+            headers = remember(request, email)
+            return HTTPFound(location=url, headers=headers)
     
     url = request.route_url('login')
     return HTTPFound(location=url)
@@ -70,7 +77,13 @@ def logout(request):
 def createUser(request):
     username = request.params['email']
     password = request.params['password']
-    user = User(username, password)
-    USERS[username] = user
-    url = request.route_url('success')
+
+    # make sure not already an account
+    if(username not in USERS.keys()):
+        user = User(username, password)
+        USERS[username] = user
+        url = request.route_url('login')
+        return HTTPFound(location=url)
+
+    url = request.route_url('register')
     return HTTPFound(location=url)
