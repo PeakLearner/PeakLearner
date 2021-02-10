@@ -18,6 +18,9 @@ def main(global_config, **settings):
     config.add_jinja2_renderer('.html')
     config.scan('website.views')
 
+    # account routes
+    config.add_route('register', '/register/')
+
     config.add_route('api', '/api/')
     config.add_route('hubInfo', '/{user}/{hub}/info/')
     config.add_route('hubData', '/{user}/{hub}/data/{handler}')

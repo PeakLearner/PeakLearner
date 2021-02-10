@@ -25,3 +25,8 @@ def newHub(request):
 def tutorial(request):
     return {}
 
+
+# account views
+@view_config(route_name='register', renderer='register.html')
+def register(request):
+    return {}
