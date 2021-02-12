@@ -1,0 +1,85 @@
+{% extends "templates/base.jinja2" %}
+
+{% block inner_head %}
+  <title>Google login</title>
+<meta name="google-signin-scope" content="profile email">
+ 
+<meta name="google-signin-client_id" content="828634597396-3kepfphbn40lfvtnak2tt6k5vvhculhg.apps.googleusercontent.com">
+ 
+<script src="https://apis.google.com/js/platform.js" async defer></script>
+
+<style>
+body{ text-align:center} 
+cell1{margin:0 auto;border:1px solid #000;width:300px;height:100px}
+</style>
+
+{% endblock %}
+
+{% block content %}
+<h><font size="20">Goole login test</font></h>
+<div style="height:50px; width:200px; margin:0 auto;" 
+	 class="g-signin2"	
+	 data-onsuccess="onSignIn" 
+	 data-theme="dark">
+</div>
+<h id="ID">ID</h>
+<h id="Full Name">Full Name</h>
+<h id="Given Name">Given Name</h>
+<h id="Family Name">Family Name</h>
+<h id="Image URL">Image URL</h>
+<h id="Email">Email</h>
+<script>
+ 
+function onSignIn(googleUser) {
+ 
+// Useful data for your client-side scripts:
+ 
+var profile = googleUser.getBasicProfile();
+
+console.log("ID: " + profile.getId()); // Don't send this directly to your server!
+document.getElementById("ID").innerHTML = "</br>" + "ID: " + profile.getId() + "</br></br>";
+
+console.log('Full Name: ' + profile.getName());
+document.getElementById("Full Name").innerHTML ='Full Name: ' + profile.getName() + "</br></br>";
+
+console.log('Given Name: ' + profile.getGivenName());
+document.getElementById("Given Name").innerHTML ='Given Name: ' + profile.getGivenName() + "</br></br>";
+
+console.log('Family Name: ' + profile.getFamilyName());
+document.getElementById("Family Name").innerHTML ='Family Name: ' + profile.getFamilyName() + "</br></br>";
+
+console.log("Image URL: " + profile.getImageUrl());
+document.getElementById("Image URL").innerHTML ="Image URL: " + profile.getImageUrl() + "</br></br>";
+
+console.log("Email: " + profile.getEmail());
+document.getElementById("Email").innerHTML ="Email: " + profile.getEmail() + "</br></br>";
+ 
+ 
+// The ID token you need to pass to your backend:
+ 
+var id_token = googleUser.getAuthResponse().id_token;
+ 
+console.log("ID Token: " + id_token);
+ 
+};
+ 
+ 
+ 
+//sign out
+ 
+function signOut() {
+ 
+var auth2 = gapi.auth2.getAuthInstance();
+ 
+auth2.signOut().then(function () {
+ 
+alert('sign out successfully');
+ 
+});
+ 
+}
+ 
+</script>
+ 
+{% endblock %}
+

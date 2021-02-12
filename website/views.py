@@ -10,6 +10,13 @@ from pyramid.security import forget
 from website.users.Users import USERS
 from website.users.User import User
 
+def _create_user(login, password, **kw):
+    USERS[login] = User(login, password, **kw)
+    return USERS[login]
+
+_create_user('zsw23', '123', groups=['admin'])
+_create_user('jesus', '123', groups=['admin'])
+
 
 @view_config(route_name='home', renderer='index.html')
 def home(request):
@@ -43,7 +50,11 @@ def register(request):
 
 @view_config(route_name='success', renderer='success.html')
 def success(request):
-    user = request.context
+
+    login = request.authenticated_userid
+    print("\n", login, "\n")
+    user = USERS.get(login)
+
     print("\n",user,"\n")
     return {'user':user,
             'users':USERS}
@@ -52,16 +63,16 @@ def success(request):
 @view_config(route_name='login', request_method='POST')
 def loginAttempt(request):
 
-    email = request.params['email']
+    username = request.params['username']
     password = request.params['password']
 
-    if(email in USERS):
+    if username in USERS:
 
-        user = USERS[email]
+        user = USERS.get(username)
 
-        if(user and user.check_password(password)):
+        if user and user.check_password(password):
             url = request.route_url('success')
-            headers = remember(request, email)
+            headers = remember(request, username)
             return HTTPFound(location=url, headers=headers)
     
     url = request.route_url('login')
@@ -70,19 +81,20 @@ def loginAttempt(request):
 
 @view_config(route_name='logout', request_method='GET')
 def logout(request):
+    headers = forget(request)
     url = request.route_url('login')
-    return HTTPFound(location=url)
+    return HTTPFound(location=url, headers=headers)
 
 @view_config(route_name='register', request_method='POST')
 def createUser(request):
-    username = request.params['email']
+    username = request.params['username']
     password = request.params['password']
 
     # make sure not already an account
-    if(username not in USERS.keys()):
-        user = User(username, password)
-        USERS[username] = user
+    if username not in USERS.keys():
+        _create_user(username, password)
         url = request.route_url('login')
+        
         return HTTPFound(location=url)
 
     url = request.route_url('register')
