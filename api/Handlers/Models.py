@@ -346,16 +346,19 @@ def generateLOPARTModel(data, problem):
     hub = data['hub']
     track = data['track']
     chrom = data['ref']
-    start = data['start']
-    end = data['end']
+    blockStart = data['start']
+    blockEnd = data['end']
+    scale = data['scale']
     hubInfo = db.HubInfo(user, hub).get()
     trackUrl = hubInfo['tracks'][data['track']]['url']
-    bins = data['width']
+    datapoints = data['width']
 
-    if not db.checkInBounds(problem, chrom, start, end):
-        return []
+    start = max(data['visible']['start'], problem['chromStart'])
+    end = min(data['visible']['end'], problem['chromEnd'])
 
-    sumData = bw.bigWigSummary(trackUrl, chrom, start, end, bins)
+    scaledBins = int(scale * (end - start))
+
+    sumData = bw.bigWigSummary(trackUrl, chrom, start, end, scaledBins)
     if len(sumData) < 1:
         return []
 
@@ -371,59 +374,114 @@ def generateLOPARTModel(data, problem):
         if len(lopartLabels.index) < 1:
             labelsToUse = pd.DataFrame({'start': [1], 'end': [2], 'change': [-1]})
         else:
-            labelsToUse = labels.apply(ConvertLabelsToLopart, axis=1, args=(start, end, denom, bins))
+            labelsToUse = labels.apply(convertLabelsToLopart, axis=1, args=(start, end, denom, scaledBins))
 
     lopartOut = LOPART.runSlimLOPART(sumData, labelsToUse, getLOPARTPenalty(data))
 
-    if len(lopartOut.index) <= 0:
+    if lopartOut.empty:
         return []
 
-    lopartOut['ref'] = chrom
+    lopartPeaks = lopartToPeaks(lopartOut)
 
-    output = []
+    if lopartPeaks.empty:
+        return []
+
+    blockBinStart = round((blockStart - start) * scale)
+    blockBinEnd = round((blockEnd - start) * scale)
+
+    isInBounds = lopartPeaks.apply(checkBlockInBounds, axis=1, args=(blockBinStart, blockBinEnd))
+
+    lopartInBlock = lopartPeaks[isInBounds].copy()
+
+    if lopartInBlock.empty:
+        return []
+
+    lopartInBlock['ref'] = chrom
+    lopartInBlock['type'] = 'lopart'
+
+    return convertLopartOutToJbrowse(lopartInBlock, blockBinStart, blockBinEnd, datapoints)
+
+
+def lopartToPeaks(lopartOut):
+
+    output = lopartOut.copy()
+    output['peak'] = False
+    meanHeight = lopartOut['height'].mean()
 
     prev = None
-    justStarted = False
     for index, row in lopartOut.iterrows():
         if prev is None:
             prev = row
-            justStarted = True
+            if row['height'] > meanHeight:
+                output['peak'][index] = True
             continue
-        if justStarted:
-            justStarted = False
-            if prev['height'] > row['height']:
-                output.append({'ref': prev['ref'],
-                               'start': prev['start'],
-                               'end': prev['end'],
-                               'score': prev['height'],
-                               'type': 'lopart'})
-        if prev['height'] < row['height']:
-            output.append({'ref': row['ref'],
-                           'start': row['start'],
-                           'end': row['end'],
-                           'score': row['height'],
-                           'type': 'lopart'})
+
+        if row['height'] > prev['height']:
+            output['peak'][index] = True
 
         prev = row
+
+    peaks = output[output['peak']]
+
+    if peaks.empty:
+        return peaks
+
+    return peaks.drop(columns=['peak'])
+
+
+def checkBlockInBounds(row, start, end):
+    # If start in range
+    if start <= row['start'] <= end:
+        return True
+
+    # If end in range
+    if start <= row['end'] <= end:
+        return True
+
+    # If wraps around whole range
+    if (row['start'] < start) and (row['end'] > end):
+        return True
+
+    return False
+
+
+def convertLopartOutToJbrowse(lopartOut, blockStart, blockEnd, datapoints):
+    blockData = lopartOut.apply(lopartToBlock, axis=1, args=(blockStart, blockEnd, datapoints))
+
+    return blockData.to_dict('records')
+
+
+def lopartToBlock(row, start, end, datapoints):
+    output = row.copy()
+
+    outputStart = row['start'] - start
+    output['start'] = outputStart
+
+    outputEnd = row['end'] - start
+    output['end'] = outputEnd
+
+    output['score'] = output['height']
 
     return output
 
 
-def ConvertLabelsToLopart(row, modelStart, modelEnd, denom, bins):
+def convertLabelsToLopart(row, modelStart, modelEnd, denom, bins):
     scaledStart = round(((row['chromStart'] - modelStart) * bins) / denom)
     scaledEnd = round(((row['chromEnd'] - modelStart) * bins) / denom)
+
+    output = row.copy()
     if scaledStart <= 1:
         scaledStart = 1
-    row['start'] = scaledStart
+    output['start'] = scaledStart
     if scaledEnd > bins:
         scaledEnd = bins
-    row['end'] = scaledEnd
+    output['end'] = scaledEnd
 
-    if row['annotation'] == 'peakStart' or row['annotation'] == 'peakEnd':
-        row['change'] = 1
+    if output['annotation'] == 'peakStart' or output['annotation'] == 'peakEnd':
+        output['change'] = 1
     else:
-        row['change'] = 0
-    return row
+        output['change'] = 0
+    return output
 
 
 def getPenaltyPrediction(data):

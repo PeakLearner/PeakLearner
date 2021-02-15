@@ -18,7 +18,6 @@ genFeaturesPath = os.path.join('server', 'GenerateFeatures.R')
 
 # Different Jobs
 def predict(job, dataPath, coveragePath, trackUrl):
-    print('predictJobStarting')
     modelUrl = '%smodels/' % trackUrl
     query = {'command': 'predict', 'args': job}
 
@@ -30,7 +29,6 @@ def predict(job, dataPath, coveragePath, trackUrl):
 
     job['penalty'] = 10 ** r.json()
 
-    print('generateModel')
     generateModel(dataPath, job, trackUrl)
 
 
@@ -113,14 +111,13 @@ def generateFeatureVec(job, dataPath, trackUrl):
 
 
 def generateModel(dataPath, stepData, trackUrl):
-    print('generating model')
     coveragePath = os.path.join(dataPath, 'coverage.bedGraph')
 
     segmentsPath = '%s_penalty=%f_segments.bed' % (coveragePath, stepData['penalty'])
     lossPath = '%s_penalty=%f_loss.tsv' % (coveragePath, stepData['penalty'])
 
     PeakSegDisk.FPOP_files(coveragePath, segmentsPath, lossPath, str(stepData['penalty']))
-    print('after model creation')
+
     if os.path.exists(segmentsPath):
         sendSegments(segmentsPath, stepData, trackUrl)
     else:
@@ -152,8 +149,6 @@ def sendSegments(segmentsFile, stepData, trackUrl):
              'args': {'modelInfo': modelInfo, 'penalty': strPenalty, 'modelData': sortedModel.to_json()}}
 
     r = requests.post(modelUrl, json=query)
-
-    print('sent model')
 
     if r.status_code == 200:
         print('model successfully sent with penalty', strPenalty, 'and with modelInfo:\n', modelInfo, '\n')
