@@ -1,6 +1,7 @@
 from pyramid.httpexceptions import HTTPFound
 from pyramid.response import Response
 from pyramid.view import view_config
+from pyramid.view import forbidden_view_config
 from api import CommandHandler
 from api.Handlers import Hubs
 
@@ -10,12 +11,11 @@ from pyramid.security import forget
 from website.users.Users import USERS
 from website.users.User import User
 
-import uuid
-
 # adds user to USERS dict object
 def _create_user(login, password, **kw):
-    USERS[login] = User(login, password, **kw)
-    return USERS[login]
+    newUser = User(login, password, **kw)
+    USERS[newUser.username] = newUser
+    return USERS[newUser.username]
 
 # create TEST USERS
 _create_user('zsw23', '123', groups=['admin'])
@@ -93,9 +93,6 @@ def createUser(request):
     username = request.params['username']
     password = request.params['password']
 
-    newUUID = uuid.uuid4()
-    print("\nnewUUID", newUUID)
-
     # make sure not already an account
     if username not in USERS.keys():
         _create_user(username, password)
@@ -105,3 +102,9 @@ def createUser(request):
 
     url = request.route_url('register')
     return HTTPFound(location=url)
+
+# @forbidden_view_config()
+# def unauthenticated(context, request):
+#     print("\n===FORBIDDEN===\n")
+#     url = request.route_url('login')
+#     return HTTPFound(location=url)
