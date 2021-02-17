@@ -8,6 +8,7 @@ from pyramid.security import Allow
 
 from website.users.Users import USERS
 
+# replace default factory to give default permissions to users
 class RootFactory(object):
     __acl__ = [
         (Allow, 'g:admin', ALL_PERMISSIONS),
@@ -16,6 +17,7 @@ class RootFactory(object):
     def __init__(self, request):
         self.request = request
 
+# routes accessing user object must use this factory
 class UserFactory(object):
     __acl__ = [
         (Allow, 'g:admin', ALL_PERMISSIONS),
@@ -36,15 +38,18 @@ def groupfinder(userid, request):
         return ['g:%s' % g for g in user.groups]
 
 
+# run configurator for PeakLearner
 def main(global_config, **settings):
     config = Configurator(settings=settings)
 
+    # create authentication and authorization policies
     authn_policy = AuthTktAuthenticationPolicy(
         'seekrit',
         callback=groupfinder,
     )
     authz_policy = ACLAuthorizationPolicy()
 
+    # set config settings
     config.set_authentication_policy(authn_policy)
     config.set_authorization_policy(authz_policy)
     config.set_root_factory(RootFactory)

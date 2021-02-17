@@ -10,14 +10,19 @@ from pyramid.security import forget
 from website.users.Users import USERS
 from website.users.User import User
 
+import uuid
+
+# adds user to USERS dict object
 def _create_user(login, password, **kw):
     USERS[login] = User(login, password, **kw)
     return USERS[login]
 
+# create TEST USERS
 _create_user('zsw23', '123', groups=['admin'])
 _create_user('jesus', '123', groups=['admin'])
 
 
+# PAGE RENDERS
 @view_config(route_name='home', renderer='index.html')
 def home(request):
     return {}
@@ -27,12 +32,9 @@ def home(request):
 def about(request):
     return {}
 
-
-
 @view_config(route_name='newHub', renderer='newHub.html')
 def newHub(request):
     return {}
-
 
 @view_config(route_name='tutorial', renderer='tutorial.html')
 def tutorial(request):
@@ -48,18 +50,18 @@ def login(request):
 def register(request):
     return {}
 
+# display all registered users
 @view_config(route_name='success', renderer='success.html')
 def success(request):
-
     login = request.authenticated_userid
-    print("\n", login, "\n")
     user = USERS.get(login)
-
-    print("\n",user,"\n")
     return {'user':user,
             'users':USERS}
 
+
 # account get/post requests
+
+# check user login credentials
 @view_config(route_name='login', request_method='POST')
 def loginAttempt(request):
 
@@ -78,17 +80,21 @@ def loginAttempt(request):
     url = request.route_url('login')
     return HTTPFound(location=url)
 
-
+# process user logout
 @view_config(route_name='logout', request_method='GET')
 def logout(request):
     headers = forget(request)
     url = request.route_url('login')
     return HTTPFound(location=url, headers=headers)
 
+# attempt to create a user profile
 @view_config(route_name='register', request_method='POST')
 def createUser(request):
     username = request.params['username']
     password = request.params['password']
+
+    newUUID = uuid.uuid4()
+    print("\nnewUUID", newUUID)
 
     # make sure not already an account
     if username not in USERS.keys():
