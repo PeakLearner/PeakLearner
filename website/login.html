@@ -3,8 +3,6 @@
 {% block inner_head %}
     <title>Login</title>
     <meta name="google-signin-scope" content="profile email">
- 
-    <meta name="google-signin-client_id" content="4185037438-t8lsfrtj7eofu9ohgvqo138oga6108tb.apps.googleusercontent.com">
      
     <script src="https://apis.google.com/js/platform.js" async defer></script>
     
@@ -16,15 +14,17 @@
         <div class="container-fluid d-flex flex-column flex-grow h-100">
             <h3 class="text-center mb-3">Sign In</h3>
 
-
-            
+            <!-- Google Button -->
             <div style="height:50px; width:200px; margin:0 auto;" 
                 class="g-signin2"	
                 data-onsuccess="onSignIn" 
                 data-theme="dark">
             </div>
-            
-
+            <script>
+                function onSignIn(googleUser) {
+                    var profile = googleUser.getBasicProfile();
+                }
+            </script>
 
                         <!-- Basic text boxes -->
             <!-- <form action="/login/" method="post">
