@@ -77,15 +77,25 @@
                                 {% endblock %}
                             </a>
                             <div class="dropdown-divider"></div>
-                            <a class="dropdown-item" href="#">Edit Account</a>
-                            <form class="px-4 py-3" action="/logout/" method="get">
-                                <div class="form-group">
-                                    <input type="submit" value="Sign Out" class="btn btn-secondary btn-block">
-                                </div>
-                            </form>
+                            {#
+                                <a class="dropdown-item" href="#">Edit Account</a>
+                            #}
+                            {% block login_logout %}
+
+                                {#
+                                <form class="px-4 py-3" action="/logout/" method="get">
+                                    <div class="form-group">
+                                        <input type="submit" value="Sign Out" class="btn btn-secondary btn-block">
+                                    </div>
+                                </form>
+                                #}
+
+                            {% endblock %}
                         </div>
                     </li>
                     {# TODO: Hide this if user is authenticated #}
+
+                    {#
                     <li class="nav-item dropdown">
                         <a class="nav-link" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                             Sign In/Register
@@ -98,14 +108,17 @@
                                 </a>
                             </div>
 
-                            {# CURRENTLY ONLY SUPPORT GOOGLE SIGN-IN
+                            <!-- CURRENTLY ONLY SUPPORT GOOGLE SIGN-IN -->
+                            <!-- 
                             <div class="dropdown-divider"></div>
                             <a class="dropdown-item" href="/register/">Sign up</a>
                             <a class="dropdown-item" href="#">Forgot password?</a>
-                            #}
+                            -->
                             
                         </div>
                     </li>
+                    #}
+                    
                     <li class="nav-item dropdown">
                         <a class="nav-link" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                             Help
