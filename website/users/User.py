@@ -9,14 +9,13 @@ class User(object):
             (Allow, self.uid, 'view'),
         ]
 
-    def __init__(self, username, password, groups=None):
+    def __init__(self, token, groups=None):
         self.uid = uuid.uuid4()
-        self.username = username
-        self.password = password
+        self.token = token
         self.groups = groups or []
 
-    def check_password(self, passwd):
-        return self.password == passwd
+    def check_token(self, token):
+        return self.token == token
 
     def __str__(self):
         return "{self.uid}".format(self=self)

@@ -4,11 +4,11 @@
     <title>Index</title>
 {% endblock %}
 
-{% block account_page %}
-    {{user}}
-{% endblock %}
-
 {% block content %}
     <h1>This is the content</h1>
+    <script>
+        window.alert("Failed to Authenticate User")
+        window.location.href = "/"
+    </script>
 {% endblock %}
 

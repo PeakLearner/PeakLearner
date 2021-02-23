@@ -1,6 +1,5 @@
 from pyramid.config import Configurator
 from pyramid.request import Request
-
 from pyramid.authentication import AuthTktAuthenticationPolicy
 from pyramid.authorization import ACLAuthorizationPolicy
 from pyramid.security import ALL_PERMISSIONS
@@ -68,10 +67,13 @@ def main(global_config, **settings):
     config.add_jinja2_renderer('.html')
     config.scan('website.views')
 
+    # library for google oauth
+    config.include('pyramid_google_login')
+
     # account routes
-    config.add_route('register', '/register/')
     config.add_route('login', '/login/')
-    config.add_route('success', '/success/', factory=UserFactory)
+    config.add_route('failed', '/failed/')
+    config.add_route('authenticate', '/authenticate/')
     config.add_route('logout', '/logout/')
 
     config.add_route('api', '/api/')

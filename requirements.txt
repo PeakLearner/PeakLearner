@@ -5,6 +5,7 @@ pyramid==1.10.5
 pyramid-jinja2==2.8
 requests==2.23.0
 simpleBDB==1.0.12
+pyramid-google-login==1.2.1
 git+git://github.com/deltarod/PeakError
 git+git://github.com/deltarod/PeakSegDisk
 git+git://github.com/deltarod/LOPART
