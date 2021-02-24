@@ -6,7 +6,6 @@ from glmnet_python import cvglmnetPredict
 from api.util import PLConfig as pl, PLdb as db, bigWigUtil as bw
 from api.Handlers import Jobs, Tracks, Handler
 
-
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
 jbrowseModelColumns = ["ref", "start", "end", "type", "score"]
@@ -31,10 +30,10 @@ def getModels(data):
     problems = Tracks.getProblems(data)
 
     output = []
-
+    txn = db.getTxn()
     for problem in problems:
         modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
-                                           problem['chromStart']).get()
+                                           problem['chromStart']).get(txn=txn)
 
         if len(modelSummaries.index) < 1:
             lopartOutput = generateLOPARTModel(data, problem)
@@ -74,7 +73,7 @@ def getModels(data):
         onlyPeaks = onlyPeaks[modelColumns]
         onlyPeaks.columns = jbrowseModelColumns
         output.extend(onlyPeaks.to_dict('records'))
-
+    txn.commit()
     return output
 
 
@@ -129,20 +128,20 @@ def checkGenerateModels(modelSums, problem, data):
     nonZeroLabels = modelSums[modelSums['regions'] > 0]
 
     if len(nonZeroLabels.index) == 0:
-        return
+        return False
 
     nonZeroRegions = nonZeroLabels[nonZeroLabels['numPeaks'] > 0]
 
     if len(nonZeroRegions.index) == 0:
-        return
+        return False
 
     minError = nonZeroRegions[nonZeroRegions['errors'] == nonZeroRegions['errors'].min()]
 
     if len(minError.index) == 0:
-        return
+        return False
 
     if minError.iloc[0]['errors'] == 0:
-        return
+        return False
 
     if len(minError.index) > 1:
         # no need to generate new models if error is 0
@@ -158,8 +157,8 @@ def checkGenerateModels(modelSums, problem, data):
             minPenalty = first['penalty']
             maxPenalty = last['penalty']
             submitGridSearch(problem, data, minPenalty, maxPenalty)
-
-        return
+            return True
+        return False
 
     elif len(minError.index) == 1:
         index = minError.index[0]
@@ -170,7 +169,7 @@ def checkGenerateModels(modelSums, problem, data):
                 above = modelSums.iloc[index + 1]
             except IndexError:
                 submitOOMJob(problem, data, model['penalty'], '*')
-                return
+                return True
 
             minPenalty = model['penalty']
 
@@ -178,14 +177,14 @@ def checkGenerateModels(modelSums, problem, data):
 
             # If the next model only has 1 more peak, not worth searching
             if model['numPeaks'] <= above['numPeaks'] + 1:
-                return
+                return False
         else:
 
             try:
                 below = modelSums.iloc[index - 1]
             except IndexError:
                 submitOOMJob(problem, data, model['penalty'], '/')
-                return
+                return True
 
             minPenalty = below['penalty']
 
@@ -193,56 +192,65 @@ def checkGenerateModels(modelSums, problem, data):
 
             # If the previous model is only 1 peak away, not worth searching
             if below['numPeaks'] + 1 >= model['numPeaks']:
-                return
+                return False
 
         submitGridSearch(problem, data, minPenalty, maxPenalty)
 
-        return
+        return True
 
     submitPregenJob(problem, data)
 
+    return True
 
 def submitOOMJob(problem, data, penalty, jobType):
-    job = {'numModels': 1,
-           'user': data['user'],
-           'hub': data['hub'],
-           'track': data['track'],
-           'jobType': 'model',
-           'problem': problem,
-           'jobData': {}}
-
     if jobType == '*':
-        job['jobData']['penalty'] = float(penalty) * 10
+        penalty = float(penalty) * 10
     elif jobType == '/':
-        job['jobData']['penalty'] = float(penalty) / 10
+        penalty = float(penalty) / 10
     else:
         print("Invalid OOM Job")
         return
-    Jobs.addJob(job)
+
+    job = Jobs.SingleModelJob(data['user'],
+                              data['hub'],
+                              data['track'],
+                              problem,
+                              penalty)
+
+    job.putNewJob()
 
 
 def submitPregenJob(problem, data):
-    penalties = getPrePenalties(problem, data)
-    job = {'numModels': len(penalties),
-           'user': data['user'],
-           'hub': data['hub'],
-           'track': data['track'],
-           'jobType': 'pregen',
-           'problem': problem,
-           'jobData': {'penalties': penalties}}
-    Jobs.addJob(job)
+    penalties = getPrePenalties()
+
+    job = Jobs.PregenJob(data['user'],
+                         data['hub'],
+                         data['track'],
+                         problem,
+                         penalties)
+
+    job.putNewJob()
 
 
 def submitGridSearch(problem, data, minPenalty, maxPenalty, num=pl.gridSearchSize):
-    job = {'numModels': num,
-           'user': data['user'],
-           'hub': data['hub'],
-           'track': data['track'],
-           'jobType': 'gridSearch',
-           'problem': problem,
-           'jobData': {'minPenalty': float(minPenalty), 'maxPenalty': float(maxPenalty)}}
+    minPenalty = float(minPenalty)
+    maxPenalty = float(maxPenalty)
+    penalties = np.linspace(minPenalty, maxPenalty, num + 2).tolist()[1:-1]
+    if 'trackUrl' in data:
+        job = Jobs.GridSearchJob(data['user'],
+                                 data['hub'],
+                                 data['track'],
+                                 problem,
+                                 penalties,
+                                 trackUrl=data['trackUrl'])
+    else:
+        job = Jobs.GridSearchJob(data['user'],
+                                 data['hub'],
+                                 data['track'],
+                                 problem,
+                                 penalties)
 
-    Jobs.addJob(job)
+    job.putNewJob()
 
 
 def putModel(data):
@@ -324,11 +332,7 @@ def getErrorSeries(penalty, numPeaks, regions=0):
                       'errors': 0, 'penalty': penalty, 'numPeaks': numPeaks})
 
 
-def getPrePenalties(problem, data):
-    genome = data['genome']
-
-    # TODO: Make this actually learn based on previous data
-
+def getPrePenalties():
     return [1000, 10000, 100000, 1000000]
 
 
@@ -403,7 +407,6 @@ def generateLOPARTModel(data, problem):
 
 
 def lopartToPeaks(lopartOut):
-
     output = lopartOut.copy()
     output['peak'] = False
     meanHeight = lopartOut['height'].mean()
@@ -532,15 +535,12 @@ def numCorrectModels():
 
     for key in db.ModelSummaries.db_key_tuples():
         modelSum = db.ModelSummaries(*key).get()
-        
+
         if modelSum.empty:
             continue
-            
+
         zeroErrors = modelSum[modelSum['errors'] < 0]
 
         correct = correct + len(zeroErrors.index)
 
     return correct
-
-
-

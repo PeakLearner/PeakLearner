@@ -4,7 +4,7 @@ import pandas as pd
 import datetime
 import api.util.PLConfig as cfg
 import simpleBDB as db
-import atexit
+from api.Handlers import Jobs
 
 
 dbPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'db')
@@ -74,6 +74,15 @@ class Job(db.Resource):
     def make_details(self):
         return {}
 
+    def get(self, txn=None, write=False):
+        storable = db.Resource.get(self, txn=txn, write=write)
+        return Jobs.Job.fromStorable(storable)
+
+    def put(self, value, txn=None):
+        if value is not None:
+            if not isinstance(value, dict):
+                value = value.__dict__()
+        db.Resource.put(self, value, txn=txn)
     pass
 
 
@@ -226,6 +235,22 @@ class Prediction(db.Resource):
         return current
 
     pass
+
+
+class Iteration(db.Resource):
+    keys = ("user", "hub", "track", "chrom", "chromStart")
+
+    def make_details(self):
+        return 0
+
+    def increment(self, txn=None):
+        current = self.get(txn=txn)
+
+        incremented = current + 1
+
+        self.put(incremented, txn=txn)
+
+        return current
 
 
 backup_restore = [HubInfo, Features, ModelSummaries, Labels, Problems, Model]

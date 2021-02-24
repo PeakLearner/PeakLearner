@@ -3,7 +3,6 @@ import unittest
 import time
 from pyramid import testing
 from api.util import PLConfig as cfg
-import server.run as slurmrun
 
 cfg.testing()
 sleepTime = 600
@@ -94,12 +93,17 @@ class PeakLearnerTests(unittest.TestCase):
         assert requestOutput['url'] == expectedUrl
 
     def test_labels(self):
+        query = {'command': 'getAll', 'args': {}}
+
+        request = self.testapp.post_json(self.jobsURL, query)
+
+        numJobsBefore = len(request.json)
+
         # Blank Label Test
         query = {'command': 'get', 'args': self.rangeArgs}
         request = self.testapp.post_json(self.labelURL, query)
 
-        assert len(request.json) == 0
-
+        numLabelsBefore = len(request.json)
 
         # Add label
         query = {'command': 'add', 'args': self.startLabel}
@@ -110,7 +114,9 @@ class PeakLearnerTests(unittest.TestCase):
 
         assert request.status_code == 200
 
-        assert len(request.json) == 1
+        assert len(request.json) == numLabelsBefore + 1
+
+        numLabelsBefore = len(request.json)
 
         serverLabel = request.json[0]
 
@@ -146,19 +152,9 @@ class PeakLearnerTests(unittest.TestCase):
 
         assert request.status_code == 200
 
-        createdJob = request.json[0]
+        assert len(request.json) == numJobsBefore + 1
 
-        assert createdJob['status'] == 'New'
-
-        jobData = createdJob['jobData']
-
-        assert createdJob['jobType'] == 'pregen'
-
-        jobProblem = jobData['problem']
-
-        assert jobProblem['chrom'] == 'chr1'
-        assert jobProblem['chromStart'] == 13607162
-        assert jobProblem['chromEnd'] == 17125658
+        numJobsBefore = len(request.json)
 
         # Try adding another label
         query = {'command': 'add', 'args': self.endLabel}
@@ -172,10 +168,7 @@ class PeakLearnerTests(unittest.TestCase):
 
         assert request.status_code == 200
 
-        labels = request.json
-
-        assert len(labels) == 2
-        assert labels[1]['start'] == self.endLabel['start']
+        assert len(request.json) == numLabelsBefore + 1
 
         # Update second label
         updateAnother = self.endLabel.copy()
@@ -191,24 +184,19 @@ class PeakLearnerTests(unittest.TestCase):
         request = self.testapp.post_json(self.jobsURL, query)
 
         # Check that system doesn't create duplicate jobs
-        assert len(request.json) == 1
-
-        job = request.json[0]
+        assert len(request.json) == numJobsBefore
 
         query = {'command': 'get', 'args': self.rangeArgs}
         request = self.testapp.post_json(self.labelURL, query)
 
         assert request.status_code == 200
 
-        labels = request.json
+        assert len(request.json) == numLabelsBefore + 1
 
-        assert len(labels) == 2
-
-        assert labels[0]['label'] == 'peakStart'
-        assert labels[1]['label'] == 'peakEnd'
+        numLabelsBefore = len(request.json)
 
         # Remove Labels
-        for label in labels:
+        for label in request.json:
             query = {'command': 'remove', 'args': label}
             request = self.testapp.post_json(self.labelURL, query)
 
@@ -218,13 +206,6 @@ class PeakLearnerTests(unittest.TestCase):
         request = self.testapp.post_json(self.labelURL, query)
 
         assert len(request.json) == 0
-
-        # Remove job, could cause issues in next test
-
-        query = {'command': 'remove', 'args': job}
-        request = self.testapp.post_json(self.jobsURL, query)
-
-        assert request.status_code == 200
 
     # Tests are ran in alphabetical order?
     def test_zbackupSystem(self):
@@ -320,9 +301,9 @@ class PeakLearnerTests(unittest.TestCase):
 
         numModels = job['numModels']
 
-        started = slurmrun.startAllNewJobs()
+        # started = slurmrun.startAllNewJobs()
 
-        assert started
+        # assert started
 
         startTime = time.time()
 
@@ -397,9 +378,9 @@ class PeakLearnerTests(unittest.TestCase):
 
         numModels += job['numModels']
 
-        started = slurmrun.startAllNewJobs()
+        # started = slurmrun.startAllNewJobs()
 
-        assert started
+        # assert started
 
         startTime = time.time()
 
