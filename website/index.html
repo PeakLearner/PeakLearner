@@ -8,6 +8,7 @@
     {{user}}
 {% endblock %}
 
+{# handles account views for whether logged in or not #}
 {% block login_logout %}
     {% if user != "Not Logged In"%}
         <form class="px-4 py-3" action="/logout/" method="get">
