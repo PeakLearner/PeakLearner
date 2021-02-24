@@ -4,7 +4,7 @@ pandas==1.1.4
 pyramid==1.10.5
 pyramid-jinja2==2.8
 requests==2.23.0
-simpleBDB==1.0.17
+simpleBDB==1.0.18
 waitress
 glmnet-py
 git+git://github.com/deltarod/PeakError
