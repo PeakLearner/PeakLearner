@@ -5,23 +5,35 @@ from pyramid.view import forbidden_view_config
 from api import CommandHandler
 from api.Handlers import Hubs
 
+from pyramid_google_login.events import UserLoggedIn
+from pyramid.events import subscriber
+
 from pyramid_google_login import *
-from pyramid.security import authenticated_userid, remember
-from pyramid.security import forget
+from pyramid.security import remember, forget
 
 from website.users.Users import USERS
 from website.users.User import User
 
+# listens for login attempt
+# @subscriber(UserLoggedIn)
+# def getToken(event):
+#     userid = event.userid
+#     token = event.oauth2_token
+#     if userid not in USERS:
+#         _create_user(userid, token)
+
 # adds user to USERS dict object
-def _create_user(email, **kw):
-    newUser = User(email, **kw)
-    USERS[newUser.email] = newUser
-    return USERS[newUser.email]
+def _create_user(userid, **kw):
+    newUser = User(userid, **kw)
+    USERS[newUser.token] = newUser
+    return USERS[newUser.token]
 
 # PAGE RENDERS
 @view_config(route_name='home', renderer='index.html')
 def home(request):
-    user = request.unauthenticated_userid
+
+    user = request.authenticated_userid
+
     if not user:
         user = 'Not Logged In'
     return {'user':user}
@@ -54,10 +66,21 @@ def logout(request):
 # check user login credentials
 @view_config(route_name='authenticate')
 def loginAttempt(request):
+
     userid = request.unauthenticated_userid
+
     if userid:
-        url = request.route_url('home')
-        return HTTPFound(location=url)
+
+        if userid in USERS:
+            user = USERS[userid]
+
+        else:
+            user = _create_user(userid)
+
+        if user.check_token(userid):
+            headers=remember(request, userid)
+            url = request.route_url('home')
+            return HTTPFound(location=url, headers=headers)
 
     url = request.route_url('failed')
     return HTTPFound(location=url)

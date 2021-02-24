@@ -41,14 +41,14 @@ def groupfinder(userid, request):
 def main(global_config, **settings):
     config = Configurator(settings=settings)
 
-    # create authentication and authorization policies
+    #create authentication and authorization policies
     authn_policy = AuthTktAuthenticationPolicy(
-        'seekrit',
+        config.get_settings()['security.google_login.client_secret'],
         callback=groupfinder,
     )
     authz_policy = ACLAuthorizationPolicy()
 
-    # set config settings
+    #set config settings
     config.set_authentication_policy(authn_policy)
     config.set_authorization_policy(authz_policy)
     config.set_root_factory(RootFactory)
