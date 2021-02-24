@@ -8,6 +8,7 @@ simpleBDB==1.0.18
 waitress
 glmnet-py
 scipy
+matplotlib
 git+git://github.com/deltarod/PeakError
 git+git://github.com/deltarod/PeakSegDisk
 git+git://github.com/deltarod/LOPART
