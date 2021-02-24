@@ -7,6 +7,7 @@ import gzip
 import pandas as pd
 from api.util import PLConfig as cfg, PLdb as db
 from api.Handlers.Handler import Handler
+from api.Handlers import Labels, Tracks, Models, Jobs
 
 
 class HubHandler(Handler):
@@ -80,12 +81,12 @@ def createHubFromParse(parsed):
 
     getRefSeq(genome, dataPath, includes)
 
-    path = storeHubInfo(user, hub, genomesFile['trackDb'], hubInfo)
+    path = storeHubInfo(user, hub, genomesFile['trackDb'], hubInfo, genome)
 
     return path
 
 
-def storeHubInfo(user, hub, tracks, hubInfo):
+def storeHubInfo(user, hub, tracks, hubInfo, genome):
     superList = []
     trackList = []
     hubInfoTracks = {}
@@ -108,6 +109,7 @@ def storeHubInfo(user, hub, tracks, hubInfo):
                         parent['children'].append(track)
                     else:
                         parent['children'].append(track)
+    txn = db.getTxn()
 
     for track in trackList:
         # Determine which track is the coverage data
@@ -127,12 +129,82 @@ def storeHubInfo(user, hub, tracks, hubInfo):
                                              'key': track['shortLabel'],
                                              'url': coverage['bigDataUrl']}
 
+
+
+            checkForPrexistingLabels(coverage['bigDataUrl'], user, hub, track, genome, txn)
+
     hubInfo['tracks'] = hubInfoTracks
-    txn = db.getTxn()
     db.HubInfo(user, hub).put(hubInfo)
     txn.commit()
 
     return '/%s/' % os.path.join(str(user), hub)
+
+
+def checkForPrexistingLabels(coverageUrl, user, hub, track, genome, txn):
+    trackUrl = coverageUrl.rsplit('/', 1)[0]
+    labelUrl = '%s/labels.bed' % trackUrl
+    with requests.get(labelUrl) as r:
+        if not r.status_code == 200:
+            return
+
+        with tempfile.TemporaryFile() as f:
+            f.write(r.content)
+            f.flush()
+            f.seek(0)
+            labels = pd.read_csv(f, sep='\t', header=None)
+            labels.columns = Labels.labelColumns
+
+    grouped = labels.groupby('chrom')
+    grouped.apply(saveLabelGroup, user, hub, track, genome, coverageUrl, txn)
+
+
+def saveLabelGroup(group, user, hub, track, genome, coverageUrl, txn):
+    group = group.sort_values('chromStart', ignore_index=True)
+
+    group['annotation'] = group.apply(fixNoPeaks, axis=1)
+
+    chrom = group['chrom'].loc[0]
+
+    db.Labels(user, hub, track['track'], chrom).put(group, txn=txn)
+
+    chromProblems = Tracks.getProblemsForChrom(genome, chrom, txn)
+    withLabels = chromProblems.apply(checkIfProblemHasLabels, axis=1, args=(group,))
+
+    doPregen = chromProblems[withLabels]
+
+    submitPregenWithData(doPregen, user, hub, track, coverageUrl)
+    
+    
+def submitPregenWithData(doPregen, user, hub, track, coverageUrl):
+
+    recs = doPregen.to_dict('records')
+    for problem in recs:
+        penalties = Models.getPrePenalties()
+        job = Jobs.PregenJob(user,
+                             hub,
+                             track['track'],
+                             problem,
+                             penalties,
+                             trackUrl=coverageUrl)
+
+        job.putNewJob()
+
+
+def checkIfProblemHasLabels(problem, labels):
+    inBounds = labels.apply(db.checkInBounds,
+                            axis=1,
+                            args=(problem['chrom'],
+                                  problem['chromStart'],
+                                  problem['chromEnd']))
+
+    return inBounds.any()
+
+
+def fixNoPeaks(row):
+
+    if row['annotation'] == 'noPeaks':
+        return 'noPeak'
+    return row['annotation']
 
 
 def getRefSeq(genome, path, includes):
@@ -387,6 +459,10 @@ def readUCSCLines(lines):
 def generateProblems(genome, path):
     genesUrl = "%s%s/database/" % (cfg.geneUrl, genome)
     genomePath = os.path.join(path, 'genomes', genome)
+    outputFile = os.path.join(genomePath, 'problems.bed')
+
+    if db.Problems.has_key(genome):
+        return outputFile
 
     if not os.path.exists(genomePath):
         try:
@@ -427,8 +503,6 @@ def generateProblems(genome, path):
     output['chromEnd'] = output['chromEnd'].astype(int)
 
     db.Problems(genome).put(output)
-
-    outputFile = os.path.join(genomePath, 'problems.bed')
 
     output.to_csv(outputFile, sep='\t', index=False, header=False)
 

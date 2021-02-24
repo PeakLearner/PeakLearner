@@ -25,6 +25,13 @@ class TrackInfoHandler(Handler.TrackHandler):
                 'getProblems': getProblems}
 
 
+def getProblemsForChrom(genome, chrom, txn=None):
+
+    problems = db.Problems(genome).get(txn=txn)
+
+    return problems[problems['chrom'] == chrom].copy()
+
+
 def getProblems(data):
     if 'genome' not in data:
         data['genome'] = getGenome(data)
@@ -59,6 +66,8 @@ def getGenome(data):
 
 
 def getTrackInfo(data):
-    hubInfo = db.HubInfo(data['user'], data['hub']).get()
+    txn = db.getTxn()
+    hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
+    txn.commit()
 
     return hubInfo['tracks'][data['track']]
