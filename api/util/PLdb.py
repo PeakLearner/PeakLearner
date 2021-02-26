@@ -102,8 +102,8 @@ class Labels(db.PandasDf):
 
         return df.drop(columns='floatStart')
 
-    def getInBounds(self, chrom, start, end):
-        labels = self.get()
+    def getInBounds(self, chrom, start, end, txn=None):
+        labels = self.get(txn=txn)
 
         if labels is None:
             return None
@@ -225,12 +225,12 @@ class Prediction(db.Resource):
     def make_details(self):
         return 0
 
-    def increment(self):
-        current = self.get()
+    def increment(self, txn=None):
+        current = self.get(txn=txn, write=True)
 
         incremented = current + 1
 
-        self.put(incremented)
+        self.put(incremented, txn=txn)
 
         return current
 
@@ -244,7 +244,7 @@ class Iteration(db.Resource):
         return 0
 
     def increment(self, txn=None):
-        current = self.get(txn=txn)
+        current = self.get(txn=txn, write=True)
 
         incremented = current + 1
 

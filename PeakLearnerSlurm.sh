@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=PeakLearnerSlurm
+#SBATCH --job-name=PLSlurm
 #SBATCH --output=/home/tristan/Research/PeakLearner/runlog.txt
 #SBATCH --chdir=/home/tristan/Research/PeakLearner/
 #SBATCH --time=1:00
