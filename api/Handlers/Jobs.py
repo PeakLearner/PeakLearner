@@ -1,6 +1,7 @@
 from api.util import PLdb as db
 from api.Handlers.Handler import Handler
 from api.Handlers import Models
+import ctypes
 
 
 statuses = ['New', 'Queued', 'Processing', 'Done', 'Error']
@@ -25,7 +26,7 @@ class JobHandler(Handler):
                 'update': updateTask,
                 'reset': resetJob,
                 'resetAll': resetAllJobs,
-                'nextTask': startNextTask,
+                'nextTask': getNextNewTask,
                 'check': checkNewTask}
 
 
@@ -74,6 +75,7 @@ class Job(metaclass=JobType):
                 print(hubInfo)
                 print(db.HubInfo.db_key_tuples())
                 print(user, track)
+                txn.commit()
                 raise Exception
             txn.commit()
         else:
@@ -96,13 +98,17 @@ class Job(metaclass=JobType):
         self.iteration = storable['iteration']
         return self
 
-    def putNewJob(self):
-        """puts Job into job list if the job doesn't exist"""
-
+    def putNewJob(self, checkExists=True):
         txn = db.getTxn()
-        if self.checkIfExists(txn=txn):
-            txn.commit()
-            return
+        value = self.putNewJobWithTxn(txn, checkExists=checkExists)
+        txn.commit()
+        return value
+
+    def putNewJobWithTxn(self, txn, checkExists=True):
+        """puts Job into job list if the job doesn't exist"""
+        if checkExists:
+            if self.checkIfExists():
+                return
 
         self.id = str(db.JobInfo('Id').incrementId(txn=txn))
         self.iteration = db.Iteration(self.user,
@@ -112,21 +118,15 @@ class Job(metaclass=JobType):
                                       self.problem['chromStart']).increment(txn=txn)
 
         self.putWithDb(db.Job(self.id), txn=txn)
-        txn.commit()
 
         return self.id
 
-    def checkIfExists(self, txn=None):
+    def checkIfExists(self):
         """Check if the current job exists in the DB"""
-        for keys in db.Job.db_key_tuples():
-            jobToCheck = db.Job(*keys).get(txn=txn)
-
-            if jobToCheck is None:
-                continue
-
-            if self.equals(jobToCheck):
+        currentJobs = db.Job.all()
+        for job in currentJobs:
+            if self.equals(job):
                 return True
-
         return False
 
     def equals(self, jobToCheck):
@@ -165,6 +165,13 @@ class Job(metaclass=JobType):
             raise Exception
 
         for key in task.keys():
+            if key == 'status':
+                # If something has already been queued for example
+                if taskToUpdate[key] == task[key]:
+                    taskToUpdate['sameStatusUpdate'] = True
+                else:
+                    taskToUpdate['sameStatusUpdate'] = False
+
             taskToUpdate[key] = task[key]
 
         self.updateJobStatus(taskToUpdate)
@@ -331,18 +338,20 @@ def updateTask(data):
     txn.commit()
 
     if jobToUpdate.status == 'Done':
-        checkForMoreJobs(task, txn=txn)
+        checkForMoreJobs(task)
     return task
 
 
-def checkForMoreJobs(task, txn=None):
+def checkForMoreJobs(task):
+    txn = db.getTxn()
     problem = task['problem']
     modelSums = db.ModelSummaries(task['user'],
                                   task['hub'],
                                   task['track'],
                                   problem['chrom'],
-                                  problem['chromStart']).get(txn=txn)
-    return Models.checkGenerateModels(modelSums, problem, task)
+                                  problem['chromStart']).get(txn=txn, write=True)
+    Models.checkGenerateModels(modelSums, problem, task, txn=txn)
+    txn.commit()
 
 
 def resetJob(data):
@@ -362,7 +371,7 @@ def resetAllJobs(data):
     for keys in db.Job.db_key_tuples():
         txn = db.getTxn()
         jobDb = db.Job(*keys)
-        jobToReset = jobDb.get(txn=txn, write=True)
+        jobToReset = jobDb.get(txn=txn)
         jobToReset.resetJob()
         jobDb.put(jobToReset, txn=txn)
         txn.commit()
@@ -370,50 +379,48 @@ def resetAllJobs(data):
 
 def getJob(data):
     """Gets job by ID"""
-    return db.Job(data['id']).get().asDict()
-
-
-def startNextTask(data):
     txn = db.getTxn()
-    jobIdWithTask = getJobIdWithHighestPriority(txn=txn)
+    output = db.Job(data['id']).get().__dict__()
+    txn.commit()
+    return output
 
-    jobDb = db.Job(jobIdWithTask)
-    jobWithTask = jobDb.get(txn=txn, write=True)
 
-    taskToRun = getNextTaskInJob(jobWithTask)
+def getNextNewTask(data):
+    print('getNextNewTask')
+    job = getJobWithHighestPriority()
+
+    if job is None:
+        return
+
+    taskToRun = getNextTaskInJob(job)
 
     if taskToRun is None:
-        txn.commit()
-        raise Exception(jobWithTask.__dict__())
+        raise Exception(job.__dict__())
 
-    taskToRun['status'] = 'Queued'
-
-    jobWithTask.updateTask(taskToRun)
-
-    taskToRun['id'] = jobIdWithTask
-
-    jobDb.put(jobWithTask, txn=txn)
-    txn.commit()
+    taskToRun['id'] = job.id
 
     return taskToRun
 
 
-def getJobIdWithHighestPriority(txn=None):
+def getJobWithHighestPriority():
+    print('getJobId')
     jobWithTask = None
 
-    for key in db.Job.db_key_tuples():
+    jobs = db.Job.all()
 
-        jobDb = db.Job(*key)
-        toCheck = jobDb.get(txn=txn)
+    if len(jobs) < 1:
+        return
 
-        if toCheck.status.lower() == 'new':
+    for job in jobs:
 
+        if job.status.lower() == 'new':
             if jobWithTask is None:
-                jobWithTask = toCheck
+                jobWithTask = job
 
-            elif toCheck.getPriority() > jobWithTask.getPriority():
-                jobWithTask = toCheck
-    return jobWithTask.id
+            elif jobWithTask.getPriority() < job.getPriority():
+                jobWithTask = job
+
+    return jobWithTask
 
 
 def getNextTaskInJob(job):
@@ -428,11 +435,11 @@ def getNextTaskInJob(job):
 
 
 def checkNewTask(data):
-    for keys in db.Job.db_key_tuples():
-        jobDb = db.Job(*keys)
-        jobToCheck = jobDb.get()
-
-        if jobToCheck.status.lower() == 'new':
+    """Checks through all the jobs to see if any of them are new"""
+    print('check')
+    jobs = db.Job.all()
+    for job in jobs:
+        if job.status.lower() == 'new':
             return True
     return False
 
@@ -441,7 +448,7 @@ def getAllJobs(data):
     jobs = []
 
     txn = db.getTxn()
-
+    printTxn(txn)
     for key in db.Job.db_key_tuples():
         value = db.Job(*key).get(txn=txn)
         if value is None:
@@ -458,6 +465,7 @@ def stats():
 
     jobs = []
     txn = db.getTxn()
+    printTxn(txn)
     for key in db.Job.db_key_tuples():
         job = db.Job(*key).get(txn=txn)
         numJobs = numJobs + 1
@@ -484,3 +492,6 @@ def stats():
 
     return output
 
+
+def printTxn(txn):
+    print('txnId', txn.id())

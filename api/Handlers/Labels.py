@@ -32,10 +32,9 @@ def addLabel(data):
 
     txn = db.getTxn()
     item, labels = db.Labels(data['user'], data['hub'], data['track'], data['ref']).add(newLabel, txn=txn)
-    Models.updateAllModelLabels(data, labels, txn=txn)
-    db.Prediction('changes').increment()
+    db.Prediction('changes').increment(txn=txn)
+    Models.updateAllModelLabels(data, labels)
     txn.commit()
-
     return data
 
 
@@ -48,8 +47,8 @@ def removeLabel(data):
     txn = db.getTxn()
     labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
     removed, after = labels.remove(toRemove, txn=txn)
-    Models.updateAllModelLabels(data, after, txn=txn)
-    db.Prediction('changes').increment()
+    db.Prediction('changes').increment(txn=txn)
+    Models.updateAllModelLabels(data, after)
     txn.commit()
     return removed.to_dict()
 
@@ -64,8 +63,8 @@ def updateLabel(data):
     txn = db.getTxn()
     labelDb = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
     item, labels = labelDb.add(updateLabel, txn=txn)
-    Models.updateAllModelLabels(data, labels, txn=txn)
-    db.Prediction('changes').increment()
+    db.Prediction('changes').increment(txn=txn)
+    Models.updateAllModelLabels(data, labels)
     txn.commit()
     return item.to_dict()
 

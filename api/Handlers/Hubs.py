@@ -73,7 +73,10 @@ def createHubFromParse(parsed):
     includes = getGeneTracks(genome, dataPath)
 
     # Generate problems for this genome
-    problems = generateProblems(genome, dataPath)
+
+    txn = db.getTxn()
+    problems = generateProblems(genome, dataPath, txn)
+    txn.commit()
 
     problemPath = generateProblemTrack(problems)
 
@@ -109,7 +112,6 @@ def storeHubInfo(user, hub, tracks, hubInfo, genome):
                         parent['children'].append(track)
                     else:
                         parent['children'].append(track)
-    txn = db.getTxn()
 
     for track in trackList:
         # Determine which track is the coverage data
@@ -129,18 +131,17 @@ def storeHubInfo(user, hub, tracks, hubInfo, genome):
                                              'key': track['shortLabel'],
                                              'url': coverage['bigDataUrl']}
 
+            checkForPrexistingLabels(coverage['bigDataUrl'], user, hub, track, genome)
 
-
-            checkForPrexistingLabels(coverage['bigDataUrl'], user, hub, track, genome, txn)
-
+    txn = db.getTxn()
     hubInfo['tracks'] = hubInfoTracks
-    db.HubInfo(user, hub).put(hubInfo)
+    db.HubInfo(user, hub).put(hubInfo, txn=txn)
     txn.commit()
 
     return '/%s/' % os.path.join(str(user), hub)
 
 
-def checkForPrexistingLabels(coverageUrl, user, hub, track, genome, txn):
+def checkForPrexistingLabels(coverageUrl, user, hub, track, genome):
     trackUrl = coverageUrl.rsplit('/', 1)[0]
     labelUrl = '%s/labels.bed' % trackUrl
     with requests.get(labelUrl) as r:
@@ -155,28 +156,32 @@ def checkForPrexistingLabels(coverageUrl, user, hub, track, genome, txn):
             labels.columns = Labels.labelColumns
 
     grouped = labels.groupby('chrom')
-    grouped.apply(saveLabelGroup, user, hub, track, genome, coverageUrl, txn)
+    grouped.apply(saveLabelGroup, user, hub, track, genome, coverageUrl)
 
 
-def saveLabelGroup(group, user, hub, track, genome, coverageUrl, txn):
+def saveLabelGroup(group, user, hub, track, genome, coverageUrl):
     group = group.sort_values('chromStart', ignore_index=True)
 
     group['annotation'] = group.apply(fixNoPeaks, axis=1)
 
     chrom = group['chrom'].loc[0]
 
+    txn = db.getTxn()
+
     db.Labels(user, hub, track['track'], chrom).put(group, txn=txn)
 
     chromProblems = Tracks.getProblemsForChrom(genome, chrom, txn)
+
     withLabels = chromProblems.apply(checkIfProblemHasLabels, axis=1, args=(group,))
 
     doPregen = chromProblems[withLabels]
 
     submitPregenWithData(doPregen, user, hub, track, coverageUrl)
-    
-    
-def submitPregenWithData(doPregen, user, hub, track, coverageUrl):
 
+    txn.commit()
+
+
+def submitPregenWithData(doPregen, user, hub, track, coverageUrl, txn=None):
     recs = doPregen.to_dict('records')
     for problem in recs:
         penalties = Models.getPrePenalties()
@@ -187,7 +192,7 @@ def submitPregenWithData(doPregen, user, hub, track, coverageUrl):
                              penalties,
                              trackUrl=coverageUrl)
 
-        job.putNewJob()
+        job.putNewJob(checkExists=False)
 
 
 def checkIfProblemHasLabels(problem, labels):
@@ -456,7 +461,7 @@ def readUCSCLines(lines):
         return output[0]
 
 
-def generateProblems(genome, path):
+def generateProblems(genome, path, txn=None):
     genesUrl = "%s%s/database/" % (cfg.geneUrl, genome)
     genomePath = os.path.join(path, 'genomes', genome)
     outputFile = os.path.join(genomePath, 'problems.bed')
@@ -502,7 +507,7 @@ def generateProblems(genome, path):
     output['chromStart'] = output['chromStart'].astype(int)
     output['chromEnd'] = output['chromEnd'].astype(int)
 
-    db.Problems(genome).put(output)
+    db.Problems(genome).put(output, txn=txn)
 
     output.to_csv(outputFile, sep='\t', index=False, header=False)
 

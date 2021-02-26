@@ -32,9 +32,9 @@ def getProblemsForChrom(genome, chrom, txn=None):
     return problems[problems['chrom'] == chrom].copy()
 
 
-def getProblems(data):
+def getProblems(data, txn=None):
     if 'genome' not in data:
-        data['genome'] = getGenome(data)
+        data['genome'] = getGenome(data, txn=txn)
 
     problems = db.Problems(data['genome'])
 
@@ -50,7 +50,7 @@ def getProblems(data):
 
         problemsDf = pd.read_csv(problemsPath, sep='\t', header=None)
         problemsDf.columns = problemColumns
-        problems.put(problemsDf)
+        problems.put(problemsDf, txn=txn)
 
         problemsIsInBounds = problemsDf.apply(db.checkInBounds, axis=1, args=(data['ref'], data['start'], data['end']))
 
@@ -59,8 +59,8 @@ def getProblems(data):
         return problemsInBounds.to_dict('records')
 
 
-def getGenome(data):
-    hubInfo = db.HubInfo(data['user'], data['hub']).get()
+def getGenome(data, txn=None):
+    hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
 
     return hubInfo['genome']
 

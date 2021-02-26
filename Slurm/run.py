@@ -7,7 +7,7 @@ if __name__ == '__main__':
     import Tasks as tasks
     import SlurmConfig as cfg
 else:
-    import Slurm.Tasks as Tasks
+    import Slurm.Tasks as tasks
     import Slurm.SlurmConfig as cfg
 
 
@@ -17,7 +17,7 @@ def startNextTask():
         os.makedirs(cfg.dataPath)
     try:
         query = {'command': 'check'}
-        r = requests.post(cfg.jobUrl, json=query)
+        r = requests.post(cfg.jobUrl, json=query, timeout=5)
     except requests.exceptions.ConnectionError:
         return False
 
@@ -39,10 +39,28 @@ def startNextTask():
 
     task = r.json()
 
+    query = {'command': 'update',
+             'args': {'id': task['id'], 'task': {'taskId': task['taskId'], 'status': 'Queued'}}}
+
+    try:
+        r = requests.post(cfg.jobUrl, json=query)
+    except requests.exceptions.ConnectionError:
+        return False
+
+    if not r.status_code == 200:
+        raise Exception(r.status_code)
+
+    queuedTask = r.json()
+
+    if queuedTask['sameStatusUpdate']:
+        print('task already queued', queuedTask)
+        return False
+
+
     if cfg.useSlurm:
-        createSlurmTask(task)
+        createSlurmTask(queuedTask)
     else:
-        tasks.runTask(task['id'], task['taskId'])
+        tasks.runTask(queuedTask['id'], queuedTask['taskId'])
 
     return True
 
