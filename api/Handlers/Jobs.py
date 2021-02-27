@@ -70,7 +70,7 @@ class Job(metaclass=JobType):
             txn = db.getTxn()
             hubInfo = db.HubInfo(user, hub).get(txn=txn)
             try:
-                self.trackUrl = hubInfo['tracks'][track]
+                self.trackUrl = hubInfo['tracks'][track]['url']
             except TypeError:
                 print(hubInfo)
                 print(db.HubInfo.db_key_tuples())
