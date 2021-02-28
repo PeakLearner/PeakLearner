@@ -1,5 +1,6 @@
 from pyramid.view import view_config
 from api.Handlers import Jobs, Hubs
+from api.util import PLdb as db
 from api import CommandHandler
 import json
 
@@ -55,3 +56,15 @@ def trackData(request):
         return CommandHandler.runTrackCommand(query, request.method, request.json_body)
     return []
 
+
+@view_config(route_name='doBackup', renderer='json')
+def runBackup(request):
+    return db.doBackup()
+
+
+@view_config(route_name='doRestore', renderer='json')
+def runRestore(request):
+    if 'POST' == request.method:
+        return db.doRestoreWithSelected(request.POST['toRestore'])
+
+    return db.doRestore()

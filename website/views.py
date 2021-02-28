@@ -1,9 +1,9 @@
-from pyramid.httpexceptions import HTTPFound
-from pyramid.response import Response
 from pyramid.view import view_config
 from pyramid.view import forbidden_view_config
 from api import CommandHandler
 from api.Handlers import Hubs
+from api.util import PLdb as db
+from api.Handlers import Models, Labels, Jobs
 
 from pyramid_google_login.events import UserLoggedIn
 from pyramid.events import subscriber
@@ -41,6 +41,7 @@ def home(request):
 @view_config(route_name='about', renderer='about.html')
 def about(request):
     return {}
+
 
 @view_config(route_name='newHub', renderer='newHub.html')
 def newHub(request):
@@ -94,3 +95,44 @@ def failed(request):
 def gohome(request):
     url=request.route_url('home')
     return HTTPFound(location=url)
+
+@view_config(route_name='backup', renderer='backup.html')
+def backup(request):
+    return {'last_backup': db.getLastBackup(),
+            'backups': db.getAvailableBackups()}
+
+
+@view_config(route_name='stats', renderer='stats.html')
+def stats(request):
+    numLabeledChroms, numLabels = Labels.stats()
+    currentJobStats = Jobs.stats()
+    return {'numModels': Models.numModels(),
+            'numLabeledChroms': numLabeledChroms,
+            'numLabels': numLabels,
+            'numJobs': currentJobStats['numJobs'],
+            'newJobs': currentJobStats['newJobs'],
+            'queuedJobs': currentJobStats['queuedJobs'],
+            'processingJobs': currentJobStats['processingJobs'],
+            'doneJobs': currentJobStats['doneJobs'],
+            'avgTime': currentJobStats['avgTime']}
+
+
+# TODO: Maybe make these stats user specific?
+@view_config(route_name='modelStats', renderer='stats/models.html')
+def modelStats(request):
+    return {'numModels': Models.numModels(),
+            'correctModels': Models.numCorrectModels()}
+
+
+@view_config(route_name='labelStats', renderer='stats/labels.html')
+def modelStats(request):
+    numLabeledChroms, numLabels = Labels.stats()
+
+    return {'numLabeledChroms': numLabeledChroms,
+            'numLabels': numLabels}
+
+
+@view_config(route_name='jobStats', renderer='stats/jobs.html')
+def jobStats(request):
+    return Jobs.stats()
+

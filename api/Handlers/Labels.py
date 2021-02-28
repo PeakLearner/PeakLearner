@@ -31,9 +31,10 @@ def addLabel(data):
                           'annotation': label})
 
     txn = db.getTxn()
-    db.Labels(data['user'], data['hub'], data['track'], data['ref']).add(newLabel, txn)
+    item, labels = db.Labels(data['user'], data['hub'], data['track'], data['ref']).add(newLabel, txn=txn)
+    db.Prediction('changes').increment(txn=txn)
+    Models.updateAllModelLabels(data, labels)
     txn.commit()
-
     return data
 
 
@@ -45,7 +46,8 @@ def removeLabel(data):
 
     txn = db.getTxn()
     labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-    removed, after = labels.remove(toRemove)
+    removed, after = labels.remove(toRemove, txn=txn)
+    db.Prediction('changes').increment(txn=txn)
     Models.updateAllModelLabels(data, after)
     txn.commit()
     return removed.to_dict()
@@ -60,7 +62,8 @@ def updateLabel(data):
                           'annotation': label})
     txn = db.getTxn()
     labelDb = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-    item, labels = labelDb.add(updateLabel)
+    item, labels = labelDb.add(updateLabel, txn=txn)
+    db.Prediction('changes').increment(txn=txn)
     Models.updateAllModelLabels(data, labels)
     txn.commit()
     return item.to_dict()
@@ -76,3 +79,19 @@ def getLabels(data):
     labelsDf.columns = jbrowseLabelColumns
 
     return labelsDf.to_dict('records')
+
+
+def stats():
+    chroms = labels = 0
+
+    for key in db.Labels.db_key_tuples():
+        labelsDf = db.Labels(*key).get()
+
+        if labelsDf.empty:
+            continue
+
+        chroms = chroms + 1
+
+        labels = labels + len(labelsDf.index)
+
+    return chroms, labels

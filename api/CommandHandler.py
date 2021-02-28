@@ -33,5 +33,3 @@ def runTrackCommand(query, method, *data):
         return handlerToRun.runCommandWithQuery(method, data)
     else:
         print(method, 'not yet implemented')
-
-
