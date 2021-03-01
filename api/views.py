@@ -24,10 +24,7 @@ def jobs(request):
 def uploadHubUrl(request):
     if 'POST' == request.method:
         # TODO: Implement user authentication (and maybe an anonymous user?)
-        try:
-            return Hubs.parseHub({'user': 1, 'url': request.json_body['args']['hubUrl']})
-        except json.decoder.JSONDecodeError:
-            return Hubs.parseHub({'user': 1, 'url': request.POST['hubUrl']})
+        return Hubs.parseHub({'user': 1, 'url': request.json_body['args']['hubUrl']})
     return
 
 

@@ -24,8 +24,10 @@ class JobHandler(Handler):
         return {'get': getJob,
                 'getAll': getAllJobs,
                 'update': updateTask,
-                'reset': resetJob,
+                'resetJob': resetJob,
                 'resetAll': resetAllJobs,
+                'restartJob': restartJob,
+                'restartAllJobs': restartAllJobs,
                 'nextTask': getNextNewTask,
                 'check': checkNewTask}
 
@@ -70,7 +72,7 @@ class Job(metaclass=JobType):
             txn = db.getTxn()
             hubInfo = db.HubInfo(user, hub).get(txn=txn)
             try:
-                self.trackUrl = hubInfo['tracks'][track]
+                self.trackUrl = hubInfo['tracks'][track]['url']
             except TypeError:
                 print(hubInfo)
                 print(db.HubInfo.db_key_tuples())
@@ -178,7 +180,7 @@ class Job(metaclass=JobType):
             
         return self.addJobInfoOnTask(taskToUpdate)
 
-    def updateJobStatus(self, task):
+    def updateJobStatus(self, task=None):
         """Update current job status to the min of the task statuses"""
         # A status outside the bounds
         minStatusVal = len(statuses)
@@ -194,10 +196,14 @@ class Job(metaclass=JobType):
                 minStatusVal = statusVal
                 minStatus = status
 
-        currentStatusVal = statuses.index(self.status)
+        self.status = minStatus
 
-        if currentStatusVal < minStatusVal:
-            self.status = minStatus
+        if self.status.lower() == 'done':
+            times = []
+            for task in self.tasks.values():
+                times.append(task['totalTime'])
+
+            self.time = sum(times)
 
     def getPriority(self):
         """Eventually will calculate the priority of the job"""
@@ -209,6 +215,16 @@ class Job(metaclass=JobType):
         for key in self.tasks.keys():
             task = self.tasks[key]
             task['Status'] = 'New'
+
+    def restartUnfinished(self):
+        restarted = False
+        for task in self.tasks.values():
+            if task['status'].lower() != 'done':
+                task['status'] = 'New'
+                restarted = True
+
+        self.updateJobStatus()
+        return restarted
 
     def numTasks(self):
         return len(self.tasks.keys())
@@ -224,6 +240,12 @@ class Job(metaclass=JobType):
                   'iteration': self.iteration,
                   'tasks': self.tasks,
                   'trackUrl': self.trackUrl}
+
+        if self.status.lower() == 'done':
+            try:
+                output['time'] = self.time
+            except AttributeError:
+                pass
 
         return output
 
@@ -363,7 +385,7 @@ def resetJob(data):
     jobToReset.resetJob()
     jobDb.put(jobToReset, txn=txn)
     txn.commit()
-    return jobToReset.asDict()
+    return jobToReset.__dict__()
 
 
 def resetAllJobs(data):
@@ -374,6 +396,25 @@ def resetAllJobs(data):
         jobToReset = jobDb.get(txn=txn)
         jobToReset.resetJob()
         jobDb.put(jobToReset, txn=txn)
+        txn.commit()
+
+
+def restartJob(data):
+    print(data)
+
+
+def restartAllJobs(data):
+    for key in db.Job.db_key_tuples():
+        txn = db.getTxn()
+
+        jobDb = db.Job(*key)
+
+        job = jobDb.get(txn=txn, write=True)
+
+        restarted = job.restartUnfinished()
+
+        if restarted:
+            jobDb.put(job, txn=txn)
         txn.commit()
 
 
@@ -447,28 +488,25 @@ def checkNewTask(data):
 def getAllJobs(data):
     jobs = []
 
-    txn = db.getTxn()
-    printTxn(txn)
     for key in db.Job.db_key_tuples():
-        value = db.Job(*key).get(txn=txn)
+        value = db.Job(*key).get()
         if value is None:
             continue
 
         jobs.append(value.__dict__())
 
-    txn.commit()
     return jobs
 
 
 def stats():
     numJobs = newJobs = queuedJobs = processingJobs = doneJobs = 0
 
+    times = []
+
     jobs = []
-    txn = db.getTxn()
-    printTxn(txn)
-    for key in db.Job.db_key_tuples():
-        job = db.Job(*key).get(txn=txn)
+    for job in db.Job.all():
         numJobs = numJobs + 1
+        job.user = str(job.user)
         jobs.append(job)
         status = job.status.lower()
 
@@ -481,14 +519,22 @@ def stats():
         elif status == 'done':
             doneJobs = doneJobs + 1
 
-    txn.commit()
+            for task in job.tasks.values():
+                if task['status'].lower() == 'done':
+                    times.append(task['totalTime'])
+
+    if len(times) == 0:
+        avgTime = 0
+    else:
+        avgTime = sum(times)/len(times)
 
     output = {'numJobs': numJobs,
               'newJobs': newJobs,
               'queuedJobs': queuedJobs,
               'processingJobs': processingJobs,
               'doneJobs': doneJobs,
-              'jobs': jobs}
+              'jobs': jobs,
+              'avgTime': avgTime}
 
     return output
 
