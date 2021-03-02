@@ -324,7 +324,7 @@ def getModelSummary(data):
 
     for problem in problems:
         # TODO: Replace 1 with user of hub NOT current user
-        modelSummaries = db.ModelSummaries(1,
+        modelSummaries = db.ModelSummaries(data['user'],
                                            data['hub'],
                                            data['track'],
                                            problem['chrom'],
