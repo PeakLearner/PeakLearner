@@ -1,0 +1,14 @@
+{% extends "../websites/templates/base.jinja2" %}
+
+{% block inner_head %}
+    <title>{{userid}} Hubs:</title>
+{% endblock %}
+
+{% block content %}
+    <h1>Hubs:</h1>
+    <ul>
+    {% for item in list %}
+        <li>{{item}}</li>
+    {% endfor %}
+    </ul>
+{% endblock %}

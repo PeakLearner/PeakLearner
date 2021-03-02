@@ -19,7 +19,10 @@ def jobs(request):
         return Jobs.JobHandler(query).runCommand(request.method, request.json_body)
     return []
 
-
+@view_config(route_name = 'myHubs', renderer = 'myHubs.html')
+def myHubs(request):
+    userid = request.unauthenticated_userid
+    return {"user" : "user"}
 @view_config(route_name='uploadHubUrl', renderer='json')
 def uploadHubUrl(request):
     if 'POST' == request.method:
