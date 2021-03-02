@@ -21,6 +21,18 @@
                 height:100%
             }
         </style>
+
+        <script type="text/javascript">
+            function sendAjax(url, query, successCallback) {
+                console.log(query)
+                $.ajax(url, {
+                data: JSON.stringify(query),
+                type: 'POST',
+                timeout: 60000,
+                success: successCallback,
+            });
+        }
+    </script>
         {% block inner_head %}
             <title>Template</title>
         {% endblock %}
