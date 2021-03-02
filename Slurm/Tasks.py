@@ -85,6 +85,10 @@ def sendSegments(segmentsFile, task, trackUrl):
     return False
 
 
+def sendLoss(lossFile, task, trackUrl):
+    pass
+
+
 def getCoverageFile(task, dataPath):
     problem = task['problem']
 
