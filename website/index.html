@@ -1,10 +1,37 @@
 {% extends "templates/base.jinja2" %}
 
 {% block inner_head %}
-    <title>Index</title>
+    <title>PeakLearner</title>
+{% endblock %}
+
+{% block account_page %}
+    {{user}}
+{% endblock %}
+
+{# handles account views for whether logged in or not #}
+{% block login_logout %}
+    {% if user != "Not Logged In"%}
+        <form class="px-4 py-3" action="/logout/" method="get">
+            <div class="form-group">
+                <input type="submit" value="Sign Out" class="btn btn-secondary btn-block">
+            </div>
+        </form>
+    {% else %}
+        <div class="col text-center">
+            <a class="text-center btn btn-outline-dark" href="/login/" role="button" style="text-transform:none">
+                <img width="15px" style="margin-bottom:3px; margin-right:5px" alt="Google sign-in" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png" />
+                Login
+            </a>
+        </div>
+    {% endif %}
 {% endblock %}
 
 {% block content %}
-    <h1>This is the content</h1>
+    <div class="text-center">
+        {% if user != "Not Logged In"%}
+        <h2>Welcome <br> {{user}}</h2>
+        {% else %}
+        <h2>Welcome <br> Please Login With Google</h2>
+        {% endif %}
+    </div>
 {% endblock %}
-

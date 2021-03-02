@@ -2,14 +2,40 @@
 
 {% block inner_head %}
     <title>Upload New Hub</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script type="text/javascript">
+
+        function newHubCallback(data, status)
+        {
+            window.location.href = data;
+        }
+
+        function uploadHub(test) {
+            let hubUrl = document.getElementById('hubUrl').value;
+            let query = {'hubUrl': hubUrl}
+
+            $.ajax('/uploadHubUrl/', {
+            data: query,
+            type: 'POST',
+            timeout: 60000,
+            success: newHubCallback,
+        });
+
+        }
+
+        function doRestore(){
+
+        }
+    </script>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid d-flex flex-column flex-grow h-100">
-    <form action="/uploadHubUrl/" method="post">
+    <form action="javascript:uploadHub()">
         <label for="hubUrl">Hub Url</label><br>
         <input type="text" id="hubUrl" name="hubUrl"><br><br>
         <input type="submit" value="Submit">
     </form>
+    <p id="status" hidden="true"></p>
 </div>
 {% endblock %}

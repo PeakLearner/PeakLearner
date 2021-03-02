@@ -1,0 +1,128 @@
+{% extends "templates/base.jinja2" %}
+
+{% block inner_head %}
+    <title>Backup Current System</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script type="text/javascript">
+
+        function backupCallback(data, status)
+        {
+            let backupStatus = document.getElementById('backupStatus');
+            backupStatus.hidden = false;
+            if(!data){
+                backupStatus.innerHTML = 'Backup was a failure'
+            }
+            else {
+                backupStatus.innerHTML = 'Backup was Successful, time of backup: ' + data;
+            }
+        }
+
+        function restoreCallback(data, status)
+        {
+            let restoreStatus = document.getElementById('restoreStatus');
+            restoreStatus.hidden = false;
+            if(!data){
+                restoreStatus.innerHTML = 'Restore was a failure'
+
+            }
+            else {
+                restoreStatus.innerHTML = 'Restore was Successful, time of restored backup: ' + data;
+            }
+        }
+
+        function restoreWithBackupCallback(data, status)
+        {
+            let restoreStatus = document.getElementById('restoreSelectedStatus');
+            restoreStatus.hidden = false;
+            if(!data){
+                restoreStatus.innerHTML = 'Restore was a failure'
+
+            }
+            else {
+                restoreStatus.innerHTML = 'Restore was Successful, time of restored backup: ' + data;
+            }
+        }
+
+        function doBackup() {
+            $.ajax('/doBackup/', {
+                type: 'GET',
+                timeout: 60000,
+                success: backupCallback,
+            });
+        }
+
+        function doRestore(){
+            $.ajax('/doRestore/', {
+                type: 'GET',
+                timeout: 60000,
+                success: restoreCallback,
+            });
+        }
+
+
+        function doRestoreWithBackup(){
+            let select = document.getElementById("backupSelect");
+            let status = document.getElementById("restoreSelectedStatus");
+            if(select.value === "Select backup to restore"){
+                status.innerHTML = "Select a backup from the dropdown below";
+                status.hidden = false;
+                console.log('should be an error')
+            } else {
+                status.hidden = true;
+                console.log('do restore with selected');
+                $.ajax('/doRestore/', {
+                    type: 'POST',
+                    data: {'toRestore': select.value},
+                    timeout: 60000,
+                    success: restoreWithBackupCallback});
+            }
+        }
+    </script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid d-flex flex-column flex-grow h-100">
+    <h1>Backup</h1>
+    <p id="backupStatus" hidden="true"></p>
+    <div class="row">
+        <div class="col-sm-3">
+            <p>Last backup was: {{last_backup}}</p>
+        </div>
+        <div class="col-sm">
+            <button type="button" class="btn btn-light" onclick="doBackup()">Backup Data</button>
+        </div>
+    </div>
+    <h1>Restore</h1>
+    <p id="restoreStatus" hidden="true"></p>
+    <div class="row">
+        <div class="col-sm-3">
+            <p>Last backup was: {{last_backup}}</p>
+        </div>
+        <div class="col-sm-1">
+            <button type="button" class="btn btn-light" onclick="doRestore()">Restore Last Backup</button>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-sm-3">
+            <p>Available Backups</p>
+        </div>
+    </div>
+    <p id="restoreSelectedStatus" hidden="true"></p>
+    <div class="row">
+        <div class="col-sm-3">
+            <select class="form-select" aria-label="Default select example" id="backupSelect">
+                <option selected>Select backup to restore</option>
+                {% for item in backups %}
+                    <option>{{item}}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-sm-1">
+            <button type="button" class="btn btn-light" onclick="doRestoreWithBackup()">Restore Selected Backup</button>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
+
