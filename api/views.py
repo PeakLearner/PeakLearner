@@ -1,5 +1,6 @@
 from pyramid.view import view_config
 from api.Handlers import Jobs, Hubs
+from api.util import PLdb as db
 from api import CommandHandler
 import json
 
@@ -23,10 +24,7 @@ def jobs(request):
 def uploadHubUrl(request):
     if 'POST' == request.method:
         # TODO: Implement user authentication (and maybe an anonymous user?)
-        try:
-            return Hubs.parseHub({'user': 1, 'url': request.json_body['args']['hubUrl']})
-        except json.decoder.JSONDecodeError:
-            return Hubs.parseHub({'user': 1, 'url': request.POST['hubUrl']})
+        return Hubs.parseHub({'user': 1, 'url': request.json_body['args']['hubUrl']})
     return
 
 
@@ -55,3 +53,15 @@ def trackData(request):
         return CommandHandler.runTrackCommand(query, request.method, request.json_body)
     return []
 
+
+@view_config(route_name='doBackup', renderer='json')
+def runBackup(request):
+    return db.doBackup()
+
+
+@view_config(route_name='doRestore', renderer='json')
+def runRestore(request):
+    if 'POST' == request.method:
+        return db.doRestoreWithSelected(request.POST['toRestore'])
+
+    return db.doRestore()

@@ -1,0 +1,18 @@
+{% extends "../templates/base.jinja2" %}
+
+{% block inner_head %}
+    <title>Model Stats</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid d-flex flex-column flex-grow h-100">
+    <h1>PeakLearner Model Stats</h1>
+    <div class="row">
+        <div class="col">
+            <p>Total number of models generated: {{numModels}}</p>
+            <p>Total number of correct models: {{correctModels}}</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
