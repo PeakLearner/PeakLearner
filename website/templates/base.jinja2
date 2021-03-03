@@ -71,7 +71,7 @@
                             <a href="/about/" class="nav-link my-sm-0">
                                 About
                             </a>
-                        <a href="/stats/" class="nav-link my-sm-0">
+                            <a href="/stats/" class="nav-link my-sm-0">
                                 Stats
                             </a>
 
@@ -88,14 +88,31 @@
                         </a>
                         <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
                             <a class="dropdown-item" href="#">
-                                {% block account_page %}
-
-                                {% endblock %}
+                                {% if user is not none %}
+                                    {{user}}
+                                {% else %}
+                                    Not Logged In
+                                {% endif %}
                             </a>
                             <div class="dropdown-divider"></div>
                             {#
                                 <a class="dropdown-item" href="#">Edit Account</a>
                             #}
+                            {% if user is not none %}
+                                <form class="px-4 py-3" action="/logout/" method="get">
+                                    <div class="form-group">
+                                        <input type="submit" value="Sign Out" class="btn btn-secondary btn-block">
+                                    </div>
+                                </form>
+                            {% else %}
+                                <div class="col text-center">
+                                    <a class="text-center btn btn-outline-dark" href="/login/" role="button" style="text-transform:none">
+                                        <img width="15px" style="margin-bottom:3px; margin-right:5px" alt="Google sign-in" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png" />
+                                        Login
+                                    </a>
+                                </div>
+                            {% endif %}
+
                             {% block login_logout %}
 
                                 {#

@@ -26,7 +26,8 @@ def myHubs(request):
     HubNames = list(map(lambda tuple: tuple[1], keys))
     
     url = db.HubInfo("jdh553@nau.edu", "TestHub").get()
-    return {"userid" : user, "HubNames" : HubNames, "url" : url}
+
+    return {"user" : user, "HubNames" : HubNames, "url" : url}
 
 @view_config(route_name='uploadHubUrl', renderer='json')
 def uploadHubUrl(request):

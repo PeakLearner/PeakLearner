@@ -1,4 +1,5 @@
 from pyramid.view import view_config
+from pyramid.view import view_defaults
 from pyramid.view import forbidden_view_config
 from api import CommandHandler
 from api.Handlers import Hubs
@@ -34,24 +35,31 @@ def home(request):
 
     user = request.authenticated_userid
 
-    if not user:
-        user = 'Not Logged In'
     return {'user':user}
 
 @view_config(route_name='about', renderer='about.html')
 def about(request):
-    return {}
+
+    user = request.authenticated_userid
+
+    return {'user':user}
 
 
 @view_config(route_name='newHub', renderer='newHub.html')
 def newHub(request):
-    return {}
+    
+    user = request.authenticated_userid
+
+    return {'user':user}
 
 @view_config(route_name='tutorial', renderer='tutorial.html')
 def tutorial(request):
-    return {}
+    
+    user = request.authenticated_userid
 
-# auhtentication views
+    return {'user':user}
+
+# authentication views
 @view_config(route_name='login', renderer='login.html')
 def login(request):
     url=request.route_url('auth_signin_redirect')
@@ -88,7 +96,10 @@ def loginAttempt(request):
 
 @view_config(route_name='failed', renderer='failed.html')
 def failed(request):
-    return {}
+
+    user = request.authenticated_userid
+
+    return {'user':user}
 
 # reroute from pyramid_google_login signin page
 @view_config(route_name='auth_signin')
@@ -98,14 +109,19 @@ def gohome(request):
 
 @view_config(route_name='backup', renderer='backup.html')
 def backup(request):
+    user = request.authenticated_userid
     return {'last_backup': db.getLastBackup(),
-            'backups': db.getAvailableBackups()}
+            'backups': db.getAvailableBackups(),
+            'user':user}
 
 
 @view_config(route_name='stats', renderer='stats.html')
 def stats(request):
     numLabeledChroms, numLabels = Labels.stats()
     currentJobStats = Jobs.stats()
+
+    user = request.authenticated_userid
+
     return {'numModels': Models.numModels(),
             'numLabeledChroms': numLabeledChroms,
             'numLabels': numLabels,
@@ -114,25 +130,35 @@ def stats(request):
             'queuedJobs': currentJobStats['queuedJobs'],
             'processingJobs': currentJobStats['processingJobs'],
             'doneJobs': currentJobStats['doneJobs'],
-            'avgTime': currentJobStats['avgTime']}
+            'avgTime': currentJobStats['avgTime'],
+            'user':user}
 
 
 # TODO: Maybe make these stats user specific?
 @view_config(route_name='modelStats', renderer='stats/models.html')
 def modelStats(request):
+    user = request.authenticated_userid
+
     return {'numModels': Models.numModels(),
-            'correctModels': Models.numCorrectModels()}
+            'correctModels': Models.numCorrectModels(),
+            'user':user}
 
 
 @view_config(route_name='labelStats', renderer='stats/labels.html')
 def modelStats(request):
     numLabeledChroms, numLabels = Labels.stats()
 
+    user = request.authenticated_userid
+
     return {'numLabeledChroms': numLabeledChroms,
-            'numLabels': numLabels}
+            'numLabels': numLabels,
+            'user':user}
 
 
 @view_config(route_name='jobStats', renderer='stats/jobs.html')
 def jobStats(request):
-    return Jobs.stats()
+    stats = Jobs.stats()
+    user = request.authenticated_userid
+    stats.update({'user':user})
+    return stats
 
