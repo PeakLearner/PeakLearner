@@ -21,7 +21,7 @@ def jobs(request):
 
 @view_config(route_name='myHubs', renderer = 'myHubs.html')
 def myHubs(request):
-    user = request.unauthenticated_userid
+    user = request.authenticated_userid
     keys = db.HubInfo.keysWhichMatch(db.HubInfo, user)
     HubNames = list(map(lambda tuple: tuple[1], keys))
     
