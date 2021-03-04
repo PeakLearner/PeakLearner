@@ -6,21 +6,15 @@
 
     <script type="text/javascript">
 
-        function resetJobCallback(data, status)
-        {
-            console.log(data)
+        function refreshCallback(data, status){
+            location.reload();
         }
 
         function resetJob(id) {
             let url = '/jobs/'
             let query = {'command': 'resetJob', 'args': {'jobId': id}}
 
-            sendAjax(url, query, resetJobCallback)
-        }
-
-        function restartAllJobsCallback(data, status)
-        {
-            console.log(data)
+            sendAjax(url, query, refreshCallback)
         }
 
         function restartAllJobs(test)
@@ -28,7 +22,7 @@
             let url = '/jobs/'
             let query = {'command': 'restartAllJobs'}
 
-            sendAjax(url, query, restartAllJobsCallback)
+            sendAjax(url, query, refreshCallback)
         }
 
         function doRestore(){
@@ -59,7 +53,7 @@
             {# the |string converts job['id'] to a string from an int#}
             <h3>Job: <a href="{{job['id']|string + '/'}}">{{job['id']}}</a></h3>
             <p>Hub Link: <a href="/{{job['user']}}/{{job['hub']}}/">{{job['user'] + '/' + job['hub']}}</a></p>
-            <p>Job Type: {{job['type']}}</p>
+            <p>Job Type: {{job['jobType']}}</p>
             <p>Job Status: {{job['status']}}</p>
             {% if job['status'] == 'Done' %}
             <p>Total Time: {{job['time']}}</p>
