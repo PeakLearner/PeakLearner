@@ -1,5 +1,8 @@
 FROM ubuntu as envSetup
-RUN apt-get update && apt install -y samtools libdb5.3-dev libdb5.3++-dev git build-essential zlib1g-dev libxml2-dev libexpat-dev npm nano python3-numpy python3-pip
+ENV TZ="America/Phoenix"
+RUN apt-get update
+RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata
+RUN apt install -y samtools libdb5.3-dev libdb5.3++-dev git build-essential zlib1g-dev libxml2-dev libexpat-dev npm nano python3-numpy python3-pip
 RUN mkdir /build/
 WORKDIR /build/
 RUN git clone https://github.com/PeakLearner/PeakLearner.git
