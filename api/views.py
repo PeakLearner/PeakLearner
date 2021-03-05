@@ -21,13 +21,13 @@ def jobs(request):
 
 @view_config(route_name='myHubs', renderer = 'myHubs.html')
 def myHubs(request):
-    user = request.authenticated_userid
-    keys = db.HubInfo.keysWhichMatch(db.HubInfo, user)
+    userid = request.authenticated_userid
+    keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
     HubNames = list(map(lambda tuple: tuple[1], keys))
     
     url = db.HubInfo("jdh553@nau.edu", "TestHub").get()
 
-    return {"user" : user, "HubNames" : HubNames, "url" : url}
+    return {"userid" : userid, "HubNames" : HubNames, "url" : url}
 
 @view_config(route_name='uploadHubUrl', renderer='json')
 def uploadHubUrl(request):
