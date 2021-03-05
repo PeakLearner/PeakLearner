@@ -15,6 +15,7 @@ from pyramid.security import remember, forget
 from website.users.Users import USERS
 from website.users.User import User
 
+
 # listens for login attempt
 # @subscriber(UserLoggedIn)
 # def getToken(event):
@@ -23,59 +24,61 @@ from website.users.User import User
 #     if userid not in USERS:
 #         _create_user(userid, token)
 
+
 # adds user to USERS dict object
 def _create_user(userid, **kw):
-    newUser = User(userid, **kw)
-    USERS[newUser.token] = newUser
-    return USERS[newUser.token]
+    new_user = User(userid, **kw)
+    USERS[new_user.token] = new_user
+    return USERS[new_user.token]
+
 
 # PAGE RENDERS
 @view_config(route_name='home', renderer='index.html')
 def home(request):
-
     user = request.authenticated_userid
 
-    return {'user':user}
+    return {'user': user}
+
 
 @view_config(route_name='about', renderer='about.html')
 def about(request):
-
     user = request.authenticated_userid
 
-    return {'user':user}
+    return {'user': user}
 
 
 @view_config(route_name='newHub', renderer='newHub.html')
 def newHub(request):
-    
     user = request.authenticated_userid
 
-    return {'user':user}
+    return {'user': user}
+
 
 @view_config(route_name='tutorial', renderer='tutorial.html')
 def tutorial(request):
-    
     user = request.authenticated_userid
 
-    return {'user':user}
+    return {'user': user}
+
 
 # authentication views
 @view_config(route_name='login', renderer='login.html')
 def login(request):
-    url=request.route_url('auth_signin_redirect')
+    url = request.route_url('auth_signin_redirect')
     return HTTPFound(location=url)
+
 
 # process user logout
 @view_config(route_name='logout', request_method='GET')
 def logout(request):
     headers = forget(request)
-    url=request.route_url('auth_logout')
+    url = request.route_url('auth_logout')
     return HTTPFound(location=url, headers=headers)
+
 
 # check user login credentials
 @view_config(route_name='authenticate')
 def loginAttempt(request):
-
     userid = request.unauthenticated_userid
 
     if userid:
@@ -87,32 +90,34 @@ def loginAttempt(request):
             user = _create_user(userid)
 
         if user.check_token(userid):
-            headers=remember(request, userid)
+            headers = remember(request, userid)
             url = request.route_url('home')
             return HTTPFound(location=url, headers=headers)
 
     url = request.route_url('failed')
     return HTTPFound(location=url)
 
+
 @view_config(route_name='failed', renderer='failed.html')
 def failed(request):
-
     user = request.authenticated_userid
 
-    return {'user':user}
+    return {'user': user}
+
 
 # reroute from pyramid_google_login signin page
 @view_config(route_name='auth_signin')
-def gohome(request):
-    url=request.route_url('home')
+def go_home(request):
+    url = request.route_url('home')
     return HTTPFound(location=url)
+
 
 @view_config(route_name='backup', renderer='backup.html')
 def backup(request):
     user = request.authenticated_userid
     return {'last_backup': db.getLastBackup(),
             'backups': db.getAvailableBackups(),
-            'user':user}
+            'user': user}
 
 
 @view_config(route_name='stats', renderer='stats.html')
@@ -131,7 +136,7 @@ def stats(request):
             'processingJobs': currentJobStats['processingJobs'],
             'doneJobs': currentJobStats['doneJobs'],
             'avgTime': currentJobStats['avgTime'],
-            'user':user}
+            'user': user}
 
 
 # TODO: Maybe make these stats user specific?
@@ -141,7 +146,7 @@ def modelStats(request):
 
     return {'numModels': Models.numModels(),
             'correctModels': Models.numCorrectModels(),
-            'user':user}
+            'user': user}
 
 
 @view_config(route_name='labelStats', renderer='stats/labels.html')
@@ -152,13 +157,12 @@ def modelStats(request):
 
     return {'numLabeledChroms': numLabeledChroms,
             'numLabels': numLabels,
-            'user':user}
+            'user': user}
 
 
 @view_config(route_name='jobStats', renderer='stats/jobs.html')
 def jobStats(request):
-    stats = Jobs.stats()
+    job_stats = Jobs.stats()
     user = request.authenticated_userid
-    stats.update({'user':user})
-    return stats
-
+    job_stats.update({'user': user})
+    return job_stats
