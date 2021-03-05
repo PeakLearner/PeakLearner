@@ -40,6 +40,17 @@ def home(request):
     return {'user': user}
 
 
+@view_config(route_name='profile', renderer='profile.html')
+def profile(request):
+    user = request.authenticated_userid
+
+    if user:
+        return {'user': user}
+
+    url = request.route_url('home')
+    return HTTPFound(location=url)
+
+
 @view_config(route_name='about', renderer='about.html')
 def about(request):
     user = request.authenticated_userid

@@ -7,11 +7,11 @@
 {# handles account views for whether logged in or not #}
 
 {% block content %}
-    <div class="text-center">
+    <div class="text-center container mt-4" style="padding: 50px;">
         {% if user is not none %}
-        <h2>Welcome <br> {{user}}</h2>
+        <h3>Welcome <br> {{user}}</h3>
         {% else %}
-        <h2>Welcome <br> Please Login With Google</h2>
+        <h3>Welcome <br> Please Login With Google</h3>
         {% endif %}
     </div>
 {% endblock %}
