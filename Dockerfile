@@ -1,4 +1,5 @@
 FROM ubuntu as envSetup
+ENV TMPDIR="/home/tem83/tmp/"
 ENV TZ="America/Phoenix"
 RUN apt-get update
 RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata
