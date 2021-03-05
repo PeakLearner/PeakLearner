@@ -7,6 +7,7 @@ from pyramid.security import Allow
 
 from website.users.Users import USERS
 
+
 # replace default factory to give default permissions to users
 class RootFactory(object):
     __acl__ = [
@@ -15,6 +16,7 @@ class RootFactory(object):
 
     def __init__(self, request):
         self.request = request
+
 
 # routes accessing user object must use this factory
 class UserFactory(object):
@@ -31,7 +33,8 @@ class UserFactory(object):
         user.__name__ = key
         return user
 
-def groupfinder(userid, request):
+
+def group_finder(userid, request):
     user = USERS.get(userid)
     if user:
         return ['g:%s' % g for g in user.groups]
@@ -41,14 +44,14 @@ def groupfinder(userid, request):
 def main(global_config, **settings):
     config = Configurator(settings=settings)
 
-    #create authentication and authorization policies
+    # create authentication and authorization policies
     authn_policy = AuthTktAuthenticationPolicy(
         config.get_settings()['security.google_login.client_secret'],
-        callback=groupfinder,
+        callback=group_finder,
     )
     authz_policy = ACLAuthorizationPolicy()
 
-    #set config settings
+    # set config settings
     config.set_authentication_policy(authn_policy)
     config.set_authorization_policy(authz_policy)
     config.set_root_factory(RootFactory)
@@ -66,6 +69,7 @@ def main(global_config, **settings):
     config.add_route('labelStats', '/stats/label/')
     config.add_route('jobStats', '/stats/job/')
     config.add_static_view(name='tutorial/static', path='website:static/tutorial')
+    config.add_route('myHubs', '/myHubs/')
     config.add_route('uploadHubUrl', '/uploadHubUrl/')
     config.add_route('jobs', '/jobs/')
     config.add_route('jobInfo', '/jobs/info/')
@@ -81,6 +85,7 @@ def main(global_config, **settings):
     config.add_route('failed', '/failed/')
     config.add_route('authenticate', '/authenticate/')
     config.add_route('logout', '/logout/')
+    config.add_route('profile', '/profile/')
 
     config.add_route('api', '/api/')
     config.add_route('doBackup', '/doBackup/')

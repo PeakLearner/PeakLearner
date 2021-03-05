@@ -4,34 +4,14 @@
     <title>PeakLearner</title>
 {% endblock %}
 
-{% block account_page %}
-    {{user}}
-{% endblock %}
-
 {# handles account views for whether logged in or not #}
-{% block login_logout %}
-    {% if user != "Not Logged In"%}
-        <form class="px-4 py-3" action="/logout/" method="get">
-            <div class="form-group">
-                <input type="submit" value="Sign Out" class="btn btn-secondary btn-block">
-            </div>
-        </form>
-    {% else %}
-        <div class="col text-center">
-            <a class="text-center btn btn-outline-dark" href="/login/" role="button" style="text-transform:none">
-                <img width="15px" style="margin-bottom:3px; margin-right:5px" alt="Google sign-in" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png" />
-                Login
-            </a>
-        </div>
-    {% endif %}
-{% endblock %}
 
 {% block content %}
-    <div class="text-center">
-        {% if user != "Not Logged In"%}
-        <h2>Welcome <br> {{user}}</h2>
+    <div class="text-center container mt-4" style="padding: 50px;">
+        {% if user is not none %}
+        <h3>Welcome <br> {{user}}</h3>
         {% else %}
-        <h2>Welcome <br> Please Login With Google</h2>
+        <h3>Welcome <br> Please Login With Google</h3>
         {% endif %}
     </div>
 {% endblock %}

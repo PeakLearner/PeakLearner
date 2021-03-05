@@ -10,21 +10,11 @@
             window.location.href = data;
         }
 
-        function uploadHub(test) {
+        function uploadHub() {
             let hubUrl = document.getElementById('hubUrl').value;
-            let query = {'hubUrl': hubUrl}
+            let query = {'command': 'uploadHub', 'args': {'hubUrl': hubUrl}}
 
-            $.ajax('/uploadHubUrl/', {
-            data: query,
-            type: 'POST',
-            timeout: 60000,
-            success: newHubCallback,
-        });
-
-        }
-
-        function doRestore(){
-
+            sendAjax('/uploadHubUrl/', query, newHubCallback)
         }
     </script>
 {% endblock %}

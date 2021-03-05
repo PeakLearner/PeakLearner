@@ -3,6 +3,38 @@
 {% block inner_head %}
     <title>Job Stats</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+    <script type="text/javascript">
+
+        function resetJobCallback(data, status)
+        {
+            console.log(data)
+        }
+
+        function resetJob(id) {
+            let url = '/jobs/'
+            let query = {'command': 'resetJob', 'args': {'jobId': id}}
+
+            sendAjax(url, query, resetJobCallback)
+        }
+
+        function restartAllJobsCallback(data, status)
+        {
+            console.log(data)
+        }
+
+        function restartAllJobs(test)
+        {
+            let url = '/jobs/'
+            let query = {'command': 'restartAllJobs'}
+
+            sendAjax(url, query, restartAllJobsCallback)
+        }
+
+        function doRestore(){
+
+        }
+    </script>
 {% endblock %}
 
 {% block content %}
@@ -16,13 +48,14 @@
             <p>Total number of processing jobs: {{processingJobs}}</p>
             <p>Total number of done jobs: {{doneJobs}}</p>
             <p>Average time per job: {{avgTime}}</p>
+            <button type="button" class="btn btn-light" onclick="restartAllJobs()">Restart All Jobs</button>
         </div>
     </div>
 
     <h2>Individual Job Stats</h2>
     <div class="row">
         {% for job in jobs %}
-        <div class="col-sm-3">
+        <div class="col-sm-3" id="{{job['id']}}">
             {# the |string converts job['id'] to a string from an int#}
             <h3>Job: <a href="{{job['id']|string + '/'}}">{{job['id']}}</a></h3>
             <p>Hub Link: <a href="/{{job['user']}}/{{job['hub']}}/">{{job['user'] + '/' + job['hub']}}</a></p>
@@ -32,6 +65,8 @@
             <p>Total Time: {{job['time']}}</p>
             {% endif %}
             {# TODO: Maybe add a way to change status of a job from this page #}
+
+            <button type="button" class="btn btn-light" onclick="resetJob({{job['id']}})">Reset Job</button>
         </div>
         {% endfor %}
 

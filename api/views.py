@@ -19,18 +19,22 @@ def jobs(request):
         return Jobs.JobHandler(query).runCommand(request.method, request.json_body)
     return []
 
-@view_config(route_name = 'myHubs', renderer = 'myHubs.html')
+@view_config(route_name='myHubs', renderer = 'myHubs.html')
 def myHubs(request):
-    userid = request.unauthenticated_userid
-    return {"user" : "user"}
+    user = request.authenticated_userid
+    keys = db.HubInfo.keysWhichMatch(db.HubInfo, user)
+    HubNames = list(map(lambda tuple: tuple[1], keys))
+    
+    url = db.HubInfo("jdh553@nau.edu", "TestHub").get()
+
+    return {"user" : user, "HubNames" : HubNames, "url" : url}
+
 @view_config(route_name='uploadHubUrl', renderer='json')
 def uploadHubUrl(request):
+    user = request.unauthenticated_userid
     if 'POST' == request.method:
         # TODO: Implement user authentication (and maybe an anonymous user?)
-        try:
-            return Hubs.parseHub({'user': 1, 'url': request.json_body['args']['hubUrl']})
-        except json.decoder.JSONDecodeError:
-            return Hubs.parseHub({'user': 1, 'url': request.POST['hubUrl']})
+        return Hubs.parseHub({'user': user, 'url': request.json_body['args']['hubUrl']})
     return
 
 
