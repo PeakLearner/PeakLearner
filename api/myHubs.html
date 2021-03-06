@@ -9,7 +9,14 @@
     <ul>
     {% for hubName in HubNames %}
         <li><a href = "/{{userid}}/{{hubName}}/">{{hubName}}</a></li>
-        <li><a href = "/{{userid}}/TestHub/">{{hubName}}</a></li>
+
+        <form action="/addUser/", method="POST">
+            <label for="userEmail">Add User to Hub</label><br>
+            <input type="text" id="userEmail" name="userEmail"><br><br>
+            <input value={{hubName}} id="hubName" type="hidden" name="hubName">
+            <input type="submit" value="Submit">
+        </form>
+        
     {% endfor %}
     </ul>
 

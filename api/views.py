@@ -4,6 +4,20 @@ from api.util import PLdb as db
 from api import CommandHandler
 import json
 
+from pyramid.view import view_config
+from pyramid.view import view_defaults
+from pyramid.view import forbidden_view_config
+from api import CommandHandler
+from api.Handlers import Hubs
+from api.util import PLdb as db
+from api.Handlers import Models, Labels, Jobs
+
+from pyramid_google_login.events import UserLoggedIn
+from pyramid.events import subscriber
+
+from pyramid_google_login import *
+from pyramid.security import remember, forget
+
 
 @view_config(route_name='jobInfo', renderer='json')
 def jobStatus(request):
@@ -19,15 +33,24 @@ def jobs(request):
         return Jobs.JobHandler(query).runCommand(request.method, request.json_body)
     return []
 
-@view_config(route_name='myHubs', renderer = 'myHubs.html')
+@view_config(route_name='myHubs', renderer='myHubs.html')
 def myHubs(request):
     userid = request.authenticated_userid
     keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
     HubNames = list(map(lambda tuple: tuple[1], keys))
     
-    url = db.HubInfo("jdh553@nau.edu", "TestHub").get()
+    hubInfo = db.HubInfo("jdh553@nau.edu", "TestHub").get()
 
-    return {"userid" : userid, "HubNames" : HubNames, "url" : url}
+    return {"userid" : userid, "HubNames" : HubNames, "hubInfo" : hubInfo}
+
+@view_config(route_name='addUser', request_method='POST')
+def addUser(request):
+    userid = request.unauthenticated_userid
+    keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
+    print(request)
+
+    url = request.route_url('myHubs')
+    return HTTPFound(location=url)
 
 @view_config(route_name='uploadHubUrl', renderer='json')
 def uploadHubUrl(request):
