@@ -31,6 +31,12 @@ class Model(db.PandasDf):
     pass
 
 
+class Loss(db.Resource):
+    keys = ("user", "hub", "track", "chrom", "problemstart", "penalty")
+
+    pass
+
+
 # TODO: Add chrom as key, would lead to speed increases
 class Problems(db.PandasDf):
     keys = ("Genome",)

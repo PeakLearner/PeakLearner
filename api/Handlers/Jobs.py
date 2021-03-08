@@ -1,7 +1,6 @@
 from api.util import PLdb as db
 from api.Handlers.Handler import Handler
 from api.Handlers import Models
-import ctypes
 
 
 statuses = ['New', 'Queued', 'Processing', 'Done', 'Error']
@@ -214,7 +213,7 @@ class Job(metaclass=JobType):
 
         for key in self.tasks.keys():
             task = self.tasks[key]
-            task['Status'] = 'New'
+            task['status'] = 'New'
 
     def restartUnfinished(self):
         restarted = False
@@ -427,7 +426,6 @@ def getJob(data):
 
 
 def getNextNewTask(data):
-    print('getNextNewTask')
     job = getJobWithHighestPriority()
 
     if job is None:
@@ -444,7 +442,6 @@ def getNextNewTask(data):
 
 
 def getJobWithHighestPriority():
-    print('getJobId')
     jobWithTask = None
 
     jobs = db.Job.all()
