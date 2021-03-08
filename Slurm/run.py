@@ -25,7 +25,7 @@ def startNextTask():
         raise Exception(r.status_code)
 
     # If no new jobs to process, return false and sleep
-    if not r.json()['status']:
+    if not r.json():
         return False
 
     try:
