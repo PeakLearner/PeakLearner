@@ -478,8 +478,8 @@ def checkNewTask(data):
     jobs = db.Job.all()
     for job in jobs:
         if job.status.lower() == 'new':
-            return True
-    return False
+            return {'status': True}
+    return {'status': False}
 
 
 def getAllJobs(data):
