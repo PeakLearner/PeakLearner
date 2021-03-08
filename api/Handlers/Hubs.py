@@ -192,7 +192,7 @@ def submitPregenWithData(doPregen, user, hub, track, coverageUrl, txn=None):
                              penalties,
                              trackUrl=coverageUrl)
 
-        job.putNewJob(checkExists=False)
+        job.putNewJob()
 
 
 def checkIfProblemHasLabels(problem, labels):
