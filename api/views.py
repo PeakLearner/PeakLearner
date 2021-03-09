@@ -47,7 +47,19 @@ def myHubs(request):
 def addUser(request):
     userid = request.unauthenticated_userid
     keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
-    print(request)
+
+    userEmail = request.params['userEmail']
+    hubName = request.params['hubName']
+
+    hubInfo = db.HubInfo(userid, hubName).get()
+    if 'users' in hubInfo.keys():
+        hubInfo['users'].append(userEmail)
+    else:
+        hubInfo['users'] = []
+        hubInfo['users'].append(userEmail)
+    
+    db.HubInfo(userid, hubName).put(hubInfo)
+
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
