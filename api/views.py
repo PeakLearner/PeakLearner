@@ -39,10 +39,26 @@ def myHubs(request):
     userid = request.authenticated_userid
     keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
     HubNames = list(map(lambda tuple: tuple[1], keys))
-    
-    hubInfo = db.HubInfo("jdh553@nau.edu", "TestHub").get()
 
-    return {"userid" : userid, "HubNames" : HubNames, "hubInfo" : hubInfo}
+    #print(keys)
+    #print(HubNames)
+
+    #hubInfos = list(map(lambda hubName: db.HubInfo(userid, hubName).get(), HubNames))
+    #print(hubInfos)
+
+    hubInfos = dict(
+                   ('{hubName}'.format(hubName=key[1]), db.HubInfo(key[0], key[1]).get())
+                   for key in keys
+                   )
+
+    print("HUBINFOS:", hubInfos)
+    
+    hubInfo = db.HubInfo("zachary.wl.123@gmail.com", "TestHub").get()
+
+    # list of tracks and list of labels with the above HubNames
+    #print("\nHUBINFO:\n", hubInfo,"\n")
+
+    return {"user": userid, "HubNames": HubNames, "hubInfo": hubInfo, "hubInfos": hubInfos}
 
 
 @view_config(route_name='addUser', request_method='POST')
