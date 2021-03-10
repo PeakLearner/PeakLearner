@@ -5,11 +5,53 @@
 {% endblock %}
 
 {% block content %}
-    <h1>Public Hubs</h1>
-    <ul>
-        {% for hubName in HubNames %}
-            <li><a href = "/{{UserNames[loop.index0]}}/{{hubName}}/">{{hubName}}</a></li>
-        {% endfor %}
+
+    <div class="container mt-4" style = "border-color: black; padding:15px; border-width: 2px; border-style: solid; height: 100%; max-width:1000px; min-width:150px">
+
+        <h2 class="text-center">Public Hubs</h2>
+        <h4 class="text-center">
+        {% if user is not none %}
+            {{user}}
+        {% else %}
+            Anonymous
+        {% endif %}
+        </h4>
+
+        <hr/>
+
+        <ul>
+            {% for hub in HubNames %}
+
+                <li style="list-style-type: none">
+                    <div class="card" style = "width: 95%;">
+
+                        <div class="card-header">
+                            <a class="card-link" href = "/{{user}}/{{hub}}/">{{hub}}</a>
+                        </div>
+
+                        <div class="card-body">
+                            {# TODO: Reimplement this #}
+                            <div class="card-text">
+                                <b>Owner:</b>
+                                {% if UserNames[loop.index0] is string %}
+                                    {{UserNames[loop.index0]}}
+                                {% else %}
+                                    Anonymous
+                                {% endif %}
+                            </div>
+{#                            <div class="card-text">#}
+{#                                <b>Tracks:</b> {{hubInfos[hub]['tracks']|length}}#}
+{#                            </div>#}
+                        </div>
+
+                    </div>
+                </li>
+
+                <br>
+
+            {% endfor %}
         </ul>
+    </div>
+
 {% endblock %}
 
