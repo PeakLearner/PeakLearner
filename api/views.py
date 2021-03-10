@@ -73,8 +73,6 @@ def addUser(request):
     userEmail = request.params['userEmail']
     hubName = request.params['hubName']
 
-    print("ID:", userid, "\nHub:", hubName)
-
     hubInfo = db.HubInfo(userid, hubName).get()
     if 'users' in hubInfo.keys():
         hubInfo['users'].append(userEmail)
