@@ -40,6 +40,12 @@ def myHubs(request):
     keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
     HubNames = list(map(lambda tuple: tuple[1], keys))
 
+    usersdict = {}
+    for hubName in HubNames:
+        currHubInfo = db.HubInfo(userid, hubName).get()
+
+        usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
+
     #print(keys)
     #print(HubNames)
 
@@ -58,7 +64,7 @@ def myHubs(request):
     # list of tracks and list of labels with the above HubNames
     #print("\nHUBINFO:\n", hubInfo,"\n")
 
-    return {"user": userid, "HubNames": HubNames, "hubInfo": hubInfo, "hubInfos": hubInfos}
+    return {"user": userid, "HubNames": HubNames, "hubInfo": hubInfo, "hubInfos": hubInfos, "usersdict" : usersdict}
 
   
 @view_config(route_name='publicHubs', renderer='publicHubs.html')
@@ -81,10 +87,11 @@ def addUser(request):
     hubInfo = db.HubInfo(userid, hubName).get()
     if 'users' in hubInfo.keys():
         hubInfo['users'].append(userEmail)
-    else:
+    else:   
         hubInfo['users'] = []
         hubInfo['users'].append(userEmail)
     
+    hubInfo['users'] = list(set(hubInfo['users']))
     db.HubInfo(userid, hubName).put(hubInfo)
 
     url = request.route_url('myHubs')
