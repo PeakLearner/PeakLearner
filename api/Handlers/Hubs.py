@@ -140,6 +140,75 @@ def storeHubInfo(user, hub, tracks, hubInfo, genome):
 
     return '/%s/' % os.path.join(str(user), hub)
 
+def checkForPrexistingLabels(coverageUrl, user, hub, track, genome):
+    trackUrl = coverageUrl.rsplit('/', 1)[0]
+    labelUrl = '%s/labels.bed' % trackUrl
+    with requests.get(labelUrl) as r:
+        if not r.status_code == 200:
+            return
+
+        with tempfile.TemporaryFile() as f:
+            f.write(r.content)
+            f.flush()
+            f.seek(0)
+            labels = pd.read_csv(f, sep='\t', header=None)
+            labels.columns = Labels.labelColumns
+
+    grouped = labels.groupby('chrom')
+    grouped.apply(saveLabelGroup, user, hub, track, genome, coverageUrl)
+
+
+def saveLabelGroup(group, user, hub, track, genome, coverageUrl):
+    group = group.sort_values('chromStart', ignore_index=True)
+
+    group['annotation'] = group.apply(fixNoPeaks, axis=1)
+
+    chrom = group['chrom'].loc[0]
+
+    txn = db.getTxn()
+
+    db.Labels(user, hub, track['track'], chrom).put(group, txn=txn)
+
+    chromProblems = Tracks.getProblemsForChrom(genome, chrom, txn)
+
+    withLabels = chromProblems.apply(checkIfProblemHasLabels, axis=1, args=(group,))
+
+    doPregen = chromProblems[withLabels]
+
+    submitPregenWithData(doPregen, user, hub, track, coverageUrl)
+
+    txn.commit()
+
+
+def submitPregenWithData(doPregen, user, hub, track, coverageUrl, txn=None):
+    recs = doPregen.to_dict('records')
+    for problem in recs:
+        penalties = Models.getPrePenalties()
+        job = Jobs.PregenJob(user,
+                             hub,
+                             track['track'],
+                             problem,
+                             penalties,
+                             trackUrl=coverageUrl)
+
+        job.putNewJob(checkExists=False)
+
+
+def checkIfProblemHasLabels(problem, labels):
+    inBounds = labels.apply(db.checkInBounds,
+                            axis=1,
+                            args=(problem['chrom'],
+                                  problem['chromStart'],
+                                  problem['chromEnd']))
+
+    return inBounds.any()
+
+
+def fixNoPeaks(row):
+
+    if row['annotation'] == 'noPeaks':
+        return 'noPeak'
+    return row['annotation']
 
 def getRefSeq(genome, path, includes):
     genomeRelPath = os.path.join('genomes', genome)
