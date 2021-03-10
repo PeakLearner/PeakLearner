@@ -140,7 +140,6 @@ def storeHubInfo(user, hub, tracks, hubInfo, genome):
 
     return '/%s/' % os.path.join(str(user), hub)
 
-
 def checkForPrexistingLabels(coverageUrl, user, hub, track, genome):
     trackUrl = coverageUrl.rsplit('/', 1)[0]
     labelUrl = '%s/labels.bed' % trackUrl
@@ -210,7 +209,6 @@ def fixNoPeaks(row):
     if row['annotation'] == 'noPeaks':
         return 'noPeak'
     return row['annotation']
-
 
 def getRefSeq(genome, path, includes):
     genomeRelPath = os.path.join('genomes', genome)
