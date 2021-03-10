@@ -5,7 +5,7 @@
 {% endblock %}
 
 {% block content %}
-    <h1>Hubs for {{user}}</h1>
+    <h1>Hubs for {{userid}}</h1>
     <ul>
     {% for hubName in HubNames %}
         <li><a href = "/{{userid}}/{{hubName}}/">{{hubName}}</a></li>

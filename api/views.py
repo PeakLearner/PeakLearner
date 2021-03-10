@@ -39,11 +39,16 @@ def myHubs(request):
     userid = request.authenticated_userid
     keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
     HubNames = list(map(lambda tuple: tuple[1], keys))
-    
-    hubInfo = db.HubInfo("jdh553@nau.edu", "TestHub").get()
+    return {"userid" : userid, "HubNames" : HubNames }
 
-    return {"userid" : userid, "HubNames" : HubNames, "hubInfo" : hubInfo}
+@view_config(route_name='publicHubs', renderer='publicHubs.html')
+def publicHubs(request):
 
+    userid = request.authenticated_userid
+    keys = db.HubInfo.db_key_tuples()
+    UserNames = list(map(lambda tuple: tuple[0],keys))
+    HubNames = list(map(lambda tuple: tuple[1],keys))
+    return {"UserNames" : UserNames, "HubNames" : HubNames }
 
 @view_config(route_name='addUser', request_method='POST')
 def addUser(request):
