@@ -38,8 +38,6 @@ def myHubs(request):
     userid = request.authenticated_userid
     keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
     HubNames = list(map(lambda tuple: tuple[1], keys))
-    
-    hubInfo = db.HubInfo("jdh553@nau.edu", "TestHub").get()
 
     usersdict = {}
     for hubName in HubNames:
