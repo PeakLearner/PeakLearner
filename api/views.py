@@ -33,6 +33,7 @@ def jobs(request):
         return Jobs.JobHandler(query).runCommand(request.method, request.json_body)
     return []
 
+
 @view_config(route_name='myHubs', renderer='myHubs.html')
 def myHubs(request):
     userid = request.authenticated_userid
@@ -45,8 +46,36 @@ def myHubs(request):
 
         usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
 
-    return {"userid" : userid, "HubNames" : HubNames, "hubInfo" : hubInfo, "usersdict" : usersdict}
+    #print(keys)
+    #print(HubNames)
 
+    #hubInfos = list(map(lambda hubName: db.HubInfo(userid, hubName).get(), HubNames))
+    #print(hubInfos)
+
+    hubInfos = dict(
+                   ('{hubName}'.format(hubName=key[1]), db.HubInfo(key[0], key[1]).get())
+                   for key in keys
+                   )
+
+    print("HUBINFOS:", hubInfos)
+    
+    hubInfo = db.HubInfo("zachary.wl.123@gmail.com", "TestHub").get()
+
+    # list of tracks and list of labels with the above HubNames
+    #print("\nHUBINFO:\n", hubInfo,"\n")
+
+    return {"user": userid, "HubNames": HubNames, "hubInfo": hubInfo, "hubInfos": hubInfos, "usersdict" : usersdict}
+
+  
+@view_config(route_name='publicHubs', renderer='publicHubs.html')
+def publicHubs(request):
+    userid = request.authenticated_userid
+    keys = db.HubInfo.db_key_tuples()
+    UserNames = list(map(lambda tuple: tuple[0],keys))
+    HubNames = list(map(lambda tuple: tuple[1],keys))
+    return {"UserNames" : UserNames, "HubNames" : HubNames }
+
+  
 @view_config(route_name='addUser', request_method='POST')
 def addUser(request):
     userid = request.unauthenticated_userid
@@ -65,11 +94,9 @@ def addUser(request):
     hubInfo['users'] = list(set(hubInfo['users']))
     db.HubInfo(userid, hubName).put(hubInfo)
 
-    print(db.HubInfo(userid, hubName).get())
-
-
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
+
 
 @view_config(route_name='uploadHubUrl', renderer='json')
 def uploadHubUrl(request):
