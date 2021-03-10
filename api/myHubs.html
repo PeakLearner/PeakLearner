@@ -9,7 +9,8 @@
     <ul>
     {% for hubName in HubNames %}
         <li><a href = "/{{userid}}/{{hubName}}/">{{hubName}}</a></li>
-
+        
+        <p>Users: {{usersdict[hubName]}}</p>
         <form action="/addUser/", method="POST">
             <label for="userEmail">Add User to Hub</label><br>
             <input type="text" id="userEmail" name="userEmail"><br><br>

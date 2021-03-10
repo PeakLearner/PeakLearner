@@ -41,7 +41,13 @@ def myHubs(request):
     
     hubInfo = db.HubInfo("jdh553@nau.edu", "TestHub").get()
 
-    return {"userid" : userid, "HubNames" : HubNames, "hubInfo" : hubInfo}
+    usersdict = {}
+    for hubName in HubNames:
+        currHubInfo = db.HubInfo(userid, hubName).get()
+
+        usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
+
+    return {"userid" : userid, "HubNames" : HubNames, "hubInfo" : hubInfo, "usersdict" : usersdict}
 
 @view_config(route_name='addUser', request_method='POST')
 def addUser(request):
@@ -54,11 +60,14 @@ def addUser(request):
     hubInfo = db.HubInfo(userid, hubName).get()
     if 'users' in hubInfo.keys():
         hubInfo['users'].append(userEmail)
-    else:
+    else:   
         hubInfo['users'] = []
         hubInfo['users'].append(userEmail)
     
+    hubInfo['users'] = list(set(hubInfo['users']))
     db.HubInfo(userid, hubName).put(hubInfo)
+
+    print(db.HubInfo(userid, hubName).get())
 
 
     url = request.route_url('myHubs')
