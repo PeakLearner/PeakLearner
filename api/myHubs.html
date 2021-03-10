@@ -5,20 +5,55 @@
 {% endblock %}
 
 {% block content %}
-    <h1>Hubs for {{userid}}</h1>
-    <ul>
-    {% for hubName in HubNames %}
-        <li><a href = "/{{userid}}/{{hubName}}/">{{hubName}}</a></li>
 
-        <form action="/addUser/", method="POST">
-            <label for="userEmail">Add User to Hub</label><br>
-            <input type="text" id="userEmail" name="userEmail"><br><br>
-            <input value={{hubName}} id="hubName" type="hidden" name="hubName">
-            <input type="submit" value="Submit">
-        </form>
-        
-    {% endfor %}
-    </ul>
+    <div class="container mt-4" style = "border-color: black; padding:15px; border-width: 2px; border-style: solid; height: 100%; max-width:1000px; min-width:150px">
+
+        <h2 class="text-center">My Hubs</h2>
+        <h4 class="text-center">{{user}}</h4>
+      
+        <hr/>
+
+        <ul>
+            {% for hub in hubInfos %}
+
+                <li style="list-style-type: none">
+                    <div class="card" style = "width: 95%;">
+
+                        <div class="card-header">
+                            <a class="card-link" href = "/{{user}}/{{hub}}/">{{hub}}</a>
+                        </div>
+
+                        <div class="card-body">
+
+                            <div class="card-text">
+                                <b>Tracks:</b> {{hubInfos[hub]['tracks']|length}}
+                            </div>
+                            <br>
+
+                            <form action="/addUser/" method="POST">
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <label class="input-group-text" id="add-user-label" for="userEmail">
+                                            User Email
+                                        </label>
+                                    </div>
+                                    <input type="text" id="userEmail" name="userEmail" class="form-control" aria-describedby="add-user-label">
+                                    <input value={{hubName}} id="hubName" type="hidden" name="hubName">
+                                    <span class="input-group-btn">
+                                        <input class="btn btn-outline-dark" type="submit" value="add user" style="margin-left: 10px">
+                                    </span>
+                                </div>
+                            </form>
+                        </div>
+
+                    </div>
+                </li>
+
+                <br>
+
+            {% endfor %}
+        </ul>
+    </div>
 
 {% endblock %}
 
