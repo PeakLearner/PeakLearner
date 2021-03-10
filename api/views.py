@@ -33,6 +33,7 @@ def jobs(request):
         return Jobs.JobHandler(query).runCommand(request.method, request.json_body)
     return []
 
+
 @view_config(route_name='myHubs', renderer='myHubs.html')
 def myHubs(request):
     userid = request.authenticated_userid
@@ -42,6 +43,7 @@ def myHubs(request):
     hubInfo = db.HubInfo("jdh553@nau.edu", "TestHub").get()
 
     return {"userid" : userid, "HubNames" : HubNames, "hubInfo" : hubInfo}
+
 
 @view_config(route_name='addUser', request_method='POST')
 def addUser(request):
@@ -60,9 +62,9 @@ def addUser(request):
     
     db.HubInfo(userid, hubName).put(hubInfo)
 
-
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
+
 
 @view_config(route_name='uploadHubUrl', renderer='json')
 def uploadHubUrl(request):
