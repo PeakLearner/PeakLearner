@@ -56,7 +56,6 @@ def startNextTask():
         print('task already queued', queuedTask)
         return False
 
-
     if cfg.useSlurm:
         createSlurmTask(queuedTask)
     else:

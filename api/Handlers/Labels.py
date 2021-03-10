@@ -22,13 +22,11 @@ class LabelHandler(Handler.TrackHandler):
 
 
 def addLabel(data):
-    label = 'unknown'
-
     # Duplicated because calls from updateLabel are causing freezing
     newLabel = pd.Series({'chrom': data['ref'],
                           'chromStart': data['start'],
                           'chromEnd': data['end'],
-                          'annotation': label})
+                          'annotation': data['label']})
 
     txn = db.getTxn()
     item, labels = db.Labels(data['user'], data['hub'], data['track'], data['ref']).add(newLabel, txn=txn)
