@@ -53,7 +53,7 @@ def myHubs(request):
     
     hubInfo = db.HubInfo("zachary.wl.123@gmail.com", "TestHub").get()
 
-    return {"user": userid, "HubNames": HubNames, "hubInfo": hubInfo, "hubInfos": hubInfos, "usersdict" : usersdict}
+    return {"user": userid, "HubNames": HubNames, "hubInfo": hubInfo, "hubInfos": hubInfos, "usersdict": usersdict}
 
   
 @view_config(route_name='publicHubs', renderer='publicHubs.html')
@@ -72,6 +72,8 @@ def addUser(request):
 
     userEmail = request.params['userEmail']
     hubName = request.params['hubName']
+
+    print("ID:", userid, "\nHub:", hubName)
 
     hubInfo = db.HubInfo(userid, hubName).get()
     if 'users' in hubInfo.keys():
