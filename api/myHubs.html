@@ -27,6 +27,12 @@
 
                             <div class="card-text">
                                 <b>Tracks:</b> {{hubInfos[hub]['tracks']|length}}
+                                <br>
+                                <b>Users:
+                                    {% for user in usersdict[hub]%}
+                                    <b>{{user}}</b>
+                                    {% endfor %}
+                                </b> 
                             </div>
                             <br>
 
@@ -38,7 +44,7 @@
                                         </label>
                                     </div>
                                     <input type="text" id="userEmail" name="userEmail" class="form-control" aria-describedby="add-user-label">
-                                    <input value={{hubName}} id="hubName" type="hidden" name="hubName">
+                                    <input value={{hub}} id="hubName" type="hidden" name="hubName">
                                     <span class="input-group-btn">
                                         <input class="btn btn-outline-dark" type="submit" value="add user" style="margin-left: 10px">
                                     </span>

@@ -57,9 +57,9 @@ def myHubs(request):
                    for key in keys
                    )
 
-    print("HUBINFOS:", hubInfos)
+    #print("HUBINFOS:", hubInfos)
     
-    hubInfo = db.HubInfo("zachary.wl.123@gmail.com", "TestHub").get()
+    hubInfo = db.HubInfo(userid, "TestHub").get()
 
     # list of tracks and list of labels with the above HubNames
     #print("\nHUBINFO:\n", hubInfo,"\n")
