@@ -42,7 +42,7 @@
                                                 <input value="{{hub}}" id="hubName" type="hidden" name="hubName">
                                                 <input value="{{couser}}" id="couserName" type="hidden" name="couserName">
                                                 <button type="submit" class="btn btn-danger" formmethod="post"
-                                                        style="font-size: 10px; padding: 0 5px; display:inline"> -
+                                                        style="font-size: 10px; padding: 0 5px; display:inline"> - remove
                                                 </button>
                                             </form>
 
@@ -55,9 +55,10 @@
                                     + add user
                                 </button>
                             </div>
-                            <br>
+
 
                             <form id="adduser-field-{{hub}}" action="/addUser/" method="POST" style="display: none">
+                                <br>
                                 <div class="input-group mb-3">
                                     <div class="input-group-prepend">
                                         <label class="input-group-text" id="add-user-label" for="userEmail">
@@ -66,7 +67,7 @@
                                     </div>
                                     <input type="email" id="userEmail" name="userEmail" class="form-control" aria-describedby="add-user-label">
                                     <input value="{{hub}}" id="hubName" type="hidden" name="hubName">
-                                    <input class="btn btn-outline-dark" type="submit" value="add user" onclick="addUserField(false, '{{ hub }}')" style="margin-left: 10px">
+                                    <input class="btn btn-outline-dark" type="submit" value="add user" style="margin-left: 10px">
                                 </div>
                                 <button type="button" class="btn btn-secondary" onclick="addUserField(false, '{{ hub }}')">Close</button>
                             </form>
