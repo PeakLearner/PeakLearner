@@ -97,6 +97,12 @@ def addUser(request):
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
 
+@view_config(route_name='adjustPerms', renderer = 'adjustPerms.html')
+def adjustPerms(request):
+    userid = request.unauthenticated_userid
+    query = request.matchdict
+    print(query)
+    return {"userid" : userid}
 
 @view_config(route_name='uploadHubUrl', renderer='json')
 def uploadHubUrl(request):

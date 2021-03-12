@@ -29,8 +29,8 @@
                                 <b>Tracks:</b> {{hubInfos[hub]['tracks']|length}}
                                 <br>
                                 <b>Users:
-                                    {% for user in usersdict[hub]%}
-                                    <b>{{user}}</b>
+                                    {% for couser in usersdict[hub]%}
+                                    <a href = "/adjustPerms/{{user}}/{{hub}}/{{couser}}">{{couser}}</a>
                                     {% endfor %}
                                 </b> 
                             </div>
