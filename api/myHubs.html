@@ -30,9 +30,15 @@
                             <div class="card-text">
                                 <b>Tracks:</b> {{hubInfos[hub]['tracks']|length}}
                                 <br>
+                                <b>Users:
+                                    {% for couser in usersdict[hub]%}
+                                    <a href = "/adjustPerms/{{user}}/{{hub}}/{{couser}}">{{couser}}</a>
+                                    {% endfor %}
+                                </b> 
                                 <b>Owner:</b> {{user}}
                                 <br>
                                 <b>Users:</b> {{usersdict[hub]}}
+
                             </div>
                             <br>
 
