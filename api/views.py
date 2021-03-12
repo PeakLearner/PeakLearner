@@ -38,10 +38,10 @@ def jobs(request):
 def myHubs(request):
     userid = request.authenticated_userid
     keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
-    HubNames = list(map(lambda tuple: tuple[1], keys))
+    hubNames = list(map(lambda tuple: tuple[1], keys))
 
     usersdict = {}
-    for hubName in HubNames:
+    for hubName in hubNames:
         currHubInfo = db.HubInfo(userid, hubName).get()
 
         usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
@@ -50,19 +50,23 @@ def myHubs(request):
                    ('{hubName}'.format(hubName=key[1]), db.HubInfo(key[0], key[1]).get())
                    for key in keys
                    )
-    
-    hubInfo = db.HubInfo(userid, "TestHub").get()
 
-    return {"user": userid, "HubNames": HubNames, "hubInfo": hubInfo, "hubInfos": hubInfos, "usersdict": usersdict}
+    return {"user": userid, "HubNames": hubNames, "hubInfos": hubInfos, "usersdict": usersdict}
 
   
 @view_config(route_name='publicHubs', renderer='publicHubs.html')
 def publicHubs(request):
     userid = request.authenticated_userid
     keys = db.HubInfo.db_key_tuples()
-    UserNames = list(map(lambda tuple: tuple[0],keys))
-    HubNames = list(map(lambda tuple: tuple[1],keys))
-    return {"user": userid, "UserNames": UserNames, "HubNames": HubNames}
+
+    hubNames = list(map(lambda tuple: tuple[1],keys))
+
+    hubInfos = dict(
+                   ('{hubName}'.format(hubName=key[1]), db.HubInfo(key[0], key[1]).get())
+                   for key in keys
+                   )
+
+    return {"user": userid, "HubNames": hubNames, "hubInfos": hubInfos}
 
   
 @view_config(route_name='addUser', request_method='POST')
@@ -86,12 +90,25 @@ def addUser(request):
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
 
+
+@view_config(route_name='hubRemoveUser', request_method='POST')
+def removeUser(request):
+    userid = request.unauthenticated_userid
+    keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
+
+    # TODO: REMOVE USER FROM HUB
+
+    url = request.route_url('myHubs')
+    return HTTPFound(location=url)
+
+
 @view_config(route_name='adjustPerms', renderer = 'adjustPerms.html')
 def adjustPerms(request):
     userid = request.unauthenticated_userid
     query = request.matchdict
     print(query)
-    return {"userid" : userid}
+    return {"userid": userid}
+
 
 @view_config(route_name='uploadHubUrl', renderer='json')
 def uploadHubUrl(request):

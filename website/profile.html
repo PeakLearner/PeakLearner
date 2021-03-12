@@ -7,12 +7,11 @@
 {# handles account views for whether logged in or not #}
 
 {% block content %}
-    <div class="d-flex justify-content-center">
-        <div class="container mt-4" style = "background-color: whitesmoke; padding: 50px; border-color: darkblue; border-width: 4px; border-style: solid; margin: 10px">
-            <h2 class="text-center">PROFILE PAGE:</h2>
-            <p>
-                <b>Email:</b> {{user}}
-            </p>
-        </div>
+    <div class="container mt-4" style = "border-color: black; padding:15px; border-width: 2px; border-style: solid;
+                                         max-width:1000px; min-width:150px">
+        <h2 class="text-center">PROFILE PAGE:</h2>
+        <p>
+            <b>Email:</b> {{user}}
+        </p>
     </div>
 {% endblock %}
