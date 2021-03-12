@@ -25,6 +25,8 @@
 
                         <div class="card-body">
 
+
+
                             <div class="card-text">
                                 <b>Tracks:</b> {{hubInfos[hub]['tracks']|length}}
                                 <br>
@@ -33,6 +35,10 @@
                                     <a href = "/adjustPerms/{{user}}/{{hub}}/{{couser}}">{{couser}}</a>
                                     {% endfor %}
                                 </b> 
+                                <b>Owner:</b> {{user}}
+                                <br>
+                                <b>Users:</b> {{usersdict[hub]}}
+
                             </div>
                             <br>
 
@@ -44,10 +50,8 @@
                                         </label>
                                     </div>
                                     <input type="text" id="userEmail" name="userEmail" class="form-control" aria-describedby="add-user-label">
-                                    <input value={{hub}} id="hubName" type="hidden" name="hubName">
-                                    <span class="input-group-btn">
-                                        <input class="btn btn-outline-dark" type="submit" value="add user" style="margin-left: 10px">
-                                    </span>
+                                    <input value="{{hub}}" id="hubName" type="hidden" name="hubName">
+                                    <input class="btn btn-outline-dark" type="submit" value="add user" style="margin-left: 10px">
                                 </div>
                             </form>
                         </div>
