@@ -91,8 +91,12 @@ def addUser(request):
 def removeUser(request):
     userid = request.unauthenticated_userid
     keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
+    userEmail = request.params['couserName']
+    hubName = request.params['hubName']
 
-    # TODO: REMOVE USER FROM HUB
+    hubInfo = db.HubInfo(userid, hubName).get()
+    hubInfo['users'].remove(userEmail)
+    db.HubInfo(userid, hubName).put(hubInfo)
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
