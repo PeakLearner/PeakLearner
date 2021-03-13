@@ -9,10 +9,21 @@
     <div class="container mt-4" style = "border-color: black; padding:15px; border-width: 2px; border-style: solid;
                                          max-width:1000px; min-width:150px">
 
-        <h2 class="text-center">My Hubs</h2>
-        <h4 class="text-center">{{user}}</h4>
-      
+        <div class="d-flex justify-content-center">
+            <div class="flex-column">
+                <h2 class="text-center">My Hubs</h2>
+                <h4 class="text-center">{{user}}</h4>
+            </div>
+        </div>
+
         <hr/>
+
+        <div class="float-right">
+            <button id="edit" class="btn btn-primary" onclick="editHubs(true)" style="display: block; font-size: 10px;">EDIT HUBS</button>
+            <button id="stop-edit" class="btn btn-danger" onclick="editHubs(false)" style="display: none; font-size: 10px;">FINISH EDITING</button>
+        </div>
+
+        <br><br>
 
         <ul>
             {% for hub in hubInfos %}
@@ -22,8 +33,6 @@
 
                         <div class="card-header">
                             <a class="card-link" href = "/{{user}}/{{hub}}/">{{hub}}</a>
-                            <button id="edit-{{hub}}" class="btn btn-primary float-right" onclick="editHubs(true, '{{hub}}')" style="display: block; font-size: 10px;">EDIT</button>
-                            <button id="stop-edit-{{hub}}" class="btn btn-danger float-right" onclick="editHubs(false, '{{hub}}')" style="display: none; font-size: 10px;">FINISH EDITING</button>
                         </div>
 
                         <div class="card-body">
@@ -45,7 +54,6 @@
                                                         style="font-size: 10px; padding: 0 5px; display:inline"> - remove
                                                 </button>
                                             </form>
-
                                         </li>
                                     {% endfor %}
                                 </ul>
@@ -57,7 +65,7 @@
                             </div>
 
 
-                            <form id="adduser-field-{{hub}}" action="/addUser/" method="POST" style="display: none">
+                            <form class="edit-elements" action="/addUser/" method="POST" style="display: none">
                                 <br>
                                 <div class="input-group mb-3">
                                     <div class="input-group-prepend">
@@ -69,54 +77,7 @@
                                     <input value="{{hub}}" id="hubName" type="hidden" name="hubName">
                                     <input class="btn btn-outline-dark" type="submit" value="add user" style="margin-left: 10px">
                                 </div>
-                                <button type="button" class="btn btn-secondary" onclick="addUserField(false, '{{ hub }}')">Close</button>
                             </form>
-
-                            <script>
-                                function editHubs(show, hub)
-                                {
-                                    const edit_id = "edit-".concat(hub);
-                                    const stop_edit_id = "stop-edit-".concat(hub);
-                                    const button_id = "btn-".concat(hub);
-
-                                    const editElements = document.getElementsByClassName("edit-elements");
-
-                                    if(show) {
-                                        document.getElementById(stop_edit_id).style.display = "block";
-                                        document.getElementById(edit_id).style.display = "none";
-                                        document.getElementById(button_id).style.display = "block";
-
-                                        for(let element=0; element<editElements.length; element++) {
-                                            editElements[element].style.display = "inline";
-                                        }
-                                    }
-                                    else {
-                                        document.getElementById(stop_edit_id).style.display = "none";
-                                        document.getElementById(edit_id).style.display = "block";
-                                        document.getElementById(button_id).style.display = "none";
-
-                                        for(let element=0; element<editElements.length; element++) {
-                                            editElements[element].style.display = "none";
-                                        }
-                                    }
-                                }
-
-                                function addUserField(show, hub)
-                                {
-                                    const form_id = "adduser-field-".concat(hub);
-                                    const button_id = "btn-".concat(hub);
-                                    if(show) {
-                                        document.getElementById(form_id).style.display = "block";
-                                        document.getElementById(button_id).style.display = "none";
-                                    }
-                                    else {
-                                        document.getElementById(form_id).style.display = "none";
-                                        document.getElementById(button_id).style.display = "block";
-                                    }
-                                }
-
-
-                            </script>
                         </div>
 
                     </div>
@@ -125,6 +86,44 @@
                 <br>
 
             {% endfor %}
+            <script>
+                let showEdit = (sessionStorage.getItem('show_edit') == 'true');
+
+                editHubs(showEdit);
+                editHubs(showEdit);
+                editHubs(showEdit);
+                editHubs(showEdit);
+
+                function editHubs(show)
+                {
+                    const edit_id = "edit";
+                    const stop_edit_id = "stop-edit";
+                    const editElements = document.getElementsByClassName("edit-elements");
+
+                    if(show) {
+                        document.getElementById(stop_edit_id).style.display = "block";
+                        document.getElementById(edit_id).style.display = "none";
+
+                        for(let element=0; element<editElements.length; element++) {
+                            editElements[element].style.display = "inline";
+                        }
+
+                        sessionStorage.setItem('show_edit', 'true');
+                        showEdit = true;
+                    }
+                    else {
+                        document.getElementById(stop_edit_id).style.display = "none";
+                        document.getElementById(edit_id).style.display = "block";
+
+                        for(let element=0; element<editElements.length; element++) {
+                            editElements[element].style.display = "none";
+                        }
+
+                        sessionStorage.setItem('show_edit', 'false');
+                        showEdit = false;
+                    }
+                }
+            </script>
         </ul>
     </div>
 

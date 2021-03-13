@@ -12,11 +12,7 @@ from api.Handlers import Hubs
 from api.util import PLdb as db
 from api.Handlers import Models, Labels, Jobs
 
-from pyramid_google_login.events import UserLoggedIn
-from pyramid.events import subscriber
-
 from pyramid_google_login import *
-from pyramid.security import remember, forget
 
 
 @view_config(route_name='jobInfo', renderer='json')
