@@ -102,11 +102,10 @@ def removeUser(request):
     return HTTPFound(location=url)
 
 
-@view_config(route_name='adjustPerms', renderer = 'adjustPerms.html')
+@view_config(route_name='adjustPerms', renderer='adjustPerms.html')
 def adjustPerms(request):
     userid = request.unauthenticated_userid
     query = request.matchdict
-    print(query)
     return {"userid": userid}
 
 
