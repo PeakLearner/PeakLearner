@@ -51,6 +51,15 @@ def myHubs(request):
                    for key in keys
                    )
 
+    for hub in hubInfos:
+        trackList = hubInfos[hub]['tracks']
+    for urmom, item in trackList.items():
+        trackNames = list(trackList[urmom]['key'])
+        print(trackNames)
+    print(" ")
+    print(hubInfos)
+    print(trackList)
+    print(trackNames)
     return {"user": userid, "HubNames": hubNames, "hubInfos": hubInfos, "usersdict": usersdict}
 
   
