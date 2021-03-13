@@ -5,7 +5,28 @@
 {% endblock %}
 
 {% block content %}
-    <h1>Hello {{userid}}</h1>
-    #TODO put in 5 checkboxes for each permission and return them to some form
+    <h1>Hello {{user}}</h1>
+    <div class = "container mt-4">
+    <form action="/adjustPerms/{{user}}/{{hub}}/{{couser}}" method="POST">
+            <fieldset>
+              <legend>Permissions for:</legend>
+              <p>
+                <label>{{couser}}</label>
+                  <input type = "checkbox" id = "chkpublic" value = "publicity"/>
+                  <label for = "chkpublic">Can change publicity of hub</label>
+                  <input type = "checkbox" id = "chkhub" value = "canView"/>
+                  <label for = "chkhub">Can view hub and models</label>
+                  <input type = "checkbox" id = "chklabels" value = "modLabels"/>
+                  <label for = "chklabels">Can edit the labels for a hub</label>
+                  <input type = "checkbox" id = "chktracks" value = "modTracks"/>
+                  <label for = "chktracks">Can change publicity of hub</label>
+                  <input type = "checkbox" id = "chkmoderator" value = "moderator" checked>
+                  <label for = "chkmoderator">Can adjust permissions for other users</label>
+
+              </p>
+              <input class="btn btn-outline-dark" type="submit" value="Adjust Permissions" style="margin-left: 10px">
+            </fieldset>
+    </form>
+    </div>
 {% endblock %}
 

@@ -90,9 +90,20 @@ def addUser(request):
 def adjustPerms(request):
     userid = request.unauthenticated_userid
     query = request.matchdict
-    print(query)
-    return {"userid" : userid}
+    return query
 
+@view_config(route_name='adjustPerms', request_method = 'POST')
+def adjustPermsPOST(request):
+    userid = request.unauthenticated_userid
+    query = request.matchdict
+
+    user = query['user']
+    hub = query['hub']
+    couser = query['couser']
+
+    url = request.route_url('myHubs')
+    return HTTPFound(location=url)
+    
 @view_config(route_name='uploadHubUrl', renderer='json')
 def uploadHubUrl(request):
     user = request.unauthenticated_userid
