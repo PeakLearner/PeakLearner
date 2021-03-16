@@ -45,6 +45,9 @@ def myHubs(request):
     for hubName in hubNames:
         currHubInfo = db.HubInfo(userid, hubName).get()
         usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
+    
+        mylabels = dict(('{hubName}'.format(hubName=key[1]), db.Labels(key[0],key[1],key[2],key[3]).get()) 
+                        for key in db.Labels.keysWhichMatch(userid,hubName))
 
     # all_usersdict = {}
     # for hubName in everyHubName:
@@ -56,16 +59,9 @@ def myHubs(request):
                    for key in keys
                    )
     
-    mylabels = {}
-    # Parsing my hubs for tracks and listing labels
-    if len(myHubInfos) != 0:
-        mytrackNames = []
-        for myhub in myHubInfos:
-            mytrackList = myHubInfos[myhub]['tracks']
-        for mytrackfinder, item in mytrackList.items():
-            mytrackNames.append(mytrackList[mytrackfinder]['key'])
-        for mytracks in mytrackNames:
-            mylabels = db.Labels.keysWhichMatch(db.Labels, userid, hubName, mytracks)
+
+    
+
 
 
     otherHubInfos = {}
@@ -89,10 +85,13 @@ def myHubs(request):
             trackList = otherHubInfos[hub]['tracks']
         for trackfinder, item in trackList.items():
             trackNames.append(trackList[trackfinder]['key'])
-        for shmoozer in everyUser:
-            for chub in everyHubName:
-                for tracks in trackNames:
-                    labels = db.Labels.keysWhichMatch(db.Labels, shmoozer, chub, tracks)
+        #for shit in otherHubInfos:
+        
+        
+        # for shmoozer in everyUser:
+        #  for chub in everyHubName:
+        #   for tracks in trackNames:
+        #    labels = db.Labels.keysWhichMatch(user, hub, track, chrom
 
 
     return {"user": userid,
