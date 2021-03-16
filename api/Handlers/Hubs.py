@@ -22,6 +22,78 @@ class HubHandler(Handler):
         else:
             print('no handler for %s' % self.query['handler'])
 
+    def do_POST(self, data):
+        return self.getCommands()[data['command']](data['args'], self.query)
+
+    @classmethod
+    def getCommands(cls):
+        return {'goTo': goToRegion}
+
+
+def goToRegion(data, query):
+    user = query['user']
+    hub = query['hub']
+
+    hubInfo = db.HubInfo(user, hub).get()
+    genome = hubInfo['genome']
+    problems = db.Problems(genome).get()
+    tracks = list(hubInfo['tracks'].keys())
+    toGoTo = problems.apply(checkProblem, axis=1, args=(user, hub, tracks, data['type'].lower()))
+
+    possibleRegions = problems[toGoTo]
+
+    if possibleRegions.empty:
+        return
+
+    regionToGoTo = possibleRegions.sample()
+
+    # Need to convert to something jbrowse will understand
+    regionToGoTo = regionToGoTo.to_dict('records')[0]
+
+    region = {
+        'ref': regionToGoTo['chrom'],
+        'start': regionToGoTo['chromStart'],
+        'end': regionToGoTo['chromEnd']
+    }
+
+    print(region)
+
+    return region
+
+
+def checkProblem(row, user, hub, tracks, toCheck):
+
+    trackDf = pd.DataFrame(tracks, columns=['track'])
+
+    output = trackDf.apply(checkLabels, axis=1, args=(user, hub, row, toCheck))
+
+    if toCheck == 'labeled':
+        return output.any()
+    else:
+        return output.all()
+
+
+def checkLabels(row, user, hub, problem, toCheck):
+    labels = db.Labels(user,
+                       hub,
+                       row['track'],
+                       problem['chrom']).getInBounds(problem['chrom'],
+                                                     problem['chromStart'],
+                                                     problem['chromEnd'])
+
+    if labels.empty:
+        if toCheck == 'unlabeled':
+            return True
+        else:
+            return False
+    else:
+        if toCheck == 'unlabeled':
+            return False
+        else:
+            return True
+
+
+
 
 def createTrackListWithHubInfo(info):
     if info is None:
