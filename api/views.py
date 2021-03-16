@@ -40,6 +40,8 @@ def myHubs(request):
     everyKey = db.HubInfo.keysWhichMatch(db.HubInfo)
     everyHubName = list(map(lambda tuple: tuple[1], everyKey))
 
+    permissions = {}
+
     usersdict = {}
     for hubName in hubNames:
         currHubInfo = db.HubInfo(userid, hubName).get()
@@ -65,13 +67,17 @@ def myHubs(request):
             pass
         finally:
             pass
-
+    
+    for hubName in hubNames:
+        for couser in usersdict[hubName]:
+            permissions[(hubName, couser)] = db.Permissions(userid, hubName, couser).get()
 
     return {"user": userid,
             "HubNames": hubNames,
             "myHubInfos": myHubInfos,
             "otherHubInfos": otherHubInfos,
-            "usersdict": usersdict}
+            "usersdict": usersdict,
+            "permissions" : permissions}
 
 
 @view_config(route_name='publicHubs', renderer='publicHubs.html')
@@ -137,13 +143,32 @@ def adjustPerms(request):
 @view_config(route_name='adjustPerms', request_method = 'POST')
 def adjustPermsPOST(request):
     userid = request.unauthenticated_userid
-    query = request.matchdict
+    query = request.matchdict  
 
     user = query['user']
     hub = query['hub']
     couser = query['couser']
 
     print(request.params)
+    print("keys:", request.params.keys())
+
+    chkpublic = "Can change to public" if "chkpublic" in request.params.keys() else ""
+    chkhub = "Can adjust hub" if "chkhub" in request.params.keys() else ""
+    chklabels = "Can adjust labels" if "chklabels" in request.params.keys() else ""
+    chktracks = "Can change tracks" if "chktracks" in request.params.keys() else ""
+    chkmoderator = "Is moderator" if "chkmoderator" in request.params.keys() else ""
+
+    # db.Permissions(user, hub, couser).put({'chkpublic' : chkpublic == 'True',
+    #                                         'chkhub' : chkhub == 'True',
+    #                                         'chklabels' : chklabels == 'True',
+    #                                         'chktracks' : chktracks == 'True',
+    #                                         'chkmoderator' : chkmoderator == 'True'})
+
+    db.Permissions(user, hub, couser).put([chkpublic, chkhub, chklabels, chktracks, chkmoderator])
+
+    
+    
+
     #print(query)
 
     url = request.route_url('myHubs')

@@ -67,6 +67,9 @@
                                             <li>
                                                 <a href = "/adjustPerms/{{user}}/{{hub}}/{{couser}}"
                                                    style="display:inline">{{couser}}</a>
+                                                   <b>Permissions: 
+                                                       {{permissions[(hub, couser)]}}
+                                                   </b>
                                                 <form class="edit-elements" action="/hubRemoveUser/" method="post" style="display:none">
                                                     <input value="{{hub}}" id="hubName" type="hidden" name="hubName">
                                                     <input value="{{couser}}" id="couserName" type="hidden" name="couserName">
