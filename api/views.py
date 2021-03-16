@@ -38,6 +38,7 @@ def myHubs(request):
     hubNames = list(map(lambda tuple: tuple[1], keys))
 
     everyKey = db.HubInfo.keysWhichMatch(db.HubInfo)
+    everyUser = list(map(lambda tuple: tuple[0], everyKey))
     everyHubName = list(map(lambda tuple: tuple[1], everyKey))
 
     usersdict = {}
@@ -54,6 +55,18 @@ def myHubs(request):
                    ('{hubName}'.format(hubName=key[1]), db.HubInfo(key[0], key[1]).get())
                    for key in keys
                    )
+    
+    mylabels = {}
+    # Parsing my hubs for tracks and listing labels
+    if len(myHubInfos) != 0:
+        mytrackNames = []
+        for myhub in myHubInfos:
+            mytrackList = myHubInfos[myhub]['tracks']
+        for mytrackfinder, item in mytrackList.items():
+            mytrackNames.append(mytrackList[mytrackfinder]['key'])
+        for mytracks in mytrackNames:
+            mylabels = db.Labels.keysWhichMatch(db.Labels, userid, hubName, mytracks)
+
 
     otherHubInfos = {}
     for key in everyKey:
@@ -61,17 +74,34 @@ def myHubs(request):
         try:
             if userid in currentHub['users']:
                 otherHubInfos['{hubName}'.format(hubName=key[1])] = currentHub
+                print(otherHubInfos)
         except KeyError:
             pass
         finally:
             pass
+
+    #Parsing shared hubs for tracks and listing labels
+    labels = {}
+    # Parsing my hubs for tracks and listing labels
+    if len(otherHubInfos) != 0:
+        trackNames = []
+        for hub in otherHubInfos:
+            trackList = otherHubInfos[hub]['tracks']
+        for trackfinder, item in trackList.items():
+            trackNames.append(trackList[trackfinder]['key'])
+        for shmoozer in everyUser:
+            for chub in everyHubName:
+                for tracks in trackNames:
+                    labels = db.Labels.keysWhichMatch(db.Labels, shmoozer, chub, tracks)
 
 
     return {"user": userid,
             "HubNames": hubNames,
             "myHubInfos": myHubInfos,
             "otherHubInfos": otherHubInfos,
-            "usersdict": usersdict}
+            "usersdict": usersdict,
+            "mylabels": mylabels,
+            "sharedlabels": labels}
 
 
 @view_config(route_name='publicHubs', renderer='publicHubs.html')
