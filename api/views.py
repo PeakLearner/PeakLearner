@@ -93,9 +93,6 @@ def myHubs(request):
             for chub in everyHubName:
                 for tracks in trackNames:
                     labels = db.Labels.keysWhichMatch(db.Labels, shmoozer, chub, tracks)
-        print(" ")
-        print(labels)
-    
 
 
     return {"user": userid,
@@ -103,7 +100,8 @@ def myHubs(request):
             "myHubInfos": myHubInfos,
             "otherHubInfos": otherHubInfos,
             "usersdict": usersdict,
-            "labels": mylabels}
+            "mylabels": mylabels,
+            "sharedlabels": labels}
 
 
 @view_config(route_name='publicHubs', renderer='publicHubs.html')

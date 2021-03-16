@@ -51,36 +51,6 @@
                     <div class="my-hubs">
                         <div class="card" style = "width: 95%;">
 
-                        <div class="card-body">
-                            <div class="card-text">
-                                <b>Tracks:</b> {{myHubInfos[hub]['tracks']|length}}
-                                <hr>
-                                <b>Labels:</b> {{labels|length}}
-                                <hr>
-                                <b>Owner:</b> {{user}}
-                                <br>
-                                <b>Users:</b>
-                                <ul>
-                                    {% for couser in usersdict[hub]%}
-                                        <li>
-                                            <a href = "/adjustPerms/{{user}}/{{hub}}/{{couser}}"
-                                               style="display:inline">{{couser}}</a>
-                                            <form class="edit-elements" action="/hubRemoveUser/" method="post" style="display:none">
-                                                <input value="{{hub}}" id="hubName" type="hidden" name="hubName">
-                                                <input value="{{couser}}" id="couserName" type="hidden" name="couserName">
-                                                <button type="submit" class="btn btn-danger" formmethod="post"
-                                                        style="font-size: 10px; padding: 0 5px; display:inline"> - remove
-                                                </button>
-                                            </form>
-
-                                        </li>
-                                    {% endfor %}
-                                </ul>
-                                <button id="btn-{{hub}}" type="button" class="btn btn-primary"
-                                        onclick="addUserField(true, '{{ hub }}')"
-                                        style="display: none; font-size: 12px; margin-bottom: 0;">
-                                    + add user
-                                </button>
                             <div class="card-header">
                                 <a class="card-link" href = "/{{user}}/{{hub}}/">{{hub}}</a>
                             </div>
@@ -88,6 +58,8 @@
                             <div class="card-body">
                                 <div class="card-text">
                                     <b>Tracks:</b> {{myHubInfos[hub]['tracks']|length}}
+                                    <br>
+                                    <b>Labels:</b> {{mylabels|length}}
                                     <hr>
                                     <b>Owner:</b> {{user}}
                                     <br>
@@ -151,6 +123,8 @@
                             <div class="card-body">
                                 <div class="card-text">
                                     <b>Tracks:</b> {{otherHubInfos[hub]['tracks']|length}}
+                                    <br>
+                                    <b>Labels:</b> {{sharedlabels|length}}
                                     <hr>
                                     <b>Owner:</b> Someone Else
     {#                                <br>#}
