@@ -50,17 +50,19 @@ def myHubs(request):
                    ('{hubName}'.format(hubName=key[1]), db.HubInfo(key[0], key[1]).get())
                    for key in keys
                    )
-
+    
+    # Parsing track names to be passed into labels
+    trackNames = []
     for hub in hubInfos:
         trackList = hubInfos[hub]['tracks']
-    for urmom, item in trackList.items():
-        trackNames = list(trackList[urmom]['key'])
-        print(trackNames)
-    print(" ")
-    print(hubInfos)
-    print(trackList)
-    print(trackNames)
-    return {"user": userid, "HubNames": hubNames, "hubInfos": hubInfos, "usersdict": usersdict}
+    for trackfinder, item in trackList.items():
+        trackNames.append(trackList[trackfinder]['key'])
+
+    for tracks in trackNames:
+        labels = db.Labels.keysWhichMatch(db.Labels, userid, hubName, tracks)
+
+
+    return {"user": userid, "HubNames": hubNames, "hubInfos": hubInfos, "usersdict": usersdict, "labels":labels}
 
   
 @view_config(route_name='publicHubs', renderer='publicHubs.html')
