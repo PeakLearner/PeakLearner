@@ -23,6 +23,12 @@ class LabelHandler(Handler.TrackHandler):
 
 def addLabel(data):
     label = 'unknown'
+    for i in range(100):
+        print("#################################################")
+    print("THIS IS THE DATA", data)
+    for i in range(10):
+        print("#################################################")
+    
 
     # Duplicated because calls from updateLabel are causing freezing
     newLabel = pd.Series({'chrom': data['ref'],

@@ -345,5 +345,5 @@ def doRestoreWithSelected(backup):
     return backup
 
 
-
-
+class Permissions(db.Resource):
+    keys = ("user", "hub" ,"couser")

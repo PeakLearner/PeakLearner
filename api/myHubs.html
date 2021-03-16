@@ -59,7 +59,7 @@
                                 <div class="card-text">
                                     <b>Tracks:</b> {{myHubInfos[hub]['tracks']|length}}
                                     <br>
-                                    <b>Labels:</b> {{mylabels|length}}
+                                    <b>Labels:</b> {{mylabels[hub]}}
                                     <hr>
                                     <b>Owner:</b> {{user}}
                                     <br>
@@ -69,6 +69,9 @@
                                             <li>
                                                 <a href = "/adjustPerms/{{user}}/{{hub}}/{{couser}}"
                                                    style="display:inline">{{couser}}</a>
+                                                   <b>Permissions: 
+                                                       {{permissions[(hub, couser)]}}
+                                                   </b>
                                                 <form class="edit-elements" action="/hubRemoveUser/" method="post" style="display:none">
                                                     <input value="{{hub}}" id="hubName" type="hidden" name="hubName">
                                                     <input value="{{couser}}" id="couserName" type="hidden" name="couserName">
@@ -117,7 +120,7 @@
                         <div class="card" style = "width: 95%;">
 
                             <div class="card-header">
-                                <a class="card-link" href = "/{{user}}/{{hub}}/">{{hub}}</a>
+                                <a class="card-link" href = "/{{otherHubInfos[hub]['owner']}}/{{hub}}/">{{hub}}</a>
                             </div>
 
                             <div class="card-body">
@@ -126,7 +129,7 @@
                                     <br>
                                     <b>Labels:</b> {{sharedlabels|length}}
                                     <hr>
-                                    <b>Owner:</b> Someone Else
+                                    <b>Owner:</b> {{otherHubInfos[hub]['owner']}}
     {#                                <br>#}
     {#                                <b>Users:</b>#}
     {#                                <ul>#}

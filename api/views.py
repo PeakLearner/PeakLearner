@@ -41,13 +41,34 @@ def myHubs(request):
     everyUser = list(map(lambda tuple: tuple[0], everyKey))
     everyHubName = list(map(lambda tuple: tuple[1], everyKey))
 
+
+    # print("testprint...")
+    # testPrint = db.Labels('jdh553@nau.edu', 'TestHub', 'aorta_ENCFF115HTK', 'chr1').get()
+    # print(testPrint)
+
+    permissions = {}
+
+    mylabels = {}
+
     usersdict = {}
     for hubName in hubNames:
         currHubInfo = db.HubInfo(userid, hubName).get()
         usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
-    
-        mylabels = dict(('{hubName}'.format(hubName=key[1]), db.Labels(key[0],key[1],key[2],key[3]).get()) 
-                        for key in db.Labels.keysWhichMatch(userid,hubName))
+
+        myKeys = db.Labels.keysWhichMatch(userid, hubName)
+        num_labels = 0
+        for key in myKeys:
+            num_labels += db.Labels(*key).get().shape[0]
+            #num_labels += 1
+        
+        mylabels[hubName] = num_labels
+        # print(myKeys)
+        # mylabels.update(dict(('{hubName}'.format(hubName=key[1]), db.Labels(key[0],key[1],key[2],key[3]).get()) 
+        #                 for key in myKeys))
+
+    # print(mylabels)
+    # mylabels = dict(('{hubName}'.format(hubName = key), mylabels[key].shape[0]) for key in mylabels.keys())
+    # print(mylabels)
 
     # all_usersdict = {}
     # for hubName in everyHubName:
@@ -67,17 +88,21 @@ def myHubs(request):
     otherHubInfos = {}
     for key in everyKey:
         currentHub = db.HubInfo(key[0], key[1]).get()
+        currentHub['owner'] = key[0]
         try:
             if userid in currentHub['users']:
                 otherHubInfos['{hubName}'.format(hubName=key[1])] = currentHub
-                print(otherHubInfos)
         except KeyError:
             pass
         finally:
             pass
+    
+    for hubName in hubNames:
+        for couser in usersdict[hubName]:
+            permissions[(hubName, couser)] = db.Permissions(userid, hubName, couser).get()
 
     #Parsing shared hubs for tracks and listing labels
-    labels = {}
+    labels = []
     # Parsing my hubs for tracks and listing labels
     if len(otherHubInfos) != 0:
         trackNames = []
@@ -85,6 +110,13 @@ def myHubs(request):
             trackList = otherHubInfos[hub]['tracks']
         for trackfinder, item in trackList.items():
             trackNames.append(trackList[trackfinder]['key'])
+        
+        # print(labels)
+        # print(everyUser)
+        # print(everyHubName)
+        # print(trackNames)
+        # print(db.Labels.keysWhichMatch("jdh553@nau.edu", "TestHub"))
+        # print(db.Labels('jdh553@nau.edu', 'TestHub', 'aorta_ENCFF115HTK', 'chr1').get())
         #for shit in otherHubInfos:
         
         
@@ -99,6 +131,7 @@ def myHubs(request):
             "myHubInfos": myHubInfos,
             "otherHubInfos": otherHubInfos,
             "usersdict": usersdict,
+            "permissions" : permissions,
             "mylabels": mylabels,
             "sharedlabels": labels}
 
@@ -161,9 +194,42 @@ def removeUser(request):
 def adjustPerms(request):
     userid = request.unauthenticated_userid
     query = request.matchdict
-    return {"userid": userid}
+    return query
 
+@view_config(route_name='adjustPerms', request_method = 'POST')
+def adjustPermsPOST(request):
+    userid = request.unauthenticated_userid
+    query = request.matchdict  
 
+    user = query['user']
+    hub = query['hub']
+    couser = query['couser']
+
+    print(request.params)
+    print("keys:", request.params.keys())
+
+    chkpublic = "Can change to public" if "chkpublic" in request.params.keys() else ""
+    chkhub = "Can adjust hub" if "chkhub" in request.params.keys() else ""
+    chklabels = "Can adjust labels" if "chklabels" in request.params.keys() else ""
+    chktracks = "Can change tracks" if "chktracks" in request.params.keys() else ""
+    chkmoderator = "Is moderator" if "chkmoderator" in request.params.keys() else ""
+
+    # db.Permissions(user, hub, couser).put({'chkpublic' : chkpublic == 'True',
+    #                                         'chkhub' : chkhub == 'True',
+    #                                         'chklabels' : chklabels == 'True',
+    #                                         'chktracks' : chktracks == 'True',
+    #                                         'chkmoderator' : chkmoderator == 'True'})
+
+    db.Permissions(user, hub, couser).put([chkpublic, chkhub, chklabels, chktracks, chkmoderator])
+
+    
+    
+
+    #print(query)
+
+    url = request.route_url('myHubs')
+    return HTTPFound(location=url)
+    
 @view_config(route_name='uploadHubUrl', renderer='json')
 def uploadHubUrl(request):
     user = request.unauthenticated_userid
