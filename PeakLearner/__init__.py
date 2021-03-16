@@ -71,6 +71,7 @@ def main(global_config, **settings):
     config.add_route('addUser', '/addUser/')
     config.add_route('hubRemoveUser', '/hubRemoveUser/')
     config.add_route('adjustPerms', '/adjustPerms/{user}/{hub}/{couser}')
+    config.add_route('public', '/public/{user}/{hub}/')
     config.add_route('myHubs', '/myHubs/')
     config.add_route('publicHubs', '/publicHubs/')
     config.add_route('uploadHubUrl', '/uploadHubUrl/')
