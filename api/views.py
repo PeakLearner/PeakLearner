@@ -130,7 +130,7 @@ def publicHubs(request):
     hubInfos = {}
     for key in everyKey:
         currentHub = db.HubInfo(key[0], key[1]).get()
-        if(currentHub['isPublic']):
+        if('isPublic' in currentHub.keys() and currentHub['isPublic']):
             currentHub['owner'] = key[0]
             try:
                 hubInfos['{hubName}'.format(hubName=key[1])] = currentHub
