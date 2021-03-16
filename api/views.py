@@ -106,29 +106,6 @@ def myHubs(request):
         for couser in usersdict[hubName]:
             permissions[(hubName, couser)] = db.Permissions(userid, hubName, couser).get()
 
-    # Parsing shared hubs for tracks and listing labels
-    labels = []
-    # Parsing my hubs for tracks and listing labels
-    if len(otherHubInfos) != 0:
-        trackNames = []
-        for hub in otherHubInfos:
-            trackList = otherHubInfos[hub]['tracks']
-        for trackfinder, item in trackList.items():
-            trackNames.append(trackList[trackfinder]['key'])
-
-        # print(labels)
-        # print(everyUser)
-        # print(everyHubName)
-        # print(trackNames)
-        # print(db.Labels.keysWhichMatch("jdh553@nau.edu", "TestHub"))
-        # print(db.Labels('jdh553@nau.edu', 'TestHub', 'aorta_ENCFF115HTK', 'chr1').get())
-        # for shit in otherHubInfos:
-
-        # for shmoozer in everyUser:
-        #  for chub in everyHubName:
-        #   for tracks in trackNames:
-        #    labels = db.Labels.keysWhichMatch(user, hub, track, chrom
-
     return {"user": userid,
             "HubNames": hubNames,
             "myHubInfos": myHubInfos,
@@ -204,9 +181,19 @@ def removeUser(request):
 
 @view_config(route_name='adjustPerms', renderer='adjustPerms.html')
 def adjustPerms(request):
-    userid = request.unauthenticated_userid
+    userid = request.authenticated_userid
+
     query = request.matchdict
-    return query
+
+    hubName = query['hub']
+    couser = query['couser']
+    permissions = db.Permissions(userid, hubName, couser).get()
+    print('permissions:', permissions)
+
+    return {'user': userid,
+            'hub': hubName,
+            'couser': couser,
+            'permissions': permissions}
 
 
 @view_config(route_name='adjustPerms', request_method='POST')
