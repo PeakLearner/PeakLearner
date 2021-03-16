@@ -101,6 +101,9 @@ def adjustPermsPOST(request):
     hub = query['hub']
     couser = query['couser']
 
+    print(request.params)
+    #print(query)
+
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
     
