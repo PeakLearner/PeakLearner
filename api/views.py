@@ -64,6 +64,7 @@ def myHubs(request):
     usersdict = {}
     for hubName in hubNames:
         currHubInfo = db.HubInfo(userid, hubName).get()
+
         usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
 
         myKeys = db.Labels.keysWhichMatch(userid, hubName)
@@ -76,6 +77,18 @@ def myHubs(request):
         # print(myKeys)
         # mylabels.update(dict(('{hubName}'.format(hubName=key[1]), db.Labels(key[0],key[1],key[2],key[3]).get())
         #                 for key in myKeys))
+
+    sharedLabels = {}
+    for hubName in everyHubName:
+        currHubInfo = db.HubInfo(userid, hubName).get()
+
+        sharedKeys = db.Labels.keysWhichMatch(hubName)
+        num_labels = 0
+        for key in sharedKeys:
+            num_labels += db.Labels(*key).get().shape[0]
+            # num_labels += 1
+
+        sharedLabels[hubName] = num_labels
 
     otherHubInfos = {}
     for key in everyKey:
@@ -123,7 +136,7 @@ def myHubs(request):
             "usersdict": usersdict,
             "permissions": permissions,
             "mylabels": mylabels,
-            "sharedlabels": labels}
+            "sharedlabels": sharedLabels}
 
 
 @view_config(route_name='publicHubs', renderer='publicHubs.html')
