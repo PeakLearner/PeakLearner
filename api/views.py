@@ -41,15 +41,34 @@ def myHubs(request):
     everyUser = list(map(lambda tuple: tuple[0], everyKey))
     everyHubName = list(map(lambda tuple: tuple[1], everyKey))
 
+
+    # print("testprint...")
+    # testPrint = db.Labels('jdh553@nau.edu', 'TestHub', 'aorta_ENCFF115HTK', 'chr1').get()
+    # print(testPrint)
+
     permissions = {}
+
+    mylabels = {}
 
     usersdict = {}
     for hubName in hubNames:
         currHubInfo = db.HubInfo(userid, hubName).get()
         usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
-    
-        mylabels = dict(('{hubName}'.format(hubName=key[1]), db.Labels(key[0],key[1],key[2],key[3]).get()) 
-                        for key in db.Labels.keysWhichMatch(userid,hubName))
+
+        myKeys = db.Labels.keysWhichMatch(userid, hubName)
+        num_labels = 0
+        for key in myKeys:
+            num_labels += db.Labels(*key).get().shape[0]
+            #num_labels += 1
+        
+        mylabels[hubName] = num_labels
+        # print(myKeys)
+        # mylabels.update(dict(('{hubName}'.format(hubName=key[1]), db.Labels(key[0],key[1],key[2],key[3]).get()) 
+        #                 for key in myKeys))
+
+    # print(mylabels)
+    # mylabels = dict(('{hubName}'.format(hubName = key), mylabels[key].shape[0]) for key in mylabels.keys())
+    # print(mylabels)
 
     # all_usersdict = {}
     # for hubName in everyHubName:
