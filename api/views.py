@@ -12,11 +12,7 @@ from api.Handlers import Hubs
 from api.util import PLdb as db
 from api.Handlers import Models, Labels, Jobs
 
-from pyramid_google_login.events import UserLoggedIn
-from pyramid.events import subscriber
-
 from pyramid_google_login import *
-from pyramid.security import remember, forget
 
 
 @view_config(route_name='jobInfo', renderer='json')
@@ -37,34 +33,64 @@ def jobs(request):
 @view_config(route_name='myHubs', renderer='myHubs.html')
 def myHubs(request):
     userid = request.authenticated_userid
+
     keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
-    HubNames = list(map(lambda tuple: tuple[1], keys))
+    hubNames = list(map(lambda tuple: tuple[1], keys))
+
+    everyKey = db.HubInfo.keysWhichMatch(db.HubInfo)
+    everyHubName = list(map(lambda tuple: tuple[1], everyKey))
 
     usersdict = {}
-    for hubName in HubNames:
+    for hubName in hubNames:
         currHubInfo = db.HubInfo(userid, hubName).get()
-
         usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
+
+    # all_usersdict = {}
+    # for hubName in everyHubName:
+    #     currHubInfo = db.HubInfo(userid, hubName).get()
+    #     all_usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
+
+    myHubInfos = dict(
+                   ('{hubName}'.format(hubName=key[1]), db.HubInfo(key[0], key[1]).get())
+                   for key in keys
+                   )
+
+    otherHubInfos = {}
+    for key in everyKey:
+        currentHub = db.HubInfo(key[0], key[1]).get()
+        try:
+            if userid in currentHub['users']:
+                otherHubInfos['{hubName}'.format(hubName=key[1])] = currentHub
+        except KeyError:
+            pass
+        finally:
+            pass
+
+
+    return {"user": userid,
+            "HubNames": hubNames,
+            "myHubInfos": myHubInfos,
+            "otherHubInfos": otherHubInfos,
+            "usersdict": usersdict}
+
+
+@view_config(route_name='publicHubs', renderer='publicHubs.html')
+def publicHubs(request):
+    userid = request.authenticated_userid
+    keys = db.HubInfo.db_key_tuples()
+
+    hubNames = list(map(lambda tuple: tuple[1],keys))
 
     hubInfos = dict(
                    ('{hubName}'.format(hubName=key[1]), db.HubInfo(key[0], key[1]).get())
                    for key in keys
                    )
-    
-    hubInfo = db.HubInfo(userid, "TestHub").get()
 
-    return {"user": userid, "HubNames": HubNames, "hubInfo": hubInfo, "hubInfos": hubInfos, "usersdict": usersdict}
+    return {"user": userid,
+            "HubNames": hubNames,
+            "hubInfos": hubInfos}
 
-  
-@view_config(route_name='publicHubs', renderer='publicHubs.html')
-def publicHubs(request):
-    userid = request.authenticated_userid
-    keys = db.HubInfo.db_key_tuples()
-    UserNames = list(map(lambda tuple: tuple[0],keys))
-    HubNames = list(map(lambda tuple: tuple[1],keys))
-    return {"user": userid, "UserNames": UserNames, "HubNames": HubNames}
 
-  
 @view_config(route_name='addUser', request_method='POST')
 def addUser(request):
     userid = request.unauthenticated_userid
@@ -76,17 +102,33 @@ def addUser(request):
     hubInfo = db.HubInfo(userid, hubName).get()
     if 'users' in hubInfo.keys():
         hubInfo['users'].append(userEmail)
-    else:   
+    else:
         hubInfo['users'] = []
         hubInfo['users'].append(userEmail)
-    
+
     hubInfo['users'] = list(set(hubInfo['users']))
     db.HubInfo(userid, hubName).put(hubInfo)
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
 
-@view_config(route_name='adjustPerms', renderer = 'adjustPerms.html')
+
+@view_config(route_name='hubRemoveUser', request_method='POST')
+def removeUser(request):
+    userid = request.unauthenticated_userid
+    keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
+    userEmail = request.params['couserName']
+    hubName = request.params['hubName']
+
+    hub_info = db.HubInfo(userid, hubName).get()
+    hub_info['users'].remove(userEmail)
+    db.HubInfo(userid, hubName).put(hub_info)
+
+    url = request.route_url('myHubs')
+    return HTTPFound(location=url)
+
+
+@view_config(route_name='adjustPerms', renderer='adjustPerms.html')
 def adjustPerms(request):
     userid = request.unauthenticated_userid
     query = request.matchdict
