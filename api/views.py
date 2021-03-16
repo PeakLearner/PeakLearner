@@ -128,9 +128,15 @@ def publicHubs(request):
     hubNames = list(map(lambda tuple: tuple[1], everyKey))
 
     hubInfos = {}
+    myLabels = {}
     for key in everyKey:
         currentHub = db.HubInfo(key[0], key[1]).get()
+        
         if('isPublic' in currentHub.keys() and currentHub['isPublic']):
+            currentHub['labels'] = 0
+            for labelKey in db.Labels.keysWhichMatch(key[0], key[1]):
+                currentHub['labels'] += db.Labels(*labelKey).get().shape[0]
+
             currentHub['owner'] = key[0]
             try:
                 hubInfos['{hubName}'.format(hubName=key[1])] = currentHub
@@ -138,6 +144,8 @@ def publicHubs(request):
                 pass
             finally:
                 pass
+            
+            
 
     return {"user": userid,
             "HubNames": hubNames,
