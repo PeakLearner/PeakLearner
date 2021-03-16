@@ -41,12 +41,23 @@ def myHubs(request):
     everyUser = list(map(lambda tuple: tuple[0], everyKey))
     everyHubName = list(map(lambda tuple: tuple[1], everyKey))
 
-
-    # print("testprint...")
-    # testPrint = db.Labels('jdh553@nau.edu', 'TestHub', 'aorta_ENCFF115HTK', 'chr1').get()
-    # print(testPrint)
-
     permissions = {}
+
+
+
+    # print(mylabels)
+    # mylabels = dict(('{hubName}'.format(hubName = key), mylabels[key].shape[0]) for key in mylabels.keys())
+    # print(mylabels)
+
+    # all_usersdict = {}
+    # for hubName in everyHubName:
+    #     currHubInfo = db.HubInfo(userid, hubName).get()
+    #     all_usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
+
+    myHubInfos = dict(
+        ('{hubName}'.format(hubName=key[1]), db.HubInfo(key[0], key[1]).get())
+        for key in keys
+    )
 
     mylabels = {}
 
@@ -59,31 +70,12 @@ def myHubs(request):
         num_labels = 0
         for key in myKeys:
             num_labels += db.Labels(*key).get().shape[0]
-            #num_labels += 1
-        
+            # num_labels += 1
+
         mylabels[hubName] = num_labels
         # print(myKeys)
-        # mylabels.update(dict(('{hubName}'.format(hubName=key[1]), db.Labels(key[0],key[1],key[2],key[3]).get()) 
+        # mylabels.update(dict(('{hubName}'.format(hubName=key[1]), db.Labels(key[0],key[1],key[2],key[3]).get())
         #                 for key in myKeys))
-
-    # print(mylabels)
-    # mylabels = dict(('{hubName}'.format(hubName = key), mylabels[key].shape[0]) for key in mylabels.keys())
-    # print(mylabels)
-
-    # all_usersdict = {}
-    # for hubName in everyHubName:
-    #     currHubInfo = db.HubInfo(userid, hubName).get()
-    #     all_usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
-
-    myHubInfos = dict(
-                   ('{hubName}'.format(hubName=key[1]), db.HubInfo(key[0], key[1]).get())
-                   for key in keys
-                   )
-    
-
-    
-
-
 
     otherHubInfos = {}
     for key in everyKey:
@@ -96,12 +88,12 @@ def myHubs(request):
             pass
         finally:
             pass
-    
+
     for hubName in hubNames:
         for couser in usersdict[hubName]:
             permissions[(hubName, couser)] = db.Permissions(userid, hubName, couser).get()
 
-    #Parsing shared hubs for tracks and listing labels
+    # Parsing shared hubs for tracks and listing labels
     labels = []
     # Parsing my hubs for tracks and listing labels
     if len(otherHubInfos) != 0:
@@ -110,28 +102,26 @@ def myHubs(request):
             trackList = otherHubInfos[hub]['tracks']
         for trackfinder, item in trackList.items():
             trackNames.append(trackList[trackfinder]['key'])
-        
+
         # print(labels)
         # print(everyUser)
         # print(everyHubName)
         # print(trackNames)
         # print(db.Labels.keysWhichMatch("jdh553@nau.edu", "TestHub"))
         # print(db.Labels('jdh553@nau.edu', 'TestHub', 'aorta_ENCFF115HTK', 'chr1').get())
-        #for shit in otherHubInfos:
-        
-        
+        # for shit in otherHubInfos:
+
         # for shmoozer in everyUser:
         #  for chub in everyHubName:
         #   for tracks in trackNames:
         #    labels = db.Labels.keysWhichMatch(user, hub, track, chrom
-
 
     return {"user": userid,
             "HubNames": hubNames,
             "myHubInfos": myHubInfos,
             "otherHubInfos": otherHubInfos,
             "usersdict": usersdict,
-            "permissions" : permissions,
+            "permissions": permissions,
             "mylabels": mylabels,
             "sharedlabels": labels}
 
@@ -139,14 +129,23 @@ def myHubs(request):
 @view_config(route_name='publicHubs', renderer='publicHubs.html')
 def publicHubs(request):
     userid = request.authenticated_userid
-    keys = db.HubInfo.db_key_tuples()
 
-    hubNames = list(map(lambda tuple: tuple[1],keys))
+    everyKey = db.HubInfo.keysWhichMatch(db.HubInfo)
+    everyUser = list(map(lambda tuple: tuple[0], everyKey))
+    everyHubName = list(map(lambda tuple: tuple[1], everyKey))
 
-    hubInfos = dict(
-                   ('{hubName}'.format(hubName=key[1]), db.HubInfo(key[0], key[1]).get())
-                   for key in keys
-                   )
+    hubNames = list(map(lambda tuple: tuple[1], everyKey))
+
+    hubInfos = {}
+    for key in everyKey:
+        currentHub = db.HubInfo(key[0], key[1]).get()
+        currentHub['owner'] = key[0]
+        try:
+            hubInfos['{hubName}'.format(hubName=key[1])] = currentHub
+        except KeyError:
+            pass
+        finally:
+            pass
 
     return {"user": userid,
             "HubNames": hubNames,
@@ -196,10 +195,11 @@ def adjustPerms(request):
     query = request.matchdict
     return query
 
-@view_config(route_name='adjustPerms', request_method = 'POST')
+
+@view_config(route_name='adjustPerms', request_method='POST')
 def adjustPermsPOST(request):
     userid = request.unauthenticated_userid
-    query = request.matchdict  
+    query = request.matchdict
 
     user = query['user']
     hub = query['hub']
@@ -222,14 +222,12 @@ def adjustPermsPOST(request):
 
     db.Permissions(user, hub, couser).put([chkpublic, chkhub, chklabels, chktracks, chkmoderator])
 
-    
-    
-
-    #print(query)
+    # print(query)
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
-    
+
+
 @view_config(route_name='uploadHubUrl', renderer='json')
 def uploadHubUrl(request):
     user = request.unauthenticated_userid
