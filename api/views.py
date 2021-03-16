@@ -58,7 +58,7 @@ def myHubs(request):
                    for key in keys
                    )
     
-    mylabels = {}
+    mylabels = []
     # Parsing my hubs for tracks and listing labels
     if len(myHubInfos) != 0:
         mytrackNames = []
@@ -67,16 +67,17 @@ def myHubs(request):
         for mytrackfinder, item in mytrackList.items():
             mytrackNames.append(mytrackList[mytrackfinder]['key'])
         for mytracks in mytrackNames:
-            mylabels = db.Labels.keysWhichMatch(db.Labels, userid, hubName, mytracks)
+            mylabels += db.Labels.keysWhichMatch( userid, hubName, mytracks)
+            
 
 
     otherHubInfos = {}
     for key in everyKey:
         currentHub = db.HubInfo(key[0], key[1]).get()
+        currentHub['owner'] = key[0]
         try:
             if userid in currentHub['users']:
                 otherHubInfos['{hubName}'.format(hubName=key[1])] = currentHub
-                print(otherHubInfos)
         except KeyError:
             pass
         finally:
@@ -87,7 +88,7 @@ def myHubs(request):
             permissions[(hubName, couser)] = db.Permissions(userid, hubName, couser).get()
 
     #Parsing shared hubs for tracks and listing labels
-    labels = {}
+    labels = []
     # Parsing my hubs for tracks and listing labels
     if len(otherHubInfos) != 0:
         trackNames = []
@@ -98,7 +99,14 @@ def myHubs(request):
         for shmoozer in everyUser:
             for chub in everyHubName:
                 for tracks in trackNames:
-                    labels = db.Labels.keysWhichMatch(db.Labels, shmoozer, chub, tracks)
+                    labels += db.Labels.keysWhichMatch(shmoozer, chub, tracks)
+        
+        # print(labels)
+        # print(everyUser)
+        # print(everyHubName)
+        # print(trackNames)
+        # print(db.Labels.keysWhichMatch("jdh553@nau.edu", "TestHub"))
+        # print(db.Labels('jdh553@nau.edu', 'TestHub', 'aorta_ENCFF115HTK', 'chr1').get())
 
 
     return {"user": userid,
