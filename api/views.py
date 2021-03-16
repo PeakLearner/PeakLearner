@@ -40,7 +40,6 @@ def myHubs(request):
     everyKey = db.HubInfo.keysWhichMatch(db.HubInfo)
     everyUser = list(map(lambda tuple: tuple[0], everyKey))
     everyHubName = list(map(lambda tuple: tuple[1], everyKey))
-
     permissions = {}
 
 
@@ -78,17 +77,22 @@ def myHubs(request):
         # mylabels.update(dict(('{hubName}'.format(hubName=key[1]), db.Labels(key[0],key[1],key[2],key[3]).get())
         #                 for key in myKeys))
 
+
     sharedLabels = {}
-    for hubName in everyHubName:
-        currHubInfo = db.HubInfo(userid, hubName).get()
+    for hub in everyKey:
+        currHubInfo = db.HubInfo(hub[0], hub[1]).get()
+        try:
+            if userid in currHubInfo['users']:
+                sharedKeys = db.Labels.keysWhichMatch(hub[0],hub[1])
+                num_labels = 0
+                for key in sharedKeys:
+                    num_labels += db.Labels(*key).get().shape[0]
+                sharedLabels[hub[1]] = num_labels
 
-        sharedKeys = db.Labels.keysWhichMatch(hubName)
-        num_labels = 0
-        for key in sharedKeys:
-            num_labels += db.Labels(*key).get().shape[0]
-            # num_labels += 1
-
-        sharedLabels[hubName] = num_labels
+        except KeyError:
+            pass
+        finally:
+            pass
 
     otherHubInfos = {}
     for key in everyKey:
