@@ -94,6 +94,7 @@ def myHubs(request):
     for key in everyKey:
         currentHub = db.HubInfo(key[0], key[1]).get()
         currentHub['owner'] = key[0]
+
         try:
             if userid in currentHub['users']:
                 otherHubInfos['{hubName}'.format(hubName=key[1])] = currentHub
@@ -142,6 +143,23 @@ def publicHubs(request):
             "hubInfos": hubInfos}
 
 
+@view_config(route_name='public', request_method='POST')
+def isPublic(request):
+    userid = request.authenticated_userid
+    query = request.matchdict
+
+    hub = query['hub']
+
+    chkpublic = "chkpublic" in request.params.keys()
+
+    hubInfo = db.HubInfo(userid, hub).get()
+    hubInfo['isPublic'] = chkpublic
+    db.HubInfo(userid, hub).put(hubInfo)
+
+    url = request.route_url('myHubs')
+    return HTTPFound(location=url)
+
+
 @view_config(route_name='addUser', request_method='POST')
 def addUser(request):
     userid = request.unauthenticated_userid
@@ -188,7 +206,6 @@ def adjustPerms(request):
     hubName = query['hub']
     couser = query['couser']
     permissions = db.Permissions(userid, hubName, couser).get()
-    print('permissions:', permissions)
 
     return {'user': userid,
             'hub': hubName,
@@ -198,15 +215,12 @@ def adjustPerms(request):
 
 @view_config(route_name='adjustPerms', request_method='POST')
 def adjustPermsPOST(request):
-    userid = request.unauthenticated_userid
+    userid = request.authenticated_userid
     query = request.matchdict
 
     user = query['user']
     hub = query['hub']
     couser = query['couser']
-
-    print(request.params)
-    print("keys:", request.params.keys())
 
     chkpublic = "Can change to public" if "chkpublic" in request.params.keys() else ""
     chkhub = "Can adjust hub" if "chkhub" in request.params.keys() else ""
