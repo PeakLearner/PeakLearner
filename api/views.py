@@ -87,7 +87,8 @@ def myHubs(request):
                 num_labels = 0
                 for key in sharedKeys:
                     num_labels += db.Labels(*key).get().shape[0]
-                    num_labels += 1
+                sharedLabels[hub[1]] = num_labels
+
         except KeyError:
             pass
         finally:
@@ -117,7 +118,7 @@ def myHubs(request):
             "usersdict": usersdict,
             "permissions": permissions,
             "mylabels": mylabels,
-            "sharedlabels": num_labels}
+            "sharedlabels": sharedLabels}
 
 
 @view_config(route_name='publicHubs', renderer='publicHubs.html')
