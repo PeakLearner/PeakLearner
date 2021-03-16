@@ -33,23 +33,47 @@ def jobs(request):
 @view_config(route_name='myHubs', renderer='myHubs.html')
 def myHubs(request):
     userid = request.authenticated_userid
+
     keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
     hubNames = list(map(lambda tuple: tuple[1], keys))
+
+    everyKey = db.HubInfo.keysWhichMatch(db.HubInfo)
+    everyHubName = list(map(lambda tuple: tuple[1], everyKey))
 
     usersdict = {}
     for hubName in hubNames:
         currHubInfo = db.HubInfo(userid, hubName).get()
-
         usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
 
-    hubInfos = dict(
+    # all_usersdict = {}
+    # for hubName in everyHubName:
+    #     currHubInfo = db.HubInfo(userid, hubName).get()
+    #     all_usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
+
+    myHubInfos = dict(
                    ('{hubName}'.format(hubName=key[1]), db.HubInfo(key[0], key[1]).get())
                    for key in keys
                    )
 
-    return {"user": userid, "HubNames": hubNames, "hubInfos": hubInfos, "usersdict": usersdict}
+    otherHubInfos = {}
+    for key in everyKey:
+        currentHub = db.HubInfo(key[0], key[1]).get()
+        try:
+            if userid in currentHub['users']:
+                otherHubInfos['{hubName}'.format(hubName=key[1])] = currentHub
+        except KeyError:
+            pass
+        finally:
+            pass
 
-  
+
+    return {"user": userid,
+            "HubNames": hubNames,
+            "myHubInfos": myHubInfos,
+            "otherHubInfos": otherHubInfos,
+            "usersdict": usersdict}
+
+
 @view_config(route_name='publicHubs', renderer='publicHubs.html')
 def publicHubs(request):
     userid = request.authenticated_userid
@@ -62,9 +86,11 @@ def publicHubs(request):
                    for key in keys
                    )
 
-    return {"user": userid, "HubNames": hubNames, "hubInfos": hubInfos}
+    return {"user": userid,
+            "HubNames": hubNames,
+            "hubInfos": hubInfos}
 
-  
+
 @view_config(route_name='addUser', request_method='POST')
 def addUser(request):
     userid = request.unauthenticated_userid
@@ -76,10 +102,10 @@ def addUser(request):
     hubInfo = db.HubInfo(userid, hubName).get()
     if 'users' in hubInfo.keys():
         hubInfo['users'].append(userEmail)
-    else:   
+    else:
         hubInfo['users'] = []
         hubInfo['users'].append(userEmail)
-    
+
     hubInfo['users'] = list(set(hubInfo['users']))
     db.HubInfo(userid, hubName).put(hubInfo)
 
@@ -94,9 +120,9 @@ def removeUser(request):
     userEmail = request.params['couserName']
     hubName = request.params['hubName']
 
-    hubInfo = db.HubInfo(userid, hubName).get()
-    hubInfo['users'].remove(userEmail)
-    db.HubInfo(userid, hubName).put(hubInfo)
+    hub_info = db.HubInfo(userid, hubName).get()
+    hub_info['users'].remove(userEmail)
+    db.HubInfo(userid, hubName).put(hub_info)
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
