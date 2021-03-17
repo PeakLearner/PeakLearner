@@ -393,8 +393,6 @@ def parseUCSC(data):
     user = data['user']
     hub['user'] = user
 
-    print("User:", user)
-
     if user:
         hub['isPublic'] = False
     else:
