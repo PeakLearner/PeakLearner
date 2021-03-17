@@ -26,7 +26,6 @@
                 $.ajax(url, {
                 data: JSON.stringify(query),
                 type: 'POST',
-                timeout: 60000,
                 success: successCallback,
             });
         }
@@ -118,7 +117,7 @@
         </nav>
 
         {% block content %}
-            <div class="d-flex flex-column flex-grow">
+            <div class="row mt-5 ml-5">
                 {% block filled %}
                 {% endblock %}
             </div>
