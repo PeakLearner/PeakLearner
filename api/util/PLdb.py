@@ -99,6 +99,7 @@ class Labels(db.PandasDf):
         startSame = item['chromStart'] == df['chromStart']
 
         endSame = item['chromEnd'] == df['chromEnd']
+
         return startSame & endSame
 
     def sortDf(self, df):

@@ -18,17 +18,17 @@ class LabelHandler(Handler.TrackHandler):
         return {'add': addLabel,
                 'remove': removeLabel,
                 'update': updateLabel,
+                'updateAligned': updateAlignedLabels,
+                'removeAligned': removeAlignedLabels,
                 'get': getLabels}
 
 
 def addLabel(data):
-    label = 'unknown'
-
     # Duplicated because calls from updateLabel are causing freezing
     newLabel = pd.Series({'chrom': data['ref'],
                           'chromStart': data['start'],
                           'chromEnd': data['end'],
-                          'annotation': label})
+                          'annotation': data['label']})
 
     txn = db.getTxn()
     item, labels = db.Labels(data['user'], data['hub'], data['track'], data['ref']).add(newLabel, txn=txn)
@@ -53,20 +53,53 @@ def removeLabel(data):
     return removed.to_dict()
 
 
-def updateLabel(data):
-    label = data['label']
+def removeAlignedLabels(data):
+    labelToRemove = pd.Series({'chrom': data['ref'],
+                             'chromStart': data['start'],
+                             'chromEnd': data['end']})
 
-    updateLabel = pd.Series({'chrom': data['ref'],
+    user = data['user']
+    hub = data['hub']
+
+    for track in data['tracks']:
+        txn = db.getTxn()
+        labelDb = db.Labels(user, hub, track, data['ref'])
+        item, labels = labelDb.remove(labelToRemove, txn=txn)
+        db.Prediction('changes').increment(txn=txn)
+        Models.updateAllModelLabels(data, labels)
+        txn.commit()
+
+
+def updateLabel(data):
+    labelToUpdate = pd.Series({'chrom': data['ref'],
                           'chromStart': data['start'],
                           'chromEnd': data['end'],
-                          'annotation': label})
+                          'annotation': data['label']})
     txn = db.getTxn()
     labelDb = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-    item, labels = labelDb.add(updateLabel, txn=txn)
+    item, labels = labelDb.add(labelToUpdate, txn=txn)
     db.Prediction('changes').increment(txn=txn)
     Models.updateAllModelLabels(data, labels)
     txn.commit()
     return item.to_dict()
+
+
+def updateAlignedLabels(data):
+    labelToUpdate = pd.Series({'chrom': data['ref'],
+                             'chromStart': data['start'],
+                             'chromEnd': data['end'],
+                             'annotation': data['label']})
+
+    user = data['user']
+    hub = data['hub']
+
+    for track in data['tracks']:
+        txn = db.getTxn()
+        labelDb = db.Labels(user, hub, track, data['ref'])
+        item, labels = labelDb.add(labelToUpdate, txn=txn)
+        db.Prediction('changes').increment(txn=txn)
+        Models.updateAllModelLabels(data, labels)
+        txn.commit()
 
 
 def getLabels(data):
