@@ -63,10 +63,11 @@ def createHubFromParse(parsed):
     user = parsed['user']
     genomesFile = parsed['genomesFile']
 
+
     # This will need to be updated if there are multiple genomes in file
     genome = genomesFile['genome']
 
-    hubInfo = {'genome': genome}
+    hubInfo = {'genome': genome, 'isPublic': parsed['isPublic']}
 
     dataPath = os.path.join(cfg.jbrowsePath, cfg.dataPath)
 
@@ -389,7 +390,15 @@ def parseUCSC(data):
 
     # TODO: Add User to query
 
-    hub['user'] = data['user']
+    user = data['user']
+    hub['user'] = user
+
+    print("User:", user)
+
+    if user:
+        hub['isPublic'] = False
+    else:
+        hub['isPublic'] = True
 
     if hub['genomesFile']:
         hub['genomesFile'] = loadGenomeUCSC(hub, path)

@@ -257,9 +257,9 @@ def adjustPermsPOST(request):
 
 @view_config(route_name='uploadHubUrl', renderer='json')
 def uploadHubUrl(request):
-    user = request.unauthenticated_userid
+    user = request.authenticated_userid
     if 'POST' == request.method:
-        # TODO: Implement user authentication (and maybe an anonymous user?)
+        # TODO: Implement user authentication (and maybe an anonymous user?
         return Hubs.parseHub({'user': user, 'url': request.json_body['args']['hubUrl']})
     return
 
