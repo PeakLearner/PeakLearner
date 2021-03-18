@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    {% block head %}
+
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+
+    <title>PeakLearner</title>
+    <meta content="" name="description">
+    <meta content="" name="keywords">
+
+    <!-- Favicons -->
+    <link href="/assets/img/favicon.png" rel="icon">
+    <link href="/assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Jost:300,300i,400,400i,500,500i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i"
+        rel="stylesheet">
+
+    <!-- Vendor CSS Files -->
+    <link href="assets/vendor/aos/aos.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link href="assets/vendor/boxicons/css/boxicons.min.css" rel="stylesheet">
+    <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+    <link href="assets/vendor/remixicon/remixicon.css" rel="stylesheet">
+    <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+	
+	<!-- old version css -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+              integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
+              crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+                integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+                crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
+                integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+                crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js"
+                integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW"
+                crossorigin="anonymous"></script>
+                
+    <!-- Template Main CSS File -->
+    <link href="assets/css/style.css" rel="stylesheet">
+    {% block inner_head %}
+    <title>Template</title>
+    {% endblock %}
+    {% endblock %}
+</head>
+
+<body>
+    {% block body %}
+      <!-- ======= Header ======= -->
+      <header id="header" class="fixed-top ">
+          <div class="container d-flex align-items-center">
+
+              <h1 class="logo me-auto"><a href="/">PeakLearner</a></h1>
+              <!-- Uncomment below if you prefer to use an image logo -->
+
+              <nav id="navbar" class="navbar">
+                  <ul>
+                      <li><a class="nav-link scrollto active" href="/">Home</a></li>
+                      <li><a class="nav-link scrollto" href="/about/">About</a></li>
+                      <li><a class="nav-link scrollto" href="/stats/">Stats</a></li>
+                      <li class="dropdown"><a href="#"><span>Hubs</span> <i class="bi bi-chevron-down"></i></a>
+                          <ul>
+                              <li><a href="#">Public Hubs</a></li>
+                              <li><a href="/myHubs/">My Hubs</a></li>
+                              <li><a href="/newHub/">Upload New Hub</a></li>
+                          </ul>
+                      </li>
+
+                      <li class="dropdown"><a href="#"><span>Account</span> <i class="bi bi-chevron-down"></i></a>
+                          <ul>
+                              <li>
+                                {% if user is not none %}
+
+                                    <a class="dropdown-item" href="/profile/">  {{ user }} </a>
+
+                                {% else %}
+
+                                    <a class="dropdown-item" href="#">  Not Logged In </a>
+
+                                {% endif %}
+                              </li>
+                              <li>
+                                {% if user is not none %}
+                                    <form class="px-4 py-3" action="/logout/" method="get">
+                                        <div class="form-group">
+                                            <input type="submit" value="Sign Out" class="btn btn-secondary btn-block">
+                                        </div>
+                                    </form>
+                                {% else %}
+                                    <div class="col text-center">
+                                        <a class="text-center btn btn-outline-dark" href="/login/" role="button"
+                                          style="text-transform:none">
+                                            <img width="15px" style="margin-bottom:3px; margin-right:5px"
+                                                alt="Google sign-in"
+                                                src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png"/>
+                                            Login
+                                        </a>
+                                    </div>
+                                {% endif %}
+                              </li>
+                          </ul>
+                      </li>
+
+                      <li class="dropdown"><a href="#"><span>Help</span> <i class="bi bi-chevron-down"></i></a>
+                          <ul>
+                              <li><a href="/tutorial/">Tutorial</a></li>
+                          </ul>
+                      </li>
+
+                  </ul>
+
+                  <i class="bi bi-list mobile-nav-toggle"></i>
+              </nav><!-- .navbar -->
+
+          </div>
+      </header><!-- End Header -->
+
+      <div id="preloader"></div>
+      <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i
+              class="bi bi-arrow-up-short"></i></a>
+      {% block content %}
+      <div class="d-flex flex-column flex-grow">
+          {% block filled %}
+          {% endblock %}
+      </div>
+      {% endblock %}
+
+      <!-- ======= Footer ======= -->
+      <footer id="footer">
+
+          <div class="footer-top">
+              <div class="container">
+                  <div class="row">
+                      <div class="col-lg-3 col-md-6 footer-links">
+                          <h4>Useful Links</h4>
+                          <ul>
+                              <li><i class="bx bx-chevron-right"></i> <a href="/">Home</a></li>
+                              <li><i class="bx bx-chevron-right"></i> <a href="/about/">About</a></li>
+                              <li><i class="bx bx-chevron-right"></i> <a href="/stats/">stats</a></li>
+                          </ul>
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+          <div class="container footer-bottom clearfix">
+              <div class="copyright">Copyright &copy; 2021.PeakLearner<a target="_blank"
+                      href="https://ceias.nau.edu/capstone/projects/CS/2021/Bluebox-F20/">&emsp;Team Websites</a></div>
+              <div class="credits"></div>
+          </div>
+      </footer><!-- End Footer -->
+
+      <!-- Vendor JS Files -->
+      <script src="assets/vendor/aos/aos.js"></script>
+      <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+      <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+      <script src="assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+      <script src="assets/vendor/php-email-form/validate.js"></script>
+      <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+      <script src="assets/vendor/waypoints/noframework.waypoints.js"></script>
+
+      <!-- Template Main JS File -->
+      <script src="assets/js/main.js"></script>
+    {% endblock %}
+</body>
+
+</html>

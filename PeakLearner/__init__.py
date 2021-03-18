@@ -68,6 +68,7 @@ def main(global_config, **settings):
     config.add_route('labelStats', '/stats/label/')
     config.add_route('jobStats', '/stats/job/')
     config.add_static_view(name='tutorial/static', path='website:static/tutorial')
+    config.add_static_view(name='assets', path='website:static/assets')
     config.add_route('addUser', '/addUser/')
     config.add_route('hubRemoveUser', '/hubRemoveUser/')
     config.add_route('adjustPerms', '/adjustPerms/{user}/{hub}/{couser}')
