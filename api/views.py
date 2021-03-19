@@ -136,7 +136,7 @@ def publicHubs(request):
     for key in everyKey:
         currentHub = db.HubInfo(key[0], key[1]).get()
         
-        if('isPublic' in currentHub.keys() and currentHub['isPublic']):
+        if 'isPublic' in currentHub.keys() and currentHub['isPublic']:
             currentHub['labels'] = 0
             for labelKey in db.Labels.keysWhichMatch(key[0], key[1]):
                 currentHub['labels'] += db.Labels(*labelKey).get().shape[0]
