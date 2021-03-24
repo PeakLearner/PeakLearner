@@ -21,15 +21,15 @@
         <div class="float-left" onclick="checkHubs()">
             <form class="form-inline">
                 <b style="margin-right: 10px">Show: </b>
-                <div class="form-check form-check-inline">
+                <div class="form-check form-check-inline rounded" style="padding:5px; background-color: #b22b16">
                     <input class="form-check-input" type="checkbox" value="" id="owned-hubs" checked>
-                    <label class="form-check-label" for="owned-hubs">
-                        Owned Hubs |
+                    <label class="form-check-label" for="owned-hubs" style="color: aliceblue;">
+                        Owned Hubs
                     </label>
                 </div>
-                <div class="form-check form-check-inline">
+                <div class="form-check form-check-inline bg-secondary rounded" style="padding:5px">
                     <input class="form-check-input" type="checkbox" value="" id="shared-hubs" checked>
-                    <label class="form-check-label" for="shared-hubs">
+                    <label class="form-check-label" for="shared-hubs" style="color: aliceblue;">
                         Shared Hubs
                     </label>
                 </div>
@@ -54,12 +54,12 @@
                     <div class="my-hubs">
                         <div class="card" style="width: 95%;">
 
-                            <div class="card-header">
-                                <a class="card-link" href="/{{ user }}/{{ hub }}/">{{ hub }}</a>
+                            <div class="card-header" style="background-color: #b22b16">
+                                <a class="card-link" style="color:aliceblue" href="/{{ user }}/{{ hub }}/">{{ hub }}</a>
                                 <div class="float-right">
                                     <form class="form-inline" action="/public/{{ user }}/{{ hub }}/" method="POST">
                                         <div class="form-check form-check-inline">
-                                            <label for="chkpublic" style="margin-right: 10px">Public:</label>
+                                            <label for="chkpublic" style="margin-right: 10px; color:antiquewhite">Public:</label>
                                             <input type="checkbox" name="chkpublic" id="chkpublic" onChange="this.form.submit()"
                                                     {% if myHubInfos[hub]['isPublic'] %}
                                                    checked
@@ -79,12 +79,12 @@
                                     <b>Owner:</b> {{ user }}
                                     <br>
                                     <b>Users:</b>
-                                    {% if usersdict[hub] is defined %}
+                                    {% if usersdict[hub] is defined and usersdict[hub]|length > 0 %}
 
                                         <table class="table">
                                             <thead>
                                                 <th scope="col">User</th>
-                                                <th scope="col">Edit Hub Publicity</th>
+                                                <th scope="col">Adjust Publicity</th>
                                                 <th scope="col">Adjust Hub</th>
                                                 <th scope="col">Adjust Labels</th>
                                                 <th scope="col">Adjust Tracks</th>
@@ -109,7 +109,7 @@
                                                         </th>
                                                         {% if permissions[(hub, couser)] is not none %}
                                                             {% for permission in permissions[(hub, couser)] %}
-                                                                <td>
+                                                                <td class="text-center">
                                                                     {% if permission != "" %}
                                                                         yes
                                                                     {% else %}
@@ -118,11 +118,11 @@
                                                                 </td>
                                                             {% endfor %}
                                                         {% else %}
-                                                            <td>no</td>
-                                                            <td>no</td>
-                                                            <td>no</td>
-                                                            <td>no</td>
-                                                            <td>no</td>
+                                                            <td class="text-center">no</td>
+                                                            <td class="text-center">no</td>
+                                                            <td class="text-center">no</td>
+                                                            <td class="text-center">no</td>
+                                                            <td class="text-center">no</td>
                                                         {% endif %}
 
                                                         
@@ -198,8 +198,8 @@
                     <div class="shared-hub">
                         <div class="card" style="width: 95%;">
 
-                            <div class="card-header">
-                                <a class="card-link" href="/{{ otherHubInfos[hub]['owner'] }}/{{ hub }}/">{{ hub }}</a>
+                            <div class="card-header bg-secondary">
+                                <a class="card-link" style="color:aliceblue" href="/{{ otherHubInfos[hub]['owner'] }}/{{ hub }}/">{{ hub }}</a>
                             </div>
 
                             <div class="card-body">
