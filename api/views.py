@@ -191,6 +191,9 @@ def addUser(request):
     hubInfo['users'] = list(set(hubInfo['users']))
     db.HubInfo(userid, hubName).put(hubInfo)
 
+    # create permissions database object for a user
+    db.Permissions(userid, hubName, userEmail).put(["", "", "", "", ""])
+
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
 
@@ -259,8 +262,18 @@ def adjustPermsPOST(request):
 def uploadHubUrl(request):
     user = request.authenticated_userid
     if 'POST' == request.method:
-        # TODO: Implement user authentication (and maybe an anonymous user?
-        return Hubs.parseHub({'user': user, 'url': request.json_body['args']['hubUrl']})
+        # TODO: Implement user authentication (and maybe an anonymous user
+
+        if(not request.json_body['args']['hubUrl']):
+            return
+
+        url = request.json_body['args']['hubUrl']
+        if(request.json_body['args']['hubName']):
+            hubName = request.json_body['args']['hubName']
+
+        return Hubs.parseHub({'user': user,
+                              'url': url,
+                              'hubName': hubName})
     return
 
 
