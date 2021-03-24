@@ -79,6 +79,63 @@
                                     <b>Owner:</b> {{ user }}
                                     <br>
                                     <b>Users:</b>
+                                    {% if usersdict[hub] is defined %}
+
+                                        <table class="table">
+                                            <thead>
+                                                <th scope="col">User</th>
+                                                <th scope="col">Edit Hub Publicity</th>
+                                                <th scope="col">Adjust Hub</th>
+                                                <th scope="col">Adjust Labels</th>
+                                                <th scope="col">Adjust Tracks</th>
+                                                <th scope="col">Moderator</th>
+                                            </thead>
+                                            <tbody>
+                                                {% for couser in usersdict[hub] %}
+                                                    <tr>
+                                                        <th scope="row">
+                                                            <form class="edit-elements" action="/hubRemoveUser/" method="post"
+                                                                style="display:none">
+                                                                <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
+                                                                <input value="{{ couser }}" id="couserName" type="hidden"
+                                                                    name="couserName">
+                                                                <button type="submit" class="btn btn-danger" formmethod="post"
+                                                                        style="font-size: 10px; padding: 0 5px; display:inline"> -
+                                                                    remove
+                                                                </button>
+                                                            </form>
+                                                            <br class="edit-elements" style="display:none">
+                                                            <a href="/adjustPerms/{{ user }}/{{ hub }}/{{ couser }}">{{ couser }}</a>
+                                                        </th>
+                                                        {% if permissions[(hub, couser)] is not none %}
+                                                            {% for permission in permissions[(hub, couser)] %}
+                                                                <td>
+                                                                    {% if permission != "" %}
+                                                                        yes
+                                                                    {% else %}
+                                                                        no
+                                                                    {% endif %}
+                                                                </td>
+                                                            {% endfor %}
+                                                        {% else %}
+                                                            <td>no</td>
+                                                            <td>no</td>
+                                                            <td>no</td>
+                                                            <td>no</td>
+                                                            <td>no</td>
+                                                        {% endif %}
+
+                                                        
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>    
+                                        </table>
+                                    
+                                    {% else %}
+                                        No Added Users
+                                    {% endif %}
+                                    
+                                    {#
                                     <ul>
                                         {% for couser in usersdict[hub] %}
                                             <li>
@@ -100,6 +157,8 @@
                                             </li>
                                         {% endfor %}
                                     </ul>
+                                    #}
+
                                     <button id="btn-{{ hub }}" type="button" class="btn btn-primary"
                                             onclick="addUserField(true, '{{ hub }}')"
                                             style="display: none; font-size: 12px; margin-bottom: 0;">
