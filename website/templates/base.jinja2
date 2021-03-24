@@ -48,7 +48,7 @@
 
 </head>
 
-<body>
+<body class="bg-secondary">
 {% block body %}
     <div class="d-flex flex-column h-100">
         <nav class="navbar navbar-expand-lg navbar-light sticky-top bg-light">
@@ -152,12 +152,21 @@
             </div>
         </nav>
 
-        {% block content %}
-            <div class="d-flex flex-column flex-grow">
-                {% block filled %}
-                {% endblock %}
-            </div>
-        {% endblock %}
+        <div class="container mt-4 bg-white" style="border-color: black;
+                                                    padding:15px; 
+                                                    border-width: 2px; 
+                                                    border-style: solid; 
+                                                    max-width:1000px; 
+                                                    min-width:150px;"
+        >
+            {% block content %}
+                <div class="d-flex flex-column flex-grow">
+                    {% block filled %}
+                    {% endblock %}
+                </div>
+            {% endblock %}
+        </div>
+
     </div>
 {% endblock %}
 

@@ -63,6 +63,8 @@ def createHubFromParse(parsed):
     user = parsed['user']
     genomesFile = parsed['genomesFile']
 
+    print("Hub: ", hub)
+
 
     # This will need to be updated if there are multiple genomes in file
     genome = genomesFile['genome']
@@ -388,11 +390,18 @@ def parseUCSC(data):
 
     hub = readUCSCLines(lines)
 
+    invalid = ["", " "]
+    if data['hubName'] not in invalid:
+        hub['hub'] = data['hubName']
+
     # TODO: Add User to query
 
+    # SETUP HUB VALUE KEYS
     user = data['user']
     hub['user'] = user
-
+    hub['owner'] = user
+    hub['labels'] = 0
+    hub['users'] = []
     if user:
         hub['isPublic'] = False
     else:

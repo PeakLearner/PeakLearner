@@ -5,31 +5,28 @@
 {% endblock %}
 
 {% block content %}
-
-    <div class="container mt-4" style="border-color: black; padding:15px; border-width: 2px; border-style: solid;
-                                         max-width:1000px; min-width:150px">
-
-        <div class="d-flex justify-content-center">
-            <div class="flex-column">
-                <h2 class="text-center">My Hubs</h2>
-                <h4 class="text-center">{{ user }}</h4>
-            </div>
+    <div class="d-flex justify-content-center">
+        <div class="flex-column">
+            <h2 class="text-center">My Hubs</h2>
+            <h4 class="text-center">{{ user }}</h4>
         </div>
+    </div>
 
-        <hr/>
+    <hr/>
 
+    <div>
         <div class="float-left" onclick="checkHubs()">
             <form class="form-inline">
-                <b style="margin-right: 10px">Show: </b>
-                <div class="form-check form-check-inline">
+                <b style="margin-right: 10px">Filter: </b>
+                <div class="form-check form-check-inline rounded" style="padding:5px; background-color: #b22b16">
                     <input class="form-check-input" type="checkbox" value="" id="owned-hubs" checked>
-                    <label class="form-check-label" for="owned-hubs">
-                        Owned Hubs |
+                    <label class="form-check-label" for="owned-hubs" style="color: aliceblue;">
+                        Owned Hubs
                     </label>
                 </div>
-                <div class="form-check form-check-inline">
+                <div class="form-check form-check-inline bg-secondary rounded" style="padding:5px">
                     <input class="form-check-input" type="checkbox" value="" id="shared-hubs" checked>
-                    <label class="form-check-label" for="shared-hubs">
+                    <label class="form-check-label" for="shared-hubs" style="color: aliceblue;">
                         Shared Hubs
                     </label>
                 </div>
@@ -44,204 +41,281 @@
                     style="display: none; font-size: 10px;">FINISH EDITING
             </button>
         </div>
+    </div>
 
-        <br><br>
+    <br><br>
 
-        <ul>
-            {% for hub in myHubInfos %}
+    <ul>
+        {% for hub in myHubInfos %}
 
-                <li style="list-style-type: none">
-                    <div class="my-hubs">
-                        <div class="card" style="width: 95%;">
+            <li style="list-style-type: none">
+                <div class="my-hubs">
+                    <div class="card" style="width: 95%;">
 
-                            <div class="card-header">
-                                <a class="card-link" href="/{{ user }}/{{ hub }}/">{{ hub }}</a>
-                                <div class="float-right">
-                                    <form class="form-inline" action="/public/{{ user }}/{{ hub }}/" method="POST">
-                                        <div class="form-check form-check-inline">
-                                            <label for="chkpublic" style="margin-right: 10px">Public:</label>
-                                            <input type="checkbox" name="chkpublic" id="chkpublic" onChange="this.form.submit()"
-                                                    {% if myHubInfos[hub]['isPublic'] %}
-                                                   checked
-                                                    {% endif %}
-                                            >
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-
-                            <div class="card-body">
-                                <div class="card-text">
-                                    <b>Tracks:</b> {{ myHubInfos[hub]['tracks']|length }}
-                                    <br>
-                                    <b>Labels:</b> {{ mylabels[hub] }}
-                                    <hr>
-                                    <b>Owner:</b> {{ user }}
-                                    <br>
-                                    <b>Users:</b>
-                                    <ul>
-                                        {% for couser in usersdict[hub] %}
-                                            <li>
-                                                <a href="/adjustPerms/{{ user }}/{{ hub }}/{{ couser }}"
-                                                   style="display:inline">{{ couser }}</a>
-                                                <b>Permissions:
-                                                    {{ permissions[(hub, couser)] }}
-                                                </b>
-                                                <form class="edit-elements" action="/hubRemoveUser/" method="post"
-                                                      style="display:none">
-                                                    <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
-                                                    <input value="{{ couser }}" id="couserName" type="hidden"
-                                                           name="couserName">
-                                                    <button type="submit" class="btn btn-danger" formmethod="post"
-                                                            style="font-size: 10px; padding: 0 5px; display:inline"> -
-                                                        remove
-                                                    </button>
-                                                </form>
-                                            </li>
-                                        {% endfor %}
-                                    </ul>
-                                    <button id="btn-{{ hub }}" type="button" class="btn btn-primary"
-                                            onclick="addUserField(true, '{{ hub }}')"
-                                            style="display: none; font-size: 12px; margin-bottom: 0;">
-                                        + add user
-                                    </button>
-                                </div>
-
-
-                                <form class="edit-elements" action="/addUser/" method="POST" style="display: none">
-                                    <br>
-                                    <div class="input-group mb-3">
-                                        <div class="input-group-prepend">
-                                            <label class="input-group-text" id="add-user-label" for="userEmail">
-                                                User Email
-                                            </label>
-                                        </div>
-                                        <input type="email" id="userEmail" name="userEmail" class="form-control"
-                                               aria-describedby="add-user-label">
-                                        <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
-                                        <input class="btn btn-outline-dark" type="submit" value="add user"
-                                               style="margin-left: 10px">
+                        <div class="card-header" style="background-color: #b22b16">
+                            <a class="card-link" style="color:aliceblue; font-weight:bold" href="/{{ user }}/{{ hub }}/">{{ hub }}</a>
+                            <div class="float-right">
+                                <form class="form-inline" action="/public/{{ user }}/{{ hub }}/" method="POST">
+                                    <div class="form-check form-check-inline">
+                                        <label for="chkpublic" style="margin-right: 10px; color:antiquewhite">Public:</label>
+                                        <input type="checkbox" name="chkpublic" id="chkpublic" onChange="this.form.submit()"
+                                                {% if myHubInfos[hub]['isPublic'] %}
+                                                checked
+                                                {% endif %}
+                                        >
                                     </div>
                                 </form>
                             </div>
-
                         </div>
-                    </div>
-                </li>
 
-                <br>
+                        <div class="card-body">
+                            <div class="card-text">
+                                <b>Tracks:</b> {{ myHubInfos[hub]['tracks']|length }}
+                                <br>
+                                <b>Labels:</b> {{ mylabels[hub] }}
+                                <hr>
+                                <b>Owner:</b> {{ user }}
+                                <br>
+                                <b>Users | Permissions:</b>
+                                {% if usersdict[hub] is defined and usersdict[hub]|length > 0 %}
 
-            {% endfor %}
+                                    <table class="table table-bordered table-striped table-responsive-md">
+                                        <thead class="thead-light">
+                                            <th scope="col">User</th>
+                                            <th scope="col" class="text-center">Publicity</th>
+                                            <th scope="col" class="text-center">Hub</th>
+                                            <th scope="col" class="text-center">Labels</th>
+                                            <th scope="col" class="text-center">Tracks</th>
+                                            <th scope="col" class="text-center">Moderator</th>
+                                        </thead>
 
-            {% for hub in otherHubInfos %}
+                                        <tbody>
+                                            {% for couser in usersdict[hub] %}
+                                                <tr>
+                                                    <th scope="row">
+                                                        <form class="edit-elements float-right" action="/hubRemoveUser/" method="post"
+                                                            style="display:none">
+                                                            <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
+                                                            <input value="{{ couser }}" id="couserName" type="hidden"
+                                                                name="couserName">
+                                                            <button type="submit" class="btn btn-danger" formmethod="post"
+                                                                    style="font-size: 10px; padding: 0 5px; display:inline"> -
+                                                                remove
+                                                            </button>
+                                                        </form>
 
-                <li style="list-style-type: none">
-                    <div class="shared-hub">
-                        <div class="card" style="width: 95%;">
+                                                        {{ couser }}
+                                                    </th>
 
-                            <div class="card-header">
-                                <a class="card-link" href="/{{ otherHubInfos[hub]['owner'] }}/{{ hub }}/">{{ hub }}</a>
+                                                    {% if permissions[(hub, couser)] is not none %}
+                                                        <form action="/adjustPerms/{{user}}/{{hub}}/{{couser}}" method="POST">
+                                                            <fieldset>
+                                                                <td class="text-center">
+                                                                    <input type = "checkbox" name = "chkpublic" id = "chkpublic" onChange="this.form.submit()"
+                                                                            {% if permissions[(hub, couser)][0] %}
+                                                                                checked
+                                                                            {% endif %}
+                                                                    >
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <input type = "checkbox" name = "chkhub" id = "chkhub" onChange="this.form.submit()"
+                                                                            {% if permissions[(hub, couser)][1] %}
+                                                                                checked
+                                                                            {% endif %}
+                                                                    >
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <input type = "checkbox" name = "chklabels" id = "chklabels" onChange="this.form.submit()"
+                                                                            {% if permissions[(hub, couser)][2] %}
+                                                                                checked
+                                                                            {% endif %}
+                                                                    >
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <input type = "checkbox" name = "chktracks" id = "chktracks" onChange="this.form.submit()"
+                                                                            {% if permissions[(hub, couser)][3] %}
+                                                                                checked
+                                                                            {% endif %}
+                                                                    >
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <input type = "checkbox" name = "chkmoderator" id = "chkmoderator" onChange="this.form.submit()"
+                                                                            {% if permissions[(hub, couser)][4] %}
+                                                                                checked
+                                                                            {% endif %}
+                                                                    >
+                                                                </td>
+                                                            </fieldset>
+                                                        </form>
+                                                    {% endif %}
+
+                                                </tr>
+
+                                            {% endfor %}
+                                        </tbody>    
+                                    </table>
+                                
+                                {% else %}
+                                    No Added Users
+                                {% endif %}
+                                
+                                {#
+                                <ul>
+                                    {% for couser in usersdict[hub] %}
+                                        <li>
+                                            <a href="/adjustPerms/{{ user }}/{{ hub }}/{{ couser }}"
+                                                style="display:inline">{{ couser }}</a>
+                                            <b>Permissions:
+                                                {{ permissions[(hub, couser)] }}
+                                            </b>
+                                            <form class="edit-elements" action="/hubRemoveUser/" method="post"
+                                                    style="display:none">
+                                                <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
+                                                <input value="{{ couser }}" id="couserName" type="hidden"
+                                                        name="couserName">
+                                                <button type="submit" class="btn btn-danger" formmethod="post"
+                                                        style="font-size: 10px; padding: 0 5px; display:inline"> -
+                                                    remove
+                                                </button>
+                                            </form>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                                #}
+
+                                <button id="btn-{{ hub }}" type="button" class="btn btn-primary"
+                                        onclick="addUserField(true, '{{ hub }}')"
+                                        style="display: none; font-size: 12px; margin-bottom: 0;">
+                                    + add user
+                                </button>
                             </div>
 
-                            <div class="card-body">
-                                <div class="card-text">
-                                    <b>Tracks:</b> {{ otherHubInfos[hub]['tracks']|length }}
-                                    <br>
-                                    <b>Labels:</b> {{ sharedlabels[hub]}}
-                                    <hr>
-                                    <b>Owner:</b> {{ otherHubInfos[hub]['owner'] }}
-                                    {#                                <br>#}
-                                    {#                                <b>Users:</b>#}
-                                    {#                                <ul>#}
-                                    {#                                    {% for couser in usersdict[hub]%}#}
-                                    {#                                        <li>#}
-                                    {#                                            <a href = "/adjustPerms/{{user}}/{{hub}}/{{couser}}"#}
-                                    {#                                               style="display:inline">{{couser}}</a>#}
-                                    {#                                        </li>#}
-                                    {#                                    {% endfor %}#}
-                                    {#                                </ul>#}
+
+                            <form class="edit-elements" action="/addUser/" method="POST" style="display: none">
+                                <br>
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <label class="input-group-text" id="add-user-label" for="userEmail">
+                                            User Email
+                                        </label>
+                                    </div>
+                                    <input type="email" id="userEmail" name="userEmail" class="form-control"
+                                            aria-describedby="add-user-label">
+                                    <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
+                                    <input class="btn btn-outline-dark" type="submit" value="add user"
+                                            style="margin-left: 10px">
                                 </div>
+                            </form>
+                        </div>
+
+                    </div>
+                </div>
+            </li>
+
+            <br class="my-hubs" id="hubs-break">
+
+        {% endfor %}
+
+        {% for hub in otherHubInfos %}
+
+            <li style="list-style-type: none">
+                <div class="shared-hub">
+                    <div class="card" style="width: 95%;">
+
+                        <div class="card-header bg-secondary">
+                            <a class="card-link" style="color:aliceblue; font-weight:bold" href="/{{ otherHubInfos[hub]['owner'] }}/{{ hub }}/">{{ hub }}</a>
+                        </div>
+
+                        <div class="card-body">
+                            <div class="card-text">
+                                <b>Tracks:</b> {{ otherHubInfos[hub]['tracks']|length }}
+                                <br>
+                                <b>Labels:</b> {{ sharedlabels[hub]}}
+                                <hr>
+                                <b>Owner:</b> {{ otherHubInfos[hub]['owner'] }}
                             </div>
                         </div>
                     </div>
-                </li>
+                </div>
+            </li>
 
-                <br>
+            <br>
 
-            {% endfor %}
-            <script>
-                let showEdit = (sessionStorage.getItem('show_edit') == 'true');
-                let showOwned = (sessionStorage.getItem('show_owned') == 'true');
-                let showShared = (sessionStorage.getItem('show_shared') == 'true');
+        {% endfor %}
+        <script>
+            let showEdit = (sessionStorage.getItem('show_edit') == 'true');
+            let showOwned = (sessionStorage.getItem('show_owned') == 'true');
+            let showShared = (sessionStorage.getItem('show_shared') == 'true');
 
-                checkHubs();
-                //editHubs(false);
-                if (showOwned) {
-                    editHubs(showEdit);
+            checkHubs();
+            //editHubs(false);
+            if (showOwned) {
+                editHubs(showEdit);
+            }
+
+
+            function checkHubs() {
+                const myHubsCheck = document.getElementById('owned-hubs');
+                const sharedHubsCheck = document.getElementById('shared-hubs');
+
+                const myHubs = document.getElementsByClassName("my-hubs");
+                if (myHubsCheck.checked) {
+                    for (let hub = 0; hub < myHubs.length; hub++) {
+                        myHubs[hub].style.display = "block";
+                        if(myHubs[hub].id == "hubs-break"){
+                            myHubs[hub].style.display = "inline"
+                        }
+                    }
+                    sessionStorage.setItem('show_owned', 'true');
+                } else {
+                    for (let hub = 0; hub < myHubs.length; hub++) {
+                        myHubs[hub].style.display = "none";
+                    }
+                    sessionStorage.setItem('show_owned', 'false');
                 }
 
-
-                function checkHubs() {
-                    const myHubsCheck = document.getElementById('owned-hubs');
-                    const sharedHubsCheck = document.getElementById('shared-hubs');
-
-                    const myHubs = document.getElementsByClassName("my-hubs");
-                    if (myHubsCheck.checked) {
-                        for (let hub = 0; hub < myHubs.length; hub++) {
-                            myHubs[hub].style.display = "block";
-                        }
-                        sessionStorage.setItem('show_owned', 'true');
-                    } else {
-                        for (let hub = 0; hub < myHubs.length; hub++) {
-                            myHubs[hub].style.display = "none";
-                        }
-                        sessionStorage.setItem('show_owned', 'false');
+                const sharedHubs = document.getElementsByClassName("shared-hub");
+                if (sharedHubsCheck.checked) {
+                    for (let hub = 0; hub < sharedHubs.length; hub++) {
+                        sharedHubs[hub].style.display = "block";
                     }
-
-                    const sharedHubs = document.getElementsByClassName("shared-hub");
-                    if (sharedHubsCheck.checked) {
-                        for (let hub = 0; hub < sharedHubs.length; hub++) {
-                            sharedHubs[hub].style.display = "block";
-                        }
-                        sessionStorage.setItem('show_shared', 'true');
-                    } else {
-                        for (let hub = 0; hub < sharedHubs.length; hub++) {
-                            sharedHubs[hub].style.display = "none";
-                        }
-                        sessionStorage.setItem('show_shared', 'false');
+                    sessionStorage.setItem('show_shared', 'true');
+                } else {
+                    for (let hub = 0; hub < sharedHubs.length; hub++) {
+                        sharedHubs[hub].style.display = "none";
                     }
+                    sessionStorage.setItem('show_shared', 'false');
                 }
+            }
 
-                function editHubs(show) {
-                    const edit_id = "edit";
-                    const stop_edit_id = "stop-edit";
-                    const editElements = document.getElementsByClassName("edit-elements");
+            function editHubs(show) {
+                const edit_id = "edit";
+                const stop_edit_id = "stop-edit";
+                const editElements = document.getElementsByClassName("edit-elements");
 
-                    if (show) {
-                        document.getElementById(stop_edit_id).style.display = "block";
-                        document.getElementById(edit_id).style.display = "none";
+                if (show) {
+                    document.getElementById(stop_edit_id).style.display = "block";
+                    document.getElementById(edit_id).style.display = "none";
 
-                        for (let element = 0; element < editElements.length; element++) {
-                            editElements[element].style.display = "inline";
-                        }
-
-                        sessionStorage.setItem('show_edit', 'true');
-                        showEdit = true;
-                    } else {
-                        document.getElementById(stop_edit_id).style.display = "none";
-                        document.getElementById(edit_id).style.display = "block";
-
-                        for (let element = 0; element < editElements.length; element++) {
-                            editElements[element].style.display = "none";
-                        }
-
-                        sessionStorage.setItem('show_edit', 'false');
-                        showEdit = false;
+                    for (let element = 0; element < editElements.length; element++) {
+                        editElements[element].style.display = "inline";
                     }
-                }
-            </script>
-        </ul>
-    </div>
 
+                    sessionStorage.setItem('show_edit', 'true');
+                    showEdit = true;
+                } else {
+                    document.getElementById(stop_edit_id).style.display = "none";
+                    document.getElementById(edit_id).style.display = "block";
+
+                    for (let element = 0; element < editElements.length; element++) {
+                        editElements[element].style.display = "none";
+                    }
+
+                    sessionStorage.setItem('show_edit', 'false');
+                    showEdit = false;
+                }
+            }
+        </script>
+    </ul>
 {% endblock %}
 
