@@ -390,9 +390,12 @@ def parseUCSC(data):
 
     # TODO: Add User to query
 
+    # SETUP HUB VALUE KEYS
     user = data['user']
     hub['user'] = user
-
+    hub['owner'] = user
+    hub['labels'] = 0
+    hub['users'] = []
     if user:
         hub['isPublic'] = False
     else:
