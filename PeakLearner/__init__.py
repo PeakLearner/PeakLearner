@@ -99,7 +99,7 @@ def main(global_config, **settings):
     config.add_route('hubData', '/{user}/{hub}/data/{handler}')
     config.add_route('trackData', '/{user}/{hub}/{track}/{handler}/')
     config.add_static_view(name='/{user}/{hub}', path='jbrowse:jbrowse')
-
+    config.add_route('deleteHub','/deleteHub/')
     config.scan('api.views')
 
     return config.make_wsgi_app()
