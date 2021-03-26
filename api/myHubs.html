@@ -230,7 +230,7 @@
                             <div class="card-text">
                                 <b>Tracks:</b> {{ otherHubInfos[hub]['tracks']|length }}
                                 <br>
-                                <b>Labels:</b> {{ sharedlabels[hub]}}
+                                <b>Labels:</b> {{ sharedLabels[hub]}}
                                 <hr>
                                 <b>Owner:</b> {{ otherHubInfos[hub]['owner'] }}
                             </div>
@@ -243,16 +243,15 @@
 
         {% endfor %}
         <script>
-            let showEdit = (sessionStorage.getItem('show_edit') == 'true');
-            let showOwned = (sessionStorage.getItem('show_owned') == 'true');
-            let showShared = (sessionStorage.getItem('show_shared') == 'true');
+            let showEdit = (sessionStorage.getItem('show_edit') === 'true');
+            let showOwned = (sessionStorage.getItem('show_owned') === 'true');
+            let showShared = (sessionStorage.getItem('show_shared') === 'true');
 
             checkHubs();
             //editHubs(false);
             if (showOwned) {
                 editHubs(showEdit);
             }
-
 
             function checkHubs() {
                 const myHubsCheck = document.getElementById('owned-hubs');
@@ -262,7 +261,7 @@
                 if (myHubsCheck.checked) {
                     for (let hub = 0; hub < myHubs.length; hub++) {
                         myHubs[hub].style.display = "block";
-                        if(myHubs[hub].id == "hubs-break"){
+                        if(myHubs[hub].id === "hubs-break"){
                             myHubs[hub].style.display = "inline"
                         }
                     }

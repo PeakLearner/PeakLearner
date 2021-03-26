@@ -42,8 +42,6 @@ def myHubs(request):
     everyHubName = list(map(lambda tuple: tuple[1], everyKey))
     permissions = {}
 
-
-
     # print(mylabels)
     # mylabels = dict(('{hubName}'.format(hubName = key), mylabels[key].shape[0]) for key in mylabels.keys())
     # print(mylabels)
@@ -76,7 +74,6 @@ def myHubs(request):
         # print(myKeys)
         # mylabels.update(dict(('{hubName}'.format(hubName=key[1]), db.Labels(key[0],key[1],key[2],key[3]).get())
         #                 for key in myKeys))
-
 
     sharedLabels = {}
     for hub in everyKey:
@@ -118,7 +115,7 @@ def myHubs(request):
             "usersdict": usersdict,
             "permissions": permissions,
             "mylabels": mylabels,
-            "sharedlabels": sharedLabels}
+            "sharedLabels": sharedLabels}
 
 
 @view_config(route_name='publicHubs', renderer='publicHubs.html')
