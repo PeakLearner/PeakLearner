@@ -2,6 +2,9 @@
 
 {% block inner_head %}
     <title>Public Hubs</title>
+
+    <link rel="stylesheet" href="../css/hubs.css"/>
+    
 {% endblock %}
 
 {% block content %}
@@ -15,8 +18,8 @@
             <li style="list-style-type: none">
                 <div class="card" style = "width: 95%;">
 
-                    <div class="card-header">
-                        <a class="card-link" href = "/{{hubInfos[hub]['owner']}}/{{hub}}/">{{hub}}</a>
+                    <div class="card-header" id = otherHubHeader>
+                        <a class="card-link rounded" id="otherHubLink" href = "/{{hubInfos[hub]['owner']}}/{{hub}}/">{{hub}}</a>
                     </div>
 
                     <div class="card-body">

@@ -2,6 +2,9 @@
 
 {% block inner_head %}
     <title>My Hubs</title>
+
+    <link rel="stylesheet" href="../css/hubs.css"/>
+
 {% endblock %}
 
 {% block content %}
@@ -52,18 +55,21 @@
                 <div class="my-hubs">
                     <div class="card" style="width: 95%;">
 
-                        <div class="card-header" style="background-color: #b22b16">
-                            <a class="card-link" style="color:aliceblue; font-weight:bold" href="/{{ user }}/{{ hub }}/">{{ hub }}</a>
+                        <div class="card-header" id="myHubHeader">
+
+                            <a class="card-link rounded" id="myHubLink" href="/{{ user }}/{{ hub }}/">
+                                {{ hub }}
+                            </a>
+
                             <form class="edit-elements" action="/deleteHub/" method="post"
                                 style="display:none">
                                 <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
-                                <input value="{{ couser }}" id="couserName" type="hidden"
-                                    name="couserName">
                                 <button type="submit" class="btn btn-warning" formmethod="post"
-                                        style="font-size: 10px; padding: 0 5px; display:inline"> -
-                                    remove
+                                        style="font-size: 12px; padding: 0 5px; display:inline"> -
+                                    Delete Hub
                                 </button>
                             </form>
+
                             <div class="float-right">
                                 <form class="form-inline" action="/public/{{ user }}/{{ hub }}/" method="POST">
                                     <div class="form-check form-check-inline">
@@ -214,7 +220,7 @@
                                     <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
                                     <input class="btn btn-outline-dark" type="submit" value="add user"
                                             style="margin-left: 10px">
-                                </div>
+                                </div> style="background-color: #b22b16"
                             </form>
                         </div>
 
@@ -232,8 +238,11 @@
                 <div class="shared-hub">
                     <div class="card" style="width: 95%;">
 
-                        <div class="card-header bg-secondary">
-                            <a class="card-link" style="color:aliceblue; font-weight:bold" href="/{{ otherHubInfos[hub]['owner'] }}/{{ hub }}/">{{ hub }}</a>
+                        <div class="card-header" id="otherHubHeader">
+
+                            <a class="card-link rounded" id="otherHubLink" href="/{{ otherHubInfos[hub]['owner'] }}/{{ hub }}/">
+                                {{ hub }}
+                            </a>
                         </div>
 
                         <div class="card-body">

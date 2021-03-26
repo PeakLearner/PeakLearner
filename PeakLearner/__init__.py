@@ -67,7 +67,6 @@ def main(global_config, **settings):
     config.add_route('modelStats', '/stats/model/')
     config.add_route('labelStats', '/stats/label/')
     config.add_route('jobStats', '/stats/job/')
-    config.add_static_view(name='tutorial/static', path='website:static/tutorial')
     config.add_route('addUser', '/addUser/')
     config.add_route('hubRemoveUser', '/hubRemoveUser/')
     config.add_route('adjustPerms', '/adjustPerms/{user}/{hub}/{couser}')
@@ -77,12 +76,13 @@ def main(global_config, **settings):
     config.add_route('uploadHubUrl', '/uploadHubUrl/')
     config.add_route('jobs', '/jobs/')
     config.add_route('jobInfo', '/jobs/info/')
+
     config.include('pyramid_jinja2')
+    config.include('pyramid_google_login')  # library for google oauth
+    config.add_static_view(name='tutorial/static', path='website:static/tutorial')
+    config.add_static_view(name='css', path='api:static/css')
     config.add_jinja2_renderer('.html')
     config.scan('website.views')
-
-    # library for google oauth
-    config.include('pyramid_google_login')
 
     # account routes
     config.add_route('login', '/login/')
@@ -99,7 +99,7 @@ def main(global_config, **settings):
     config.add_route('hubData', '/{user}/{hub}/data/{handler}')
     config.add_route('trackData', '/{user}/{hub}/{track}/{handler}/')
     config.add_static_view(name='/{user}/{hub}', path='jbrowse:jbrowse')
-    config.add_route('deleteHub','/deleteHub/')
+    config.add_route('deleteHub', '/deleteHub/')
     config.scan('api.views')
 
     return config.make_wsgi_app()
