@@ -54,6 +54,16 @@
 
                         <div class="card-header" style="background-color: #b22b16">
                             <a class="card-link" style="color:aliceblue; font-weight:bold" href="/{{ user }}/{{ hub }}/">{{ hub }}</a>
+                            <form class="edit-elements" action="/deleteHub/" method="post"
+                                style="display:none">
+                                <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
+                                <input value="{{ couser }}" id="couserName" type="hidden"
+                                    name="couserName">
+                                <button type="submit" class="btn btn-warning" formmethod="post"
+                                        style="font-size: 10px; padding: 0 5px; display:inline"> -
+                                    remove
+                                </button>
+                            </form>
                             <div class="float-right">
                                 <form class="form-inline" action="/public/{{ user }}/{{ hub }}/" method="POST">
                                     <div class="form-check form-check-inline">
@@ -152,13 +162,13 @@
                                                 </tr>
 
                                             {% endfor %}
-                                        </tbody>    
+                                        </tbody>
                                     </table>
-                                
+
                                 {% else %}
                                     No Added Users
                                 {% endif %}
-                                
+
                                 {#
                                 <ul>
                                     {% for couser in usersdict[hub] %}
@@ -317,4 +327,3 @@
         </script>
     </ul>
 {% endblock %}
-

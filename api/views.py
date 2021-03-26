@@ -132,7 +132,7 @@ def publicHubs(request):
     myLabels = {}
     for key in everyKey:
         currentHub = db.HubInfo(key[0], key[1]).get()
-        
+
         if 'isPublic' in currentHub.keys() and currentHub['isPublic']:
             currentHub['labels'] = 0
             for labelKey in db.Labels.keysWhichMatch(key[0], key[1]):
@@ -145,8 +145,8 @@ def publicHubs(request):
                 pass
             finally:
                 pass
-            
-            
+
+
 
     return {"user": userid,
             "HubNames": hubNames,
@@ -311,3 +311,16 @@ def runRestore(request):
         return db.doRestoreWithSelected(request.POST['toRestore'])
 
     return db.doRestore()
+
+
+@view_config(route_name='deleteHub', request_method='POST')
+def deleteHub(request):
+    userid = request.unauthenticated_userid
+    hubName = request.params['hubName']
+
+    hub_info = db.HubInfo(userid, hubName).get()
+    hub_info = None
+    db.HubInfo(userid, hubName).put(hub_info)
+
+    url = request.route_url('myHubs')
+    return HTTPFound(location=url)
