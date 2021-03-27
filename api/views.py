@@ -38,15 +38,21 @@ def moreHubInfo(request):
 
     myKeys = db.Labels.keysWhichMatch(userid, hubName)
     num_labels = 0
+    labels = {}
     for key in myKeys:
         num_labels += db.Labels(*key).get().shape[0]
+        labels[(key[2], key[3])] = db.Labels(*key).get().to_html()
 
     thisHubInfo = db.HubInfo(userid, hubName).get()
+
+    tracks = []
 
     return{'user': userid,
            'hubName': hubName,
            'hubInfo': thisHubInfo,
-           'numLabels': num_labels}
+           'numLabels': num_labels,
+           'tracks': tracks,
+           'labels': labels}
 
 
 @view_config(route_name='myHubs', renderer='myHubs.html')

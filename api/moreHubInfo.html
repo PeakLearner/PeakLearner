@@ -14,5 +14,10 @@
     <br>
     <b>Labels:</b> {{ numLabels }}
     <br>
+    {%for label in labels%}
+    <li>
+        {{label}}{{labels[label] | safe}}
+    </li>
+    {%endfor%}
 {% endblock %}
 
