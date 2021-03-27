@@ -217,22 +217,6 @@ def removeUser(request):
     return HTTPFound(location=url)
 
 
-@view_config(route_name='adjustPerms', renderer='adjustPerms.html')
-def adjustPerms(request):
-    userid = request.authenticated_userid
-
-    query = request.matchdict
-
-    hubName = query['hub']
-    couser = query['couser']
-    permissions = db.Permissions(userid, hubName, couser).get()
-
-    return {'user': userid,
-            'hub': hubName,
-            'couser': couser,
-            'permissions': permissions}
-
-
 @view_config(route_name='adjustPerms', request_method='POST')
 def adjustPermsPOST(request):
     userid = request.authenticated_userid
