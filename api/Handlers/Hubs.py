@@ -69,7 +69,9 @@ def createHubFromParse(parsed):
     # This will need to be updated if there are multiple genomes in file
     genome = genomesFile['genome']
 
-    hubInfo = {'genome': genome, 'isPublic': parsed['isPublic']}
+    hubInfo = {'genome': genome,
+               'isPublic': parsed['isPublic'],
+               'users': parsed['users']}
 
     dataPath = os.path.join(cfg.jbrowsePath, cfg.dataPath)
 
