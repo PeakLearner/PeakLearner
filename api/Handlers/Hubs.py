@@ -23,6 +23,22 @@ class HubHandler(Handler):
             print('no handler for %s' % self.query['handler'])
 
 
+def addUserToHub(hubName, owner, newUser):
+    keys = db.HubInfo.keysWhichMatch(db.HubInfo, owner)
+
+    hubInfo = db.HubInfo(owner, hubName).get()
+    if 'users' in hubInfo.keys():
+        hubInfo['users'].append(newUser)
+    else:
+        hubInfo['users'].append(newUser)
+
+    hubInfo['users'] = list(set(hubInfo['users']))
+    db.HubInfo(owner, hubName).put(hubInfo)
+
+    # create permissions database object for a user
+    db.Permissions(owner, hubName, newUser).put(["", "", "", "", ""])
+
+
 def createTrackListWithHubInfo(info):
     if info is None:
         return
@@ -64,7 +80,6 @@ def createHubFromParse(parsed):
     genomesFile = parsed['genomesFile']
 
     print("Hub: ", hub)
-
 
     # This will need to be updated if there are multiple genomes in file
     genome = genomesFile['genome']

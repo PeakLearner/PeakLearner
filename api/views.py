@@ -8,9 +8,8 @@ from pyramid.view import view_config
 from pyramid.view import view_defaults
 from pyramid.view import forbidden_view_config
 from api import CommandHandler
-from api.Handlers import Hubs
 from api.util import PLdb as db
-from api.Handlers import Models, Labels, Jobs
+from api.Handlers import Models, Labels, Jobs, Hubs
 
 from pyramid_google_login import *
 
@@ -187,23 +186,10 @@ def isPublic(request):
 @view_config(route_name='addUser', request_method='POST')
 def addUser(request):
     userid = request.unauthenticated_userid
-    keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
-
-    userEmail = request.params['userEmail']
+    newUser = request.params['userEmail']
     hubName = request.params['hubName']
 
-    hubInfo = db.HubInfo(userid, hubName).get()
-    if 'users' in hubInfo.keys():
-        hubInfo['users'].append(userEmail)
-    else:
-        hubInfo['users'] = []
-        hubInfo['users'].append(userEmail)
-
-    hubInfo['users'] = list(set(hubInfo['users']))
-    db.HubInfo(userid, hubName).put(hubInfo)
-
-    # create permissions database object for a user
-    db.Permissions(userid, hubName, userEmail).put(["", "", "", "", ""])
+    Hubs.addUserToHub(hubName, userid, newUser)
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
