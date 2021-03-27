@@ -26,3 +26,7 @@ a.card-link{
 #otherHubLink:hover{
     background-color: #8d969e;
 }
+
+#hubInfo-showMore{
+    color:grey;
+}

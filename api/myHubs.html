@@ -5,6 +5,12 @@
 
     <link rel="stylesheet" href="../css/hubs.css"/>
 
+    <script type="text/javascript">
+        function hubInfoAlert() {
+            window.open("/about/");
+        }
+    </script>
+
 {% endblock %}
 
 {% block content %}
@@ -53,10 +59,10 @@
 
             <li style="list-style-type: none">
                 <div class="my-hubs">
+
                     <div class="card" style="width: 95%;">
 
                         <div class="card-header" id="myHubHeader">
-
                             <a class="card-link rounded" id="myHubLink" href="/{{ user }}/{{ hub }}/">
                                 {{ hub }}
                             </a>
@@ -89,7 +95,11 @@
                                 <b>Tracks:</b> {{ myHubInfos[hub]['tracks']|length }}
                                 <br>
                                 <b>Labels:</b> {{ mylabels[hub] }}
+                                <br>
+                                <a id="hubInfo-showMore" href="/myHubs/{{hub}}/moreInfo/">Show More Hub Info...</a>
+
                                 <hr>
+
                                 <b>Owner:</b> {{ user }}
                                 <br>
                                 <b>Users | Permissions:</b>
@@ -237,9 +247,7 @@
             <li style="list-style-type: none">
                 <div class="shared-hub">
                     <div class="card" style="width: 95%;">
-
                         <div class="card-header" id="otherHubHeader">
-
                             <a class="card-link rounded" id="otherHubLink" href="/{{ otherHubInfos[hub]['owner'] }}/{{ hub }}/">
                                 {{ hub }}
                             </a>
@@ -333,6 +341,7 @@
                     showEdit = false;
                 }
             }
+
         </script>
     </ul>
 {% endblock %}

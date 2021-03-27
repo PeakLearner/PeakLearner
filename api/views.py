@@ -30,6 +30,25 @@ def jobs(request):
     return []
 
 
+@view_config(route_name='moreHubInfo', renderer='moreHubInfo.html')
+def moreHubInfo(request):
+    userid = request.authenticated_userid
+    query = request.matchdict
+    hubName = query['hub']
+
+    myKeys = db.Labels.keysWhichMatch(userid, hubName)
+    num_labels = 0
+    for key in myKeys:
+        num_labels += db.Labels(*key).get().shape[0]
+
+    thisHubInfo = db.HubInfo(userid, hubName).get()
+
+    return{'user': userid,
+           'hubName': hubName,
+           'hubInfo': thisHubInfo,
+           'numLabels': num_labels}
+
+
 @view_config(route_name='myHubs', renderer='myHubs.html')
 def myHubs(request):
     userid = request.authenticated_userid
@@ -41,15 +60,6 @@ def myHubs(request):
     everyUser = list(map(lambda tuple: tuple[0], everyKey))
     everyHubName = list(map(lambda tuple: tuple[1], everyKey))
     permissions = {}
-
-    # print(mylabels)
-    # mylabels = dict(('{hubName}'.format(hubName = key), mylabels[key].shape[0]) for key in mylabels.keys())
-    # print(mylabels)
-
-    # all_usersdict = {}
-    # for hubName in everyHubName:
-    #     currHubInfo = db.HubInfo(userid, hubName).get()
-    #     all_usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
 
     myHubInfos = dict(
         ('{hubName}'.format(hubName=key[1]), db.HubInfo(key[0], key[1]).get())
@@ -71,9 +81,6 @@ def myHubs(request):
             # num_labels += 1
 
         mylabels[hubName] = num_labels
-        # print(myKeys)
-        # mylabels.update(dict(('{hubName}'.format(hubName=key[1]), db.Labels(key[0],key[1],key[2],key[3]).get())
-        #                 for key in myKeys))
 
     sharedLabels = {}
     for hub in everyKey:
