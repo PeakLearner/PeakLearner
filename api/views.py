@@ -56,8 +56,6 @@ def myHubs(request):
     hubNames = list(map(lambda tuple: tuple[1], keys))
 
     everyKey = db.HubInfo.keysWhichMatch(db.HubInfo)
-    everyUser = list(map(lambda tuple: tuple[0], everyKey))
-    everyHubName = list(map(lambda tuple: tuple[1], everyKey))
     permissions = {}
 
     myHubInfos = dict(
@@ -84,31 +82,14 @@ def myHubs(request):
     sharedLabels = {}
     for hub in everyKey:
         currHubInfo = db.HubInfo(hub[0], hub[1]).get()
-        try:
-            if userid in currHubInfo['users']:
-                sharedKeys = db.Labels.keysWhichMatch(hub[0],hub[1])
-                num_labels = 0
-                for key in sharedKeys:
-                    num_labels += db.Labels(*key).get().shape[0]
-                sharedLabels[hub[1]] = num_labels
+        if userid in currHubInfo['users']:
+            sharedKeys = db.Labels.keysWhichMatch(hub[0],hub[1])
+            num_labels = 0
+            for key in sharedKeys:
+                num_labels += db.Labels(*key).get().shape[0]
+            sharedLabels[hub[1]] = num_labels
 
-        except KeyError:
-            pass
-        finally:
-            pass
-
-    otherHubInfos = {}
-    for key in everyKey:
-        currentHub = db.HubInfo(key[0], key[1]).get()
-        currentHub['owner'] = key[0]
-
-        try:
-            if userid in currentHub['users']:
-                otherHubInfos['{hubName}'.format(hubName=key[1])] = currentHub
-        except KeyError:
-            pass
-        finally:
-            pass
+    otherHubInfos = Hubs.getHubInfos(everyKey, userid)
 
     for hubName in hubNames:
         for couser in usersdict[hubName]:
@@ -129,13 +110,10 @@ def publicHubs(request):
     userid = request.authenticated_userid
 
     everyKey = db.HubInfo.keysWhichMatch(db.HubInfo)
-    everyUser = list(map(lambda tuple: tuple[0], everyKey))
-    everyHubName = list(map(lambda tuple: tuple[1], everyKey))
 
     hubNames = list(map(lambda tuple: tuple[1], everyKey))
 
     hubInfos = {}
-    myLabels = {}
     for key in everyKey:
         currentHub = db.HubInfo(key[0], key[1]).get()
 
@@ -145,14 +123,7 @@ def publicHubs(request):
                 currentHub['labels'] += db.Labels(*labelKey).get().shape[0]
 
             currentHub['owner'] = key[0]
-            try:
-                hubInfos['{hubName}'.format(hubName=key[1])] = currentHub
-            except KeyError:
-                pass
-            finally:
-                pass
-
-
+            hubInfos['{hubName}'.format(hubName=key[1])] = currentHub
 
     return {"user": userid,
             "HubNames": hubNames,
@@ -163,21 +134,17 @@ def publicHubs(request):
 def isPublic(request):
     userid = request.authenticated_userid
     query = request.matchdict
-
-    hub = query['hub']
+    hubName = query['hub']
 
     chkpublic = "chkpublic" in request.params.keys()
-
-    hubInfo = db.HubInfo(userid, hub).get()
+    hubInfo = db.HubInfo(userid, hubName).get()
     hubInfo['isPublic'] = chkpublic
+    db.HubInfo(userid, hubName).put(hubInfo)
 
     if chkpublic:
-        hubInfo['users'].append('Public')
+        Hubs.addUserToHub(hubName, userid, 'Public')
     elif 'Public' in hubInfo['users']:
-        hubInfo['users'].remove('Public')
-
-    db.HubInfo(userid, hub).put(hubInfo)
-    db.Permissions(userid, hub, 'Public').put(["", "", "", "", ""])
+        Hubs.removeUserFromHub(hubName, userid, 'Public')
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
@@ -198,13 +165,10 @@ def addUser(request):
 @view_config(route_name='hubRemoveUser', request_method='POST')
 def removeUser(request):
     userid = request.unauthenticated_userid
-    keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
-    userEmail = request.params['couserName']
+    userToRemove = request.params['couserName']
     hubName = request.params['hubName']
 
-    hub_info = db.HubInfo(userid, hubName).get()
-    hub_info['users'].remove(userEmail)
-    db.HubInfo(userid, hubName).put(hub_info)
+    Hubs.removeUserFromHub(hubName, userid, userToRemove)
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
@@ -225,15 +189,7 @@ def adjustPermsPOST(request):
     chktracks = "Can change tracks" if "chktracks" in request.params.keys() else ""
     chkmoderator = "Is moderator" if "chkmoderator" in request.params.keys() else ""
 
-    # db.Permissions(user, hub, couser).put({'chkpublic' : chkpublic == 'True',
-    #                                         'chkhub' : chkhub == 'True',
-    #                                         'chklabels' : chklabels == 'True',
-    #                                         'chktracks' : chktracks == 'True',
-    #                                         'chkmoderator' : chkmoderator == 'True'})
-
     db.Permissions(user, hub, couser).put([chkpublic, chkhub, chklabels, chktracks, chkmoderator])
-
-    # print(query)
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
@@ -245,12 +201,12 @@ def uploadHubUrl(request):
     if 'POST' == request.method:
         # TODO: Implement user authentication (and maybe an anonymous user
 
-        if(not request.json_body['args']['hubUrl']):
+        if not request.json_body['args']['hubUrl']:
             return
 
         url = request.json_body['args']['hubUrl']
         hubName = ""
-        if(request.json_body['args']['hubName']):
+        if request.json_body['args']['hubName']:
             hubName = request.json_body['args']['hubName']
 
         return Hubs.parseHub({'user': user,
@@ -303,7 +259,6 @@ def deleteHub(request):
     userid = request.unauthenticated_userid
     hubName = request.params['hubName']
 
-    hub_info = db.HubInfo(userid, hubName).get()
     hub_info = None
     db.HubInfo(userid, hubName).put(hub_info)
 

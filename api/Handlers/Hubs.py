@@ -39,6 +39,25 @@ def addUserToHub(hubName, owner, newUser):
     db.Permissions(owner, hubName, newUser).put(["", "", "", "", ""])
 
 
+def removeUserFromHub(hubName, owner, removedUser):
+    hub_info = db.HubInfo(owner, hubName).get()
+    hub_info['users'].remove(removedUser)
+    db.HubInfo(owner, hubName).put(hub_info)
+
+
+def getHubInfos(keys, userid):
+    hubInfos = {}
+
+    for key in keys:
+        currentHub = db.HubInfo(key[0], key[1]).get()
+        currentHub['owner'] = key[0]
+
+        if userid in currentHub['users']:
+            hubInfos['{hubName}'.format(hubName=key[1])] = currentHub
+
+    return hubInfos
+
+
 def createTrackListWithHubInfo(info):
     if info is None:
         return
@@ -160,6 +179,7 @@ def storeHubInfo(user, hub, tracks, hubInfo, genome):
 
     return '/%s/' % os.path.join(str(user), hub)
 
+
 def checkForPrexistingLabels(coverageUrl, user, hub, track, genome):
     trackUrl = coverageUrl.rsplit('/', 1)[0]
     labelUrl = '%s/labels.bed' % trackUrl
@@ -229,6 +249,7 @@ def fixNoPeaks(row):
     if row['annotation'] == 'noPeaks':
         return 'noPeak'
     return row['annotation']
+
 
 def getRefSeq(genome, path, includes):
     genomeRelPath = os.path.join('genomes', genome)
