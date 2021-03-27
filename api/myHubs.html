@@ -117,59 +117,105 @@
 
                                         <tbody>
                                             {% for couser in usersdict[hub] %}
+                                                {% if couser != "Public" %}
+                                                    <tr>
+                                                        <th scope="row">
+                                                            <form class="edit-elements float-right" action="/hubRemoveUser/" method="post"
+                                                                style="display:none">
+                                                                <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
+                                                                <input value="{{ couser }}" id="couserName" type="hidden"
+                                                                    name="couserName">
+                                                                <button type="submit" class="btn btn-danger" formmethod="post"
+                                                                        style="font-size: 10px; padding: 0 5px; display:inline"> -
+                                                                    remove
+                                                                </button>
+                                                            </form>
+
+                                                            {{ couser }}
+                                                        </th>
+
+                                                        {% if permissions[(hub, couser)] is not none %}
+                                                            <form action="/adjustPerms/{{user}}/{{hub}}/{{couser}}" method="POST">
+                                                                <fieldset>
+                                                                    <td class="text-center">
+                                                                        <input type="checkbox" name="chkpublic" id="chkpublic" onChange="this.form.submit()"
+                                                                                {% if permissions[(hub, couser)][0] %}
+                                                                                    checked
+                                                                                {% endif %}
+                                                                        >
+                                                                    </td>
+                                                                    <td class="text-center">
+                                                                        <input type="checkbox" name="chkhub" id="chkhub" onChange="this.form.submit()"
+                                                                                {% if permissions[(hub, couser)][1] %}
+                                                                                    checked
+                                                                                {% endif %}
+                                                                        >
+                                                                    </td>
+                                                                    <td class="text-center">
+                                                                        <input type="checkbox" name="chklabels" id="chklabels" onChange="this.form.submit()"
+                                                                                {% if permissions[(hub, couser)][2] %}
+                                                                                    checked
+                                                                                {% endif %}
+                                                                        >
+                                                                    </td>
+                                                                    <td class="text-center">
+                                                                        <input type="checkbox" name="chktracks" id="chktracks" onChange="this.form.submit()"
+                                                                                {% if permissions[(hub, couser)][3] %}
+                                                                                    checked
+                                                                                {% endif %}
+                                                                        >
+                                                                    </td>
+                                                                    <td class="text-center">
+                                                                        <input type="checkbox" name="chkmoderator" id="chkmoderator" onChange="this.form.submit()"
+                                                                                {% if permissions[(hub, couser)][4] %}
+                                                                                    checked
+                                                                                {% endif %}
+                                                                        >
+                                                                    </td>
+                                                                </fieldset>
+                                                            </form>
+                                                        {% endif %}
+                                                    {% endif %}
+
+                                                </tr>
+
+                                            {% endfor %}
+
+                                            {% if "Public" in usersdict[hub] %}
                                                 <tr>
                                                     <th scope="row">
-                                                        <form class="edit-elements float-right" action="/hubRemoveUser/" method="post"
-                                                            style="display:none">
-                                                            <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
-                                                            <input value="{{ couser }}" id="couserName" type="hidden"
-                                                                name="couserName">
-                                                            <button type="submit" class="btn btn-danger" formmethod="post"
-                                                                    style="font-size: 10px; padding: 0 5px; display:inline"> -
-                                                                remove
-                                                            </button>
-                                                        </form>
-
-                                                        {{ couser }}
+                                                        Public
                                                     </th>
 
-                                                    {% if permissions[(hub, couser)] is not none %}
-                                                        <form action="/adjustPerms/{{user}}/{{hub}}/{{couser}}" method="POST">
+                                                    {% if permissions[(hub, 'Public')] is not none %}
+                                                        <form action="/adjustPerms/{{user}}/{{hub}}/Public" method="POST">
                                                             <fieldset>
                                                                 <td class="text-center">
-                                                                    <input type = "checkbox" name = "chkpublic" id = "chkpublic" onChange="this.form.submit()"
-                                                                            {% if permissions[(hub, couser)][0] %}
+                                                                    <input class="btn" type="checkbox" name="chkpublic" id="chkpublic" disabled checked>
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <input type="checkbox" name="chkhub" id="chkhub" onChange="this.form.submit()"
+                                                                            {% if permissions[(hub, "Public")][1] %}
                                                                                 checked
                                                                             {% endif %}
                                                                     >
                                                                 </td>
                                                                 <td class="text-center">
-                                                                    <input type = "checkbox" name = "chkhub" id = "chkhub" onChange="this.form.submit()"
-                                                                            {% if permissions[(hub, couser)][1] %}
+                                                                    <input type="checkbox" name="chklabels" id="chklabels" onChange="this.form.submit()"
+                                                                            {% if permissions[(hub, "Public")][2] %}
                                                                                 checked
                                                                             {% endif %}
                                                                     >
                                                                 </td>
                                                                 <td class="text-center">
-                                                                    <input type = "checkbox" name = "chklabels" id = "chklabels" onChange="this.form.submit()"
-                                                                            {% if permissions[(hub, couser)][2] %}
+                                                                    <input type="checkbox" name="chktracks" id="chktracks" onChange="this.form.submit()"
+                                                                            {% if permissions[(hub, "Public")][3] %}
                                                                                 checked
                                                                             {% endif %}
                                                                     >
                                                                 </td>
                                                                 <td class="text-center">
-                                                                    <input type = "checkbox" name = "chktracks" id = "chktracks" onChange="this.form.submit()"
-                                                                            {% if permissions[(hub, couser)][3] %}
-                                                                                checked
-                                                                            {% endif %}
-                                                                    >
-                                                                </td>
-                                                                <td class="text-center">
-                                                                    <input type = "checkbox" name = "chkmoderator" id = "chkmoderator" onChange="this.form.submit()"
-                                                                            {% if permissions[(hub, couser)][4] %}
-                                                                                checked
-                                                                            {% endif %}
-                                                                    >
+                                                                    <input class="btn" type="checkbox" name="chkmoderator" id="chkmoderator" disabled>
                                                                 </td>
                                                             </fieldset>
                                                         </form>
@@ -177,7 +223,8 @@
 
                                                 </tr>
 
-                                            {% endfor %}
+                                            {% endif %}
+
                                         </tbody>
                                     </table>
 

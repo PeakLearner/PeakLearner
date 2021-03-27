@@ -171,7 +171,14 @@ def isPublic(request):
 
     hubInfo = db.HubInfo(userid, hub).get()
     hubInfo['isPublic'] = chkpublic
+
+    if chkpublic:
+        hubInfo['users'].append('Public')
+    elif 'Public' in hubInfo['users']:
+        hubInfo['users'].remove('Public')
+
     db.HubInfo(userid, hub).put(hubInfo)
+    db.Permissions(userid, hub, 'Public').put(["", "", "", "", ""])
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
@@ -256,6 +263,7 @@ def uploadHubUrl(request):
             return
 
         url = request.json_body['args']['hubUrl']
+        hubName = ""
         if(request.json_body['args']['hubName']):
             hubName = request.json_body['args']['hubName']
 
