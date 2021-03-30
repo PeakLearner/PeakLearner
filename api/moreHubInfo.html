@@ -10,14 +10,17 @@
 
     <hr>
 
-    <b>Tracks:</b> {{ hubInfo['tracks']|length }}
-    <br>
-    <b>Labels:</b> {{ numLabels }}
-    <br>
-    {%for label in labels%}
-    <li>
-        {{label}}{{labels[label] | safe}}
-    </li>
-    {%endfor%}
+    <div style="padding-left:20px;">
+        <b>Tracks:</b> {{ hubInfo['tracks']|length }}
+        <br>
+        <b>Labels:</b> {{ numLabels }}
+        <br>
+        {%for label in labels%}
+        <li>
+            {{label}}{{labels[label] | safe}}
+        </li>
+        <br>
+        {%endfor%}
+    </div>
 {% endblock %}
 
