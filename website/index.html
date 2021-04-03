@@ -4,28 +4,6 @@
     <title>PeakLearner</title>
 {% endblock %}
 
-{% block account_page %}
-    {{user}}
-{% endblock %}
-
-{# handles account views for whether logged in or not #}
-{% block login_logout %}
-    {% if user != "Not Logged In"%}
-        <form class="px-4 py-3" action="/logout/" method="get">
-            <div class="form-group">
-                <input type="submit" value="Sign Out" class="btn btn-secondary btn-block">
-            </div>
-        </form>
-    {% else %}
-        <div class="col text-center">
-            <a class="text-center btn btn-outline-dark" href="/login/" role="button" style="text-transform:none">
-                <img width="15px" style="margin-bottom:3px; margin-right:5px" alt="Google sign-in" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png" />
-                Login
-            </a>
-        </div>
-    {% endif %}
-{% endblock %}
-
 {% block content %}
 
     <!-- ======= Hero Section ======= -->
@@ -46,7 +24,7 @@
                 </div>
             </div>
             <div class="col-lg-6 order-1 order-lg-2 hero-img" data-aos="zoom-in" data-aos-delay="200">
-                <img src="assets/img/hero-img.png" class="img-fluid animated" alt="">
+                <img src="../assets/img/hero-img.png" class="img-fluid animated" alt="">
             </div>
         </div>
     </div>
