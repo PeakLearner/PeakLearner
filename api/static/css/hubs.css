@@ -1,0 +1,32 @@
+#myHubHeader{
+    background-color: #b22b16;
+}
+#otherHubHeader{
+    background-color: #6c757d
+}
+
+a.card-link{
+    color:aliceblue;
+    font-weight:bold;
+    padding:4px;
+    border: 1px solid aliceblue;
+    margin-right:5px;
+}
+
+#myHubLink{
+    background-color: #b22b16;
+}
+#myHubLink:hover{
+    background-color: #ff3216;
+}
+
+#otherHubLink{
+    background-color: #6c757d;
+}
+#otherHubLink:hover{
+    background-color: #8d969e;
+}
+
+#hubInfo-showMore{
+    color:grey;
+}

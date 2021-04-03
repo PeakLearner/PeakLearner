@@ -23,6 +23,41 @@ class HubHandler(Handler):
             print('no handler for %s' % self.query['handler'])
 
 
+def addUserToHub(hubName, owner, newUser):
+    keys = db.HubInfo.keysWhichMatch(db.HubInfo, owner)
+
+    hubInfo = db.HubInfo(owner, hubName).get()
+    if 'users' in hubInfo.keys():
+        hubInfo['users'].append(newUser)
+    else:
+        hubInfo['users'].append(newUser)
+
+    hubInfo['users'] = list(set(hubInfo['users']))
+    db.HubInfo(owner, hubName).put(hubInfo)
+
+    # create permissions database object for a user
+    db.Permissions(owner, hubName, newUser).put(["", "", "", "", ""])
+
+
+def removeUserFromHub(hubName, owner, removedUser):
+    hub_info = db.HubInfo(owner, hubName).get()
+    hub_info['users'].remove(removedUser)
+    db.HubInfo(owner, hubName).put(hub_info)
+
+
+def getHubInfos(keys, userid):
+    hubInfos = {}
+
+    for key in keys:
+        currentHub = db.HubInfo(key[0], key[1]).get()
+        currentHub['owner'] = key[0]
+
+        if userid in currentHub['users']:
+            hubInfos['{hubName}'.format(hubName=key[1])] = currentHub
+
+    return hubInfos
+
+
 def createTrackListWithHubInfo(info):
     if info is None:
         return
@@ -63,11 +98,14 @@ def createHubFromParse(parsed):
     user = parsed['user']
     genomesFile = parsed['genomesFile']
 
+    print("Hub: ", hub)
 
     # This will need to be updated if there are multiple genomes in file
     genome = genomesFile['genome']
 
-    hubInfo = {'genome': genome, 'isPublic': parsed['isPublic']}
+    hubInfo = {'genome': genome,
+               'isPublic': parsed['isPublic'],
+               'users': parsed['users']}
 
     dataPath = os.path.join(cfg.jbrowsePath, cfg.dataPath)
 
@@ -141,6 +179,7 @@ def storeHubInfo(user, hub, tracks, hubInfo, genome):
 
     return '/%s/' % os.path.join(str(user), hub)
 
+
 def checkForPrexistingLabels(coverageUrl, user, hub, track, genome):
     trackUrl = coverageUrl.rsplit('/', 1)[0]
     labelUrl = '%s/labels.bed' % trackUrl
@@ -210,6 +249,7 @@ def fixNoPeaks(row):
     if row['annotation'] == 'noPeaks':
         return 'noPeak'
     return row['annotation']
+
 
 def getRefSeq(genome, path, includes):
     genomeRelPath = os.path.join('genomes', genome)
@@ -388,11 +428,18 @@ def parseUCSC(data):
 
     hub = readUCSCLines(lines)
 
+    invalid = ["", " "]
+    if data['hubName'] not in invalid:
+        hub['hub'] = data['hubName']
+
     # TODO: Add User to query
 
+    # SETUP HUB VALUE KEYS
     user = data['user']
     hub['user'] = user
-
+    hub['owner'] = user
+    hub['labels'] = 0
+    hub['users'] = []
     if user:
         hub['isPublic'] = False
     else:

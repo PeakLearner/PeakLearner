@@ -2,48 +2,42 @@
 
 {% block inner_head %}
     <title>Public Hubs</title>
+
+    <link rel="stylesheet" href="../css/hubs.css"/>
+    
 {% endblock %}
 
 {% block content %}
+    <h2 class="text-center">Public Hubs</h2>
 
-    <div class="container mt-4" style = "border-color: black; padding:15px; border-width: 2px; border-style: solid;
-                                         max-width:1000px; min-width:150px">
+    <hr/>
 
-        <h2 class="text-center">Public Hubs</h2>
+    <ul>
+        {% for hub in hubInfos %}
 
-        <hr/>
+            <li style="list-style-type: none">
+                <div class="card" style = "width: 95%;">
 
-        <ul>
-            {% for hub in hubInfos %}
-
-                <li style="list-style-type: none">
-                    <div class="card" style = "width: 95%;">
-
-                        <div class="card-header">
-                            <a class="card-link" href = "/{{hubInfos[hub]['owner']}}/{{hub}}/">{{hub}}</a>
-                        </div>
-
-                        <div class="card-body">
-                            <div class="card-text">
-                                <b>Tracks:</b> {{hubInfos[hub]['tracks']|length}}
-                                <br>
-                                <b>Labels:</b> {{hubInfos[hub]['labels']}}
-                                <hr>
-                                <b>Owner:</b> {{hubInfos[hub]['owner']}}
-                                
-                            </div>
-
-
-                        </div>
-
+                    <div class="card-header" id = otherHubHeader>
+                        <a class="card-link rounded" id="otherHubLink" href = "/{{hubInfos[hub]['owner']}}/{{hub}}/">{{hub}}</a>
                     </div>
-                </li>
 
-                <br>
+                    <div class="card-body">
+                        <div class="card-text">
+                            <b>Tracks:</b> {{hubInfos[hub]['tracks']|length}}
+                            <br>
+                            <b>Labels:</b> {{hubInfos[hub]['labels']}}
+                            <hr>
+                            <b>Owner:</b> {{hubInfos[hub]['owner']}}
+                        </div>
+                    </div>
 
-            {% endfor %}
-        </ul>
-    </div>
+                </div>
+            </li>
 
+            <br>
+
+        {% endfor %}
+    </ul>
 {% endblock %}
 

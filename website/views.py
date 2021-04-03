@@ -1,28 +1,10 @@
-from pyramid.view import view_config
-from pyramid.view import view_defaults
-from pyramid.view import forbidden_view_config
-from api import CommandHandler
-from api.Handlers import Hubs
 from api.util import PLdb as db
 from api.Handlers import Models, Labels, Jobs
-
-from pyramid_google_login.events import UserLoggedIn
-from pyramid.events import subscriber
-
-from pyramid_google_login import *
+from pyramid.view import view_config
 from pyramid.security import remember, forget
-
+from pyramid_google_login import *
 from website.users.Users import USERS
 from website.users.User import User
-
-
-# listens for login attempt
-# @subscriber(UserLoggedIn)
-# def getToken(event):
-#     userid = event.userid
-#     token = event.oauth2_token
-#     if userid not in USERS:
-#         _create_user(userid, token)
 
 
 # adds user to USERS dict object
@@ -116,7 +98,7 @@ def failed(request):
     return {'user': user}
 
 
-# reroute from pyramid_google_login signin page
+# reroute from pyramid_google_login sign-in page
 @view_config(route_name='auth_signin')
 def go_home(request):
     url = request.route_url('home')
