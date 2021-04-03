@@ -153,20 +153,14 @@
                 </ul>
             </div>
         </nav>
+    </div>
 
-        <div class="container mt-4 bg-white" style="padding:15px;
-                                                    max-width:1000px; 
-                                                    min-width:150px;"
-        >
-            {% block content %}
+    {% block content %}
                 <div class="d-flex flex-column flex-grow">
                     {% block filled %}
                     {% endblock %}
                 </div>
             {% endblock %}
-        </div>
-
-    </div>
 {% endblock %}
 
 </body>

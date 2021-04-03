@@ -67,6 +67,7 @@ def main(global_config, **settings):
     config.add_route('modelStats', '/stats/model/')
     config.add_route('labelStats', '/stats/label/')
     config.add_route('jobStats', '/stats/job/')
+    config.add_static_view(name='assets', path='website:static/assets')
     config.add_route('addUser', '/addUser/')
     config.add_route('hubRemoveUser', '/hubRemoveUser/')
     config.add_route('adjustPerms', '/adjustPerms/{user}/{hub}/{couser}')
@@ -81,6 +82,7 @@ def main(global_config, **settings):
     config.include('pyramid_jinja2')
     config.include('pyramid_google_login')  # library for google oauth
     config.add_static_view(name='tutorial/static', path='website:static/tutorial')
+    config.add_static_view(name='about', path='website:static/about')
     config.add_static_view(name='css', path='api:static/css')
     config.add_jinja2_renderer('.html')
     config.scan('website.views')
