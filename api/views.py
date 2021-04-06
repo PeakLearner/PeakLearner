@@ -57,58 +57,37 @@ def moreHubInfo(request):
 @view_config(route_name='myHubs', renderer='myHubs.html')
 def myHubs(request):
     userid = request.authenticated_userid
-
-    keys = db.HubInfo.keysWhichMatch(db.HubInfo, userid)
-    hubNames = list(map(lambda tuple: tuple[1], keys))
-
     everyKey = db.HubInfo.keysWhichMatch(db.HubInfo)
+    hubInfos = Hubs.getHubInfos(everyKey, userid)
+
+    labels = {}
+    usersdict = {}
     permissions = {}
 
-    myHubInfos = dict(
-        ('{hubName}'.format(hubName=key[1]), db.HubInfo(key[0], key[1]).get())
-        for key in keys
-    )
+    for hubName in hubInfos:
 
-    mylabels = {}
-
-    usersdict = {}
-    for hubName in hubNames:
-        currHubInfo = db.HubInfo(userid, hubName).get()
-
+        currHubInfo = hubInfos[hubName]
+        owner = currHubInfo['owner']
         usersdict[hubName] = currHubInfo['users'] if 'users' in currHubInfo.keys() else []
 
-        myKeys = db.Labels.keysWhichMatch(userid, hubName)
+        everyLabelKey = db.Labels.keysWhichMatch(owner, hubName)
+
         num_labels = 0
-        for key in myKeys:
-            num_labels += db.Labels(*key).get().shape[0]
-            # num_labels += 1
-
-        mylabels[hubName] = num_labels
-
-    sharedLabels = {}
-    for hub in everyKey:
-        currHubInfo = db.HubInfo(hub[0], hub[1]).get()
-        if userid in currHubInfo['users']:
-            sharedKeys = db.Labels.keysWhichMatch(hub[0],hub[1])
-            num_labels = 0
-            for key in sharedKeys:
+        for key in everyLabelKey:
+            if key[0] == userid or userid in hubInfos[key[1]]['users']:
                 num_labels += db.Labels(*key).get().shape[0]
-            sharedLabels[hub[1]] = num_labels
 
-    otherHubInfos = Hubs.getHubInfos(everyKey, userid)
+        labels[hubName] = num_labels
 
-    for hubName in hubNames:
+        # get each co users permissions
         for couser in usersdict[hubName]:
-            permissions[(hubName, couser)] = db.Permissions(userid, hubName, couser).get()
+            permissions[(hubName, couser)] = db.Permissions(owner, hubName, couser).get()
 
     return {"user": userid,
-            "HubNames": hubNames,
-            "myHubInfos": myHubInfos,
-            "otherHubInfos": otherHubInfos,
+            "hubInfos": hubInfos,
             "usersdict": usersdict,
             "permissions": permissions,
-            "mylabels": mylabels,
-            "sharedLabels": sharedLabels}
+            "labels": labels}
 
 
 @view_config(route_name='publicHubs', renderer='publicHubs.html')
@@ -141,16 +120,17 @@ def isPublic(request):
     userid = request.authenticated_userid
     query = request.matchdict
     hubName = query['hub']
+    user = query['user']
 
     chkpublic = "chkpublic" in request.params.keys()
-    hubInfo = db.HubInfo(userid, hubName).get()
+    hubInfo = db.HubInfo(user, hubName).get()
     hubInfo['isPublic'] = chkpublic
-    db.HubInfo(userid, hubName).put(hubInfo)
+    db.HubInfo(user, hubName).put(hubInfo)
 
     if chkpublic:
-        Hubs.addUserToHub(hubName, userid, 'Public')
+        Hubs.addUserToHub(hubName, user, 'Public')
     elif 'Public' in hubInfo['users']:
-        Hubs.removeUserFromHub(hubName, userid, 'Public')
+        Hubs.removeUserFromHub(hubName, user, 'Public')
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
