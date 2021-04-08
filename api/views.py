@@ -1,12 +1,4 @@
 from pyramid.view import view_config
-from api.Handlers import Jobs, Hubs
-from api.util import PLdb as db
-from api import CommandHandler
-import json
-
-from pyramid.view import view_config
-from pyramid.view import view_defaults
-from pyramid.view import forbidden_view_config
 from api import CommandHandler
 from api.util import PLdb as db
 from api.Handlers import Models, Labels, Jobs, Hubs
@@ -117,19 +109,18 @@ def publicHubs(request):
 
 @view_config(route_name='public', request_method='POST')
 def isPublic(request):
-    userid = request.authenticated_userid
     query = request.matchdict
     hubName = query['hub']
     user = query['user']
 
     chkpublic = "chkpublic" in request.params.keys()
-    hubInfo = db.HubInfo(user, hubName).get()
-    hubInfo['isPublic'] = chkpublic
-    db.HubInfo(user, hubName).put(hubInfo)
+    hub = db.HubInfo(user, hubName).get()
+    hub['isPublic'] = chkpublic
+    db.HubInfo(user, hubName).put(hub)
 
     if chkpublic:
         Hubs.addUserToHub(hubName, user, 'Public')
-    elif 'Public' in hubInfo['users']:
+    elif 'Public' in hub['users']:
         Hubs.removeUserFromHub(hubName, user, 'Public')
 
     url = request.route_url('myHubs')
@@ -138,11 +129,11 @@ def isPublic(request):
 
 @view_config(route_name='addUser', request_method='POST')
 def addUser(request):
-    userid = request.unauthenticated_userid
     newUser = request.params['userEmail']
     hubName = request.params['hubName']
+    owner = request.params['owner']
 
-    Hubs.addUserToHub(hubName, userid, newUser)
+    Hubs.addUserToHub(hubName, owner, newUser)
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
@@ -155,6 +146,40 @@ def removeUser(request):
     hubName = request.params['hubName']
 
     Hubs.removeUserFromHub(hubName, userid, userToRemove)
+
+    url = request.route_url('myHubs')
+    return HTTPFound(location=url)
+
+
+@view_config(route_name='addTrack', request_method='POST')
+def addTrack(request):
+    query = request.matchdict
+    hubName = query['hub']
+    owner = query['user']
+    category = request.params['category']
+    trackName = request.params['trackName']
+    url = request.params['url']
+
+    hubInfo = db.HubInfo(owner, hubName).get()
+    hubInfo['tracks'][trackName] = {'categories': category, 'key': trackName, 'url': url}
+    db.HubInfo(owner, hubName).put(hubInfo)
+
+    url = request.route_url('myHubs')
+    return HTTPFound(location=url)
+
+
+@view_config(route_name='removeTrack', request_method='POST')
+def removeTrack(request):
+    query = request.matchdict
+    hubName = query['hub']
+    owner = query['user']
+    trackName = request.params['trackName']
+
+    hubInfo = db.HubInfo(owner, hubName).get()
+
+    del hubInfo['tracks'][trackName]
+
+    db.HubInfo(owner, hubName).put(hubInfo)
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)

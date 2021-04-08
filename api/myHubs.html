@@ -207,9 +207,56 @@
                             <div class="card-text">
                                 <b>Tracks:</b> {{ hubInfos[hub]['tracks']|length }}
                                 <br>
+                                {% if hubInfos[hub]['owner'] == user or (permissions[(hub, user)] is not none and permissions[(hub, user)][3]) %}
+                                    <ul class="list-group-flush" style="width:40%">
+                                    {% for track in hubInfos[hub]['tracks'] %}
+                                        <li class="list-group-item">
+                                            {{ track }}
+                                            <form class="edit-elements" action="/removeTrack/{{ hubInfos[hub]['owner'] }}/{{ hub }}/" method="post"
+                                                                        style="display:none">
+                                                <input value="{{ track }}" id="trackName" type="hidden" name="trackName">
+                                                <button type="submit" class="btn btn-danger" formmethod="post"
+                                                        style="font-size: 10px; padding: 0 5px; display:inline"> -
+                                                    remove
+                                                </button>
+                                            </form>
+                                        </li>
+                                    {% endfor %}
+                                    </ul>
+                                    <form class="edit-elements" action="/addTrack/{{ hubInfos[hub]['owner'] }}/{{ hub }}/" method="POST" style="display: none">
+                                        <br>
+                                        <div class="input-group mb-3">
+                                            <div class="input-group-prepend">
+                                                <label class="input-group-text" id="add-track-label" for="trackName">
+                                                    Name
+                                                </label>
+                                            </div>
+                                            <input type="text" id="trackName" name="trackName" class="form-control"
+                                                    aria-describedby="add-track-label">
+                                            <div class="input-group-prepend">
+                                                <label class="input-group-text" id="add-category-label" for="category">
+                                                    Category
+                                                </label>
+                                            </div>
+                                            <input type="text" id="category" name="category" class="form-control"
+                                                    aria-describedby="add-category-label">
+                                            <div class="input-group-prepend">
+                                                <label class="input-group-text" id="add-url-label" for="url">
+                                                    URL
+                                                </label>
+                                            </div>
+                                            <input type="text" id="url" name="url" class="form-control"
+                                                    aria-describedby="add-url-label">
+                                            <input class="btn btn-outline-dark" type="submit" value="add track"
+                                                    style="margin-left: 10px">
+                                        </div>
+                                    </form>
+                                {% endif %}
                                 <b>Labels:</b> {{ labels[hub] }}
                                 <br>
                                 <a id="hubInfo-showMore" href="/myHubs/{{hub}}/moreInfo/">Show More Hub Info...</a>
+
+
 
                                 <hr>
 
@@ -363,6 +410,7 @@
                                     <input type="email" id="userEmail" name="userEmail" class="form-control"
                                             aria-describedby="add-user-label">
                                     <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
+                                    <input value="{{ hubInfos[hub]['owner'] }}" id="owner" type="hidden" name="owner">
                                     <input class="btn btn-outline-dark" type="submit" value="add user"
                                             style="margin-left: 10px">
                             </form>
