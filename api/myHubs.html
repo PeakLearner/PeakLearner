@@ -9,6 +9,8 @@
         function hubInfoAlert() {
             window.open("/about/");
         }
+        sessionStorage.setItem('show_owned', 'true');
+        sessionStorage.setItem('show_shared', 'true');
 
         // keep scroll position on refresh
         document.addEventListener("DOMContentLoaded", function(event) {
@@ -16,13 +18,14 @@
             let showOwned = (sessionStorage.getItem('show_owned') === 'true');
             let showShared = (sessionStorage.getItem('show_shared') === 'true');
 
+            let myHubsCheck = document.getElementById('owned-hubs');
             if (!showOwned) {
-                let myHubsCheck = document.getElementById('owned-hubs');
+                
                 myHubsCheck.checked = false;
             }
 
+            let sharedHubsCheck = document.getElementById('shared-hubs');
             if (!showShared) {
-                let sharedHubsCheck = document.getElementById('shared-hubs');
                 sharedHubsCheck.checked = false;
             }
 
