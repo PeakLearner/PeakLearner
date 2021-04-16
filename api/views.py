@@ -195,12 +195,14 @@ def adjustPermsPOST(request):
     couser = query['couser']
 
     chkpublic = "Can change to public" if "chkpublic" in request.params.keys() else ""
-    chkhub = "Can adjust hub" if "chkhub" in request.params.keys() else ""
     chklabels = "Can adjust labels" if "chklabels" in request.params.keys() else ""
     chktracks = "Can change tracks" if "chktracks" in request.params.keys() else ""
     chkmoderator = "Is moderator" if "chkmoderator" in request.params.keys() else ""
 
-    db.Permissions(user, hub, couser).put([chkpublic, chkhub, chklabels, chktracks, chkmoderator])
+    db.Permissions(user, hub, couser).put({'Publicity' : chkpublic, 
+    'Labels' : chklabels, 
+    'Tracks' : chktracks, 
+    'Moderator' : chkmoderator})
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)

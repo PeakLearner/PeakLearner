@@ -186,7 +186,7 @@
                                     </form>
                                 {% endif %}
 
-                                {% if hubInfos[hub]['owner'] == user or (permissions[(hub, user)] is not none and permissions[(hub, user)][0]) %}
+                                {% if hubInfos[hub]['owner'] == user or (permissions[(hub, user)] is not none and permissions[(hub, user)]['Publicity']) %}
                                     <div class="float-right">
                                         <form class="form-inline" action="/public/{{ hubInfos[hub]['owner'] }}/{{ hub }}/" method="POST">
                                             <div class="form-check form-check-inline">
@@ -207,7 +207,7 @@
                             <div class="card-text">
                                 <b>Tracks:</b> {{ hubInfos[hub]['tracks']|length }}
                                 <br>
-                                {% if hubInfos[hub]['owner'] == user or (permissions[(hub, user)] is not none and permissions[(hub, user)][3]) %}
+                                {% if hubInfos[hub]['owner'] == user or (permissions[(hub, user)] is not none and permissions[(hub, user)]['Tracks']) %}
                                     <ul class="list-group-flush" style="width:40%">
                                     {% for track in hubInfos[hub]['tracks'] %}
                                         <li class="list-group-item">
@@ -262,7 +262,7 @@
 
                                 <b>Owner:</b> {{ hubInfos[hub]['owner'] }}
 
-                                {% if hubInfos[hub]['owner'] == user or (permissions[(hub, user)] is not none and permissions[(hub, user)][4]) %}
+                                {% if hubInfos[hub]['owner'] == user or (permissions[(hub, user)] is not none and permissions[(hub, user)]['Moderator']) %}
 
                                     <br>
                                     <b>Users | Permissions:</b>
@@ -303,35 +303,28 @@
                                                                     <fieldset>
                                                                         <td class="text-center">
                                                                             <input type="checkbox" name="chkpublic" id="chkpublic" onChange="this.form.submit()"
-                                                                                    {% if permissions[(hub, couser)][0] %}
-                                                                                        checked
-                                                                                    {% endif %}
-                                                                            >
-                                                                        </td>
-                                                                        <td class="text-center">
-                                                                            <input type="checkbox" name="chkhub" id="chkhub" onChange="this.form.submit()"
-                                                                                    {% if permissions[(hub, couser)][1] %}
+                                                                                    {% if permissions[(hub, couser)][ "Publicity" ] %}
                                                                                         checked
                                                                                     {% endif %}
                                                                             >
                                                                         </td>
                                                                         <td class="text-center">
                                                                             <input type="checkbox" name="chklabels" id="chklabels" onChange="this.form.submit()"
-                                                                                    {% if permissions[(hub, couser)][2] %}
+                                                                                    {% if permissions[(hub, couser)][ "Labels" ] %}
                                                                                         checked
                                                                                     {% endif %}
                                                                             >
                                                                         </td>
                                                                         <td class="text-center">
                                                                             <input type="checkbox" name="chktracks" id="chktracks" onChange="this.form.submit()"
-                                                                                    {% if permissions[(hub, couser)][3] %}
+                                                                                    {% if permissions[(hub, couser)][ "Tracks" ] %}
                                                                                         checked
                                                                                     {% endif %}
                                                                             >
                                                                         </td>
                                                                         <td class="text-center">
                                                                             <input type="checkbox" name="chkmoderator" id="chkmoderator" onChange="this.form.submit()"
-                                                                                    {% if permissions[(hub, couser)][4] %}
+                                                                                    {% if permissions[(hub, couser)][ "Moderator" ] %}
                                                                                         checked
                                                                                     {% endif %}
                                                                             >
@@ -358,21 +351,21 @@
                                                                     </td>
                                                                     <td class="text-center">
                                                                         <input type="checkbox" name="chkhub" id="chkhub" onChange="this.form.submit()"
-                                                                                {% if permissions[(hub, "Public")][1] %}
+                                                                                {% if permissions[(hub, "Public" )][ "Hub" ] %}
                                                                                     checked
                                                                                 {% endif %}
                                                                         >
                                                                     </td>
                                                                     <td class="text-center">
                                                                         <input type="checkbox" name="chklabels" id="chklabels" onChange="this.form.submit()"
-                                                                                {% if permissions[(hub, "Public")][2] %}
+                                                                                {% if permissions[(hub, "Public" )][ "Labels" ] %}
                                                                                     checked
                                                                                 {% endif %}
                                                                         >
                                                                     </td>
                                                                     <td class="text-center">
                                                                         <input type="checkbox" name="chktracks" id="chktracks" onChange="this.form.submit()"
-                                                                                {% if permissions[(hub, "Public")][3] %}
+                                                                                {% if permissions[(hub, "Public" )][ "Tracks" ] %}
                                                                                     checked
                                                                                 {% endif %}
                                                                         >
@@ -398,7 +391,7 @@
 
                             </div>
 
-                        {% if hubInfos[hub]['owner'] == user or (permissions[(hub, user)] is not none and permissions[(hub, user)][4]) %}
+                        {% if hubInfos[hub]['owner'] == user or (permissions[(hub, user)] is not none and permissions[(hub, user)][ 'Moderator' ]) %}
                             <form class="edit-elements" action="/addUser/" method="POST" style="display: none">
                                 <br>
                                 <div class="input-group mb-3">
