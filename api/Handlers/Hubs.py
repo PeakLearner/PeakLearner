@@ -22,8 +22,9 @@ class HubHandler(Handler):
         else:
             print('no handler for %s' % self.query['handler'])
 
-
+# TODO: Transaction
 def addUserToHub(hubName, owner, newUser):
+    txn = db.getTxn()
     keys = db.HubInfo.keysWhichMatch(db.HubInfo, owner)
 
     hubInfo = db.HubInfo(owner, hubName).get()
@@ -33,16 +34,19 @@ def addUserToHub(hubName, owner, newUser):
         hubInfo['users'].append(newUser)
 
     hubInfo['users'] = list(set(hubInfo['users']))
-    db.HubInfo(owner, hubName).put(hubInfo)
+    db.HubInfo(owner, hubName).put(hubInfo, txn=txn)
+    txn.commit()
 
     # create permissions database object for a user
     db.Permissions(owner, hubName, newUser).put(["", "", "", "", ""])
 
-
+# TODO: Transaction
 def removeUserFromHub(hubName, owner, removedUser):
+    txn = db.getTxn()
     hub_info = db.HubInfo(owner, hubName).get()
     hub_info['users'].remove(removedUser)
-    db.HubInfo(owner, hubName).put(hub_info)
+    db.HubInfo(owner, hubName).put(hub_info, txn=txn)
+    txn.commit()
 
 
 def getHubInfos(keys, userid):
