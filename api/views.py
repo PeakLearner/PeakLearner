@@ -106,9 +106,11 @@ def publicHubs(request):
             "HubNames": hubNames,
             "hubInfos": hubInfos}
 
-
+# TODO: Transaction
 @view_config(route_name='public', request_method='POST')
 def isPublic(request):
+    txn = db.getTxn()
+
     query = request.matchdict
     hubName = query['hub']
     user = query['user']
@@ -116,10 +118,12 @@ def isPublic(request):
     chkpublic = "chkpublic" in request.params.keys()
     hub = db.HubInfo(user, hubName).get()
     hub['isPublic'] = chkpublic
-    db.HubInfo(user, hubName).put(hub)
-
+    db.HubInfo(user, hubName).put(hub, txn=txn)
+    txn.commit()
+    
     if chkpublic:
         Hubs.addUserToHub(hubName, user, 'Public')
+        
     elif 'Public' in hub['users']:
         Hubs.removeUserFromHub(hubName, user, 'Public')
 
@@ -150,9 +154,10 @@ def removeUser(request):
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
 
-
+# TODO: Transaction
 @view_config(route_name='addTrack', request_method='POST')
 def addTrack(request):
+    txn = db.getTxn()
     query = request.matchdict
     hubName = query['hub']
     owner = query['user']
@@ -162,14 +167,17 @@ def addTrack(request):
 
     hubInfo = db.HubInfo(owner, hubName).get()
     hubInfo['tracks'][trackName] = {'categories': category, 'key': trackName, 'url': url}
-    db.HubInfo(owner, hubName).put(hubInfo)
+    db.HubInfo(owner, hubName).put(hubInfo, txn=txn)
+    txn.commit()
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
 
-
+# TODO: Transaction
 @view_config(route_name='removeTrack', request_method='POST')
 def removeTrack(request):
+    
+    txn = db.getTxn()
     query = request.matchdict
     hubName = query['hub']
     owner = query['user']
@@ -179,14 +187,17 @@ def removeTrack(request):
 
     del hubInfo['tracks'][trackName]
 
-    db.HubInfo(owner, hubName).put(hubInfo)
+    db.HubInfo(owner, hubName).put(hubInfo, txn=txn)
+    txn.commit()
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
 
-
+# TODO: transaction
 @view_config(route_name='adjustPerms', request_method='POST')
 def adjustPermsPOST(request):
+    txn = db.getTxn()
+
     userid = request.authenticated_userid
     query = request.matchdict
 
@@ -202,7 +213,8 @@ def adjustPermsPOST(request):
     db.Permissions(user, hub, couser).put({'Publicity' : chkpublic, 
     'Labels' : chklabels, 
     'Tracks' : chktracks, 
-    'Moderator' : chkmoderator})
+    'Moderator' : chkmoderator}, txn=txn)
+    txn.commit()
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
@@ -266,14 +278,16 @@ def runRestore(request):
 
     return db.doRestore()
 
-
+# TODO: Transaction
 @view_config(route_name='deleteHub', request_method='POST')
 def deleteHub(request):
+    txn = db.getTxn()
     userid = request.unauthenticated_userid
     hubName = request.params['hubName']
 
     hub_info = None
-    db.HubInfo(userid, hubName).put(hub_info)
+    db.HubInfo(userid, hubName).put(hub_info, txn=txn)
+    txn.commit()
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
