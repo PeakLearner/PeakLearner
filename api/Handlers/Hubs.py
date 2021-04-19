@@ -22,10 +22,15 @@ class HubHandler(Handler):
         else:
             print('no handler for %s' % self.query['handler'])
 
-# TODO: Transaction
+
 def addUserToHub(hubName, owner, newUser):
+    """Adds a user to a hub given the hub name, owner userid, and the userid of the user to be added
+
+    Adjusts the db.HubInfo object by adding the new user to the ['users'] dict item in the db object.
+    Additionally the permissions of that user are initialized to being empty.
+    """
+
     txn = db.getTxn()
-    keys = db.HubInfo.keysWhichMatch(db.HubInfo, owner)
 
     hubInfo = db.HubInfo(owner, hubName).get()
     if 'users' in hubInfo.keys():
@@ -37,11 +42,17 @@ def addUserToHub(hubName, owner, newUser):
     db.HubInfo(owner, hubName).put(hubInfo, txn=txn)
     txn.commit()
 
-    # create permissions database object for a user
+    # initialize permissions database object for a user and default to no permissions
     db.Permissions(owner, hubName, newUser).put(["", "", "", "", ""])
 
-# TODO: Transaction
+
 def removeUserFromHub(hubName, owner, removedUser):
+    """Removes a user from a hub given the hub name, owner userid, and the userid of the user to be removed
+
+    Adjusts the db.HubInfo object by calling the remove() function on the removed userid from the ['users'] item of the
+    db.HubInfo object.
+    """
+
     txn = db.getTxn()
     hub_info = db.HubInfo(owner, hubName).get()
     hub_info['users'].remove(removedUser)
@@ -50,9 +61,22 @@ def removeUserFromHub(hubName, owner, removedUser):
 
 
 def getHubInfos(keys, userid):
+    """Get a dictionary of hub infos accessible by their names
+
+    Parameters
+    ----------
+    keys: given keys of which hub infos matching these keys should be returned.
+    userid: id of the user of which hubs related to the user should be returned.
+
+    Returns
+    -------
+    hubInfos: dictionary of every hub info for a given set of keys and a given user are accessible by its hub name.
+    """
+
     hubInfos = {}
 
     for key in keys:
+        # TODO: make key[] indices more readable by converting to a dictionary
         currentHub = db.HubInfo(key[0], key[1]).get()
         currentHub['owner'] = key[0]
 
