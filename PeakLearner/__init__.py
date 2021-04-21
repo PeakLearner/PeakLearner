@@ -1,5 +1,4 @@
 from pyramid.config import Configurator
-from pyramid.request import Request
 from pyramid.authentication import AuthTktAuthenticationPolicy
 from pyramid.authorization import ACLAuthorizationPolicy
 from pyramid.security import ALL_PERMISSIONS
@@ -36,18 +35,15 @@ class UserFactory(object):
 
 
 def group_finder(userid, request):
-    """
+    """ returns groups of a given userid in USERS """
 
-    """
     user = USERS.get(userid)
     if user:
         return ['g:%s' % g for g in user.groups]
 
 
 def main(global_config, **settings):
-    """ run configurator for PeakLearner
-
-    """
+    """ run configurator for PeakLearner """
 
     config = Configurator(settings=settings)
 
@@ -88,6 +84,7 @@ def main(global_config, **settings):
     config.add_route('jobs', '/jobs/')
     config.add_route('jobInfo', '/jobs/info/')
 
+    # rendering related configurations
     config.include('pyramid_jinja2')
     config.include('pyramid_google_login')  # library for google oauth
     config.add_static_view(name='tutorial/static', path='website:static/tutorial')
