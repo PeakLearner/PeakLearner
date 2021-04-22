@@ -89,7 +89,7 @@ def main(global_config, **settings):
     config.include('pyramid_google_login')  # library for google oauth
     config.add_static_view(name='tutorial/static', path='website:static/tutorial')
     config.add_static_view(name='about', path='website:static/about')
-    config.add_static_view(name='static', path='api:static/')
+    config.add_static_view(name='myHubs/static', path='api:static/')
     config.add_jinja2_renderer('.html')
     config.scan('website.views')
 

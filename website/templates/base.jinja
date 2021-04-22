@@ -71,14 +71,13 @@
                                 <span style="display:inline-block">Hubs</span> 
                             </a>
                             <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                {# TODO: Remove Public Hubs #}
                                 <a class="dropdown-item" href="/publicHubs/">
                                     Public Hubs
                                 </a>
-                                {% if user is not none %}
                                 <a class="dropdown-item" href="/myHubs/">
-                                    My Hubs
+                                    Hubs
                                 </a>
-                                {% endif %}
                                 <a class="dropdown-item" href="/newHub/">
                                     Upload New Hub
                                 </a>

@@ -80,7 +80,7 @@ def getHubInfos(keys, userid):
         currentHub = db.HubInfo(key[0], key[1]).get()
         currentHub['owner'] = key[0]
 
-        if userid in currentHub['users'] or userid == key[0]:
+        if userid in currentHub['users'] or userid == key[0] or currentHub['isPublic']:
             hubInfos['{hubName}'.format(hubName=key[1])] = currentHub
 
     return hubInfos

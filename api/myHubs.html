@@ -3,9 +3,9 @@
 {% block inner_head %}
     <title>My Hubs</title>
 
-    <link rel="stylesheet" href="../css/hubs.css"/>
+    <link rel="stylesheet" href="static/css/hubs.css"/>
 
-    <script type="text/javascript" src="../static/myHubs.js"></script>
+    <script type="text/javascript" src="static/myHubs.js"></script>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 
@@ -14,8 +14,12 @@
 {% block content %}
     <div class="d-flex justify-content-center">
         <div class="flex-column">
-            <h2 class="text-center">My Hubs</h2>
+            <h2 class="text-center">Hubs</h2>
+            {% if user is not none %}
             <h4 class="text-center">{{ user }}</h4>
+            {% else %}
+            <h4 class="text-center">Public</h4>
+            {% endif %}
         </div>
     </div>
 
@@ -25,6 +29,7 @@
         <div class="float-left" onclick="checkHubs()">
             <form class="form-inline">
                 <b style="margin-right: 10px">Filter: </b>
+                {% if user is not none %}
                 <div class="form-check form-check-inline rounded" style="padding:5px; background-color: #b22b16">
                     <input class="form-check-input" type="checkbox" value="" id="owned-hubs"
                            checked>
@@ -37,6 +42,14 @@
                            checked>
                     <label class="form-check-label" for="shared-hubs" style="color: aliceblue;">
                         Shared Hubs
+                    </label>
+                </div>
+                {% endif %}
+                <div class="form-check form-check-inline rounded" style="padding:5px; background-color: #3b9e00">
+                    <input class="form-check-input" type="checkbox" value="" id="public-hubs"
+                           checked>
+                    <label class="form-check-label" for="public-hubs" style="color: aliceblue;">
+                        Public Hubs
                     </label>
                 </div>
             </form>
@@ -70,7 +83,7 @@
                                     {{ hub }}
                                 </a>
 
-                {% else %}
+                {% elif user in hubInfos[hub]['users'] %}
 
                     <div class="shared-hubs">
 
@@ -78,6 +91,17 @@
 
                             <div class="card-header" id="otherHubHeader">
                                 <a class="card-link rounded" id="otherHubLink" href="/{{ hubInfos[hub]['owner'] }}/{{ hub }}/">
+                                    {{ hub }}
+                                </a>
+
+                {% elif hubInfos[hub]['isPublic'] %}
+
+                    <div class="public-hubs">
+
+                        <div class="card" style="width: 95%;">
+
+                            <div class="card-header" id="publicHubHeader">
+                                <a class="card-link rounded" id="publicHubLink" href="/{{ hubInfos[hub]['owner'] }}/{{ hub }}/">
                                     {{ hub }}
                                 </a>
 
@@ -101,7 +125,7 @@
 
                                 {% endif %}
 
-                                {% if hubInfos[hub]['owner'] == user or (permissions[(hub, user)] is not none and permissions[(hub, user)]['Publicity']) %}
+                                {% if hubInfos[hub]['owner'] == user or (user in hubInfos[hub]['users'] and permissions[(hub, user)]['Publicity']) %}
                                     <div class="float-right">
                                         <form class="form-inline" action="/public/{{ hubInfos[hub]['owner'] }}/{{ hub }}/" method="POST">
                                             <div class="form-check form-check-inline">
@@ -122,7 +146,7 @@
                             <div class="card-text">
                                 <b>Tracks:</b> {{ hubInfos[hub]['tracks']|length }}
                                 <br>
-                                {% if hubInfos[hub]['owner'] == user or (permissions[(hub, user)] is not none and permissions[(hub, user)]['Tracks']) %}
+                                {% if hubInfos[hub]['owner'] == user or (user in hubInfos[hub]['users'] and permissions[(hub, user)]['Tracks']) %}
                                     <ul class="list-group-flush" style="width:40%">
                                     {% for track in hubInfos[hub]['tracks'] %}
                                         <li class="list-group-item">
@@ -177,7 +201,7 @@
 
                                 <b>Owner:</b> {{ hubInfos[hub]['owner'] }}
 
-                                {% if hubInfos[hub]['owner'] == user or (permissions[(hub, user)] is not none and permissions[(hub, user)]['Moderator']) %}
+                                {% if hubInfos[hub]['owner'] == user or (user in hubInfos[hub]['users'] and permissions[(hub, user)]['Moderator']) %}
 
                                     <br>
                                     <b>Users | Permissions:</b>
@@ -264,13 +288,6 @@
                                                                     <td class="text-center">
                                                                     </td>
                                                                     <td class="text-center">
-                                                                        <input type="checkbox" name="chkhub" id="chkhub" onChange="this.form.submit()"
-                                                                                {% if permissions[(hub, "Public" )][ "Hub" ] %}
-                                                                                    checked
-                                                                                {% endif %}
-                                                                        >
-                                                                    </td>
-                                                                    <td class="text-center">
                                                                         <input type="checkbox" name="chklabels" id="chklabels" onChange="this.form.submit()"
                                                                                 {% if permissions[(hub, "Public" )][ "Labels" ] %}
                                                                                     checked
@@ -305,7 +322,7 @@
 
                             </div>
 
-                        {% if hubInfos[hub]['owner'] == user or (permissions[(hub, user)] is not none and permissions[(hub, user)][ 'Moderator' ]) %}
+                        {% if hubInfos[hub]['owner'] == user or (user in hubInfos[hub]['users'] and permissions[(hub, user)][ 'Moderator' ]) %}
                             <form class="edit-elements" action="/addUser/" method="POST" style="display: none">
                                 <br>
                                 <div class="input-group mb-3">

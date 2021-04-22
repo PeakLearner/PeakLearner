@@ -1,6 +1,7 @@
 //Defaults the show_owned and show_shared check items to true on first page load.
 sessionStorage.setItem('show_owned', 'true');
 sessionStorage.setItem('show_shared', 'true');
+sessionStorage.setItem('show_public', 'true');
 
 
 /**
@@ -12,6 +13,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
     let showEdit = (sessionStorage.getItem('show_edit') === 'true');
     let showOwned = (sessionStorage.getItem('show_owned') === 'true');
     let showShared = (sessionStorage.getItem('show_shared') === 'true');
+    let showPublic = (sessionStorage.getItem('show_public') === 'true');
     let scrollPosition = localStorage.getItem('scrollPosition');
 
     // access filter check boxes and uncheck them visually if unchecked before refresh
@@ -22,6 +24,10 @@ document.addEventListener("DOMContentLoaded", function(event) {
     let sharedHubsCheck = document.getElementById('shared-hubs');
     if (!showShared) {
         sharedHubsCheck.checked = false;
+    }
+    let publicHubsCheck = document.getElementById('public-hubs');
+    if (!showPublic) {
+        publicHubsCheck.checked = false;
     }
 
     // based on session storage call edit hubs to show are not show hub editing UI features
@@ -49,14 +55,17 @@ function checkHubs() {
     // gets the current status of the checkboxes owned-hubs and shared-hubs to determine visibility
     let myHubsCheck = document.getElementById('owned-hubs');
     let sharedHubsCheck = document.getElementById('shared-hubs');
+    let publicHubsCheck = document.getElementById('public-hubs');
 
     // gets all hubs on my hubs page
     const myHubs = document.getElementsByClassName("my-hubs");
     const sharedHubs = document.getElementsByClassName("shared-hubs");
+    const publicHubs = document.getElementsByClassName("public-hubs");
 
     // handles visibility of hubs
-    changeVisibility(myHubsCheck, myHubs)
-    changeVisibility(sharedHubsCheck, sharedHubs)
+    changeVisibility(myHubsCheck, myHubs);
+    changeVisibility(sharedHubsCheck, sharedHubs);
+    changeVisibility(publicHubsCheck, publicHubs);
 }
 
 /**

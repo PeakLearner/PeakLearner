@@ -2,7 +2,10 @@
     background-color: #b22b16;
 }
 #otherHubHeader{
-    background-color: #6c757d
+    background-color: #6c757d;
+}
+#publicHubHeader{
+    background-color: #3b9e00;
 }
 
 a.card-link{
@@ -25,6 +28,13 @@ a.card-link{
 }
 #otherHubLink:hover{
     background-color: #8d969e;
+}
+
+#publicHubLink{
+    background-color: #3b9e00;
+}
+#publicHubLink:hover{
+    background-color: #41ea00;
 }
 
 #hubInfo-showMore{
