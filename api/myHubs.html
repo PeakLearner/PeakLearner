@@ -7,6 +7,8 @@
 
     <script type="text/javascript" src="../static/myHubs.js"></script>
 
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
 {% endblock %}
 
 {% block content %}
@@ -82,14 +84,21 @@
                 {% endif %}
 
                                 {% if hubInfos[hub]['owner'] == user %}
-                                    <form class="edit-elements" action="/deleteHub/" method="post"
-                                        style="display:none">
-                                        <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
-                                        <button type="submit" class="btn btn-warning" formmethod="post"
+{#                                    <form class="edit-elements" action="/deleteHub/" method="post"#}
+{#                                        style="display:none">#}
+{#                                        <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">#}
+{#                                        <button type="submit" class="btn btn-warning" formmethod="post"#}
+{#                                                style="font-size: 12px; padding: 0 5px; display:inline"> -#}
+{#                                            Delete Hub#}
+{#                                        </button>#}
+{#                                    </form>#}
+                                    <div class="edit-elements">
+                                        <button onclick="confirmDeleteHub('{{hub}}')" class="btn btn-warning"
                                                 style="font-size: 12px; padding: 0 5px; display:inline"> -
                                             Delete Hub
                                         </button>
-                                    </form>
+                                    </div>
+
                                 {% endif %}
 
                                 {% if hubInfos[hub]['owner'] == user or (permissions[(hub, user)] is not none and permissions[(hub, user)]['Publicity']) %}

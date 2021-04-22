@@ -128,3 +128,29 @@ function editHubs(show) {
     }
 
 }
+
+/**
+ * refreshes to myHubs page after deleting a hub
+ */
+function refreshAfterDelete(){
+    window.location.href = '/myHubs/'
+}
+
+/**
+ * Ask user if they actually want to delete a hub and if so submit a post request with ajax
+ *
+ * @param hubName - name of the hub to delete
+ */
+function confirmDeleteHub(hubName){
+    if(confirm(`Are you sure you want to delete ${hubName}`)) {
+        $.ajax('/deleteHub/', {
+            data: JSON.stringify({'args':{'hubName': hubName}}),
+            type: 'POST',
+            timeout: 60000,
+            // setTimeout required because when attempting to refresh immediately this results in a key error
+            success: setTimeout(refreshAfterDelete, 1000)
+        });
+    }
+
+
+}
