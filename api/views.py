@@ -96,8 +96,7 @@ def myHubs(request):
 
         num_labels = 0
         for key in everyLabelKey:
-            if key[0] == userid or userid in hubInfos[key[1]]['users']:
-                num_labels += db.Labels(*key).get().shape[0]
+            num_labels += db.Labels(*key).get().shape[0]
 
         labels[hubName] = num_labels
 
@@ -412,7 +411,7 @@ def deleteHub(request):
 
     txn = db.getTxn()
     userid = request.unauthenticated_userid
-    hubName = request.params['hubName']
+    hubName = request.json_body['args']['hubName']
 
     hub_info = None
     db.HubInfo(userid, hubName).put(hub_info, txn=txn)
