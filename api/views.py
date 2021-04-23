@@ -374,6 +374,7 @@ def trackData(request):
     """TODO: Document this view"""
 
     query = request.matchdict
+    query['id'] = request.authenticated_userid
     if 'GET' == request.method:
         return CommandHandler.runTrackCommand(query, request.method)
     if 'POST' == request.method:
