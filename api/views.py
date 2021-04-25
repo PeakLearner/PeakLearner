@@ -41,8 +41,9 @@ def moreHubInfo(request):
     userid = request.authenticated_userid
     query = request.matchdict
     hubName = query['hub']
+    owner = query['owner']
 
-    myKeys = db.Labels.keysWhichMatch(userid, hubName)
+    myKeys = db.Labels.keysWhichMatch(owner, hubName)
     num_labels = 0
     labels = {}
     for key in myKeys:
@@ -52,9 +53,10 @@ def moreHubInfo(request):
         print(f"Key2: {key[2]}, Key3: {key[3]}\n")
         labels[(key[2], key[3])] = db.Labels(*key).get().to_html()
 
-    thisHubInfo = db.HubInfo(userid, hubName).get()
+    thisHubInfo = db.HubInfo(owner, hubName).get()
 
     return {'user': userid,
+            'owner': owner,
             'hubName': hubName,
             'hubInfo': thisHubInfo,
             'numLabels': num_labels,
