@@ -20,6 +20,12 @@
             {% else %}
             <h4 class="text-center">Public</h4>
             {% endif %}
+            <div class="text-center">
+                <a class="btn btn-primary" href="/newHub/" style="display:inline-block;">
+                Upload New Hub
+            </a>
+            </div>
+
         </div>
     </div>
 
@@ -56,7 +62,7 @@
         </div>
 
         <div class="float-right">
-            <button id="edit" class="btn btn-primary" onclick="editHubs(true)" style="display: block; font-size: 10px;">
+            <button id="edit" class="btn btn-primary" onclick="editHubs(true)" style="display: inline-block; font-size: 10px;">
                 EDIT HUBS
             </button>
             <button id="stop-edit" class="btn btn-danger" onclick="editHubs(false)"

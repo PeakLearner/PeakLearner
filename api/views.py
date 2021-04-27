@@ -468,14 +468,12 @@ def deleteHub(request):
     userid = request.unauthenticated_userid
     hubName = request.json_body['args']['hubName']
 
-    hub = db.HubInfo(hubName).get()
-    owner = hub['owner']
-
     # create authorization
-    if userid != owner:
-        txn.commit()
-        url = request.route_url('myHubs')
-        return HTTPFound(location=url)
+    # TODO: Just pass owner as a argument and then we can do auth check
+    # if userid != owner:
+    #     txn.commit()
+    #     url = request.route_url('myHubs')
+    #     return HTTPFound(location=url)
 
     hub_info = None
     db.HubInfo(userid, hubName).put(hub_info, txn=txn)
