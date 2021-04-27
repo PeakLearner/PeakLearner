@@ -2,7 +2,6 @@ from pyramid.view import view_config
 from api import CommandHandler
 from api.util import PLdb as db
 from api.Handlers import Models, Labels, Jobs, Hubs
-
 from pyramid_google_login import *
 
 
@@ -163,21 +162,30 @@ def isPublic(request):
 
     txn = db.getTxn()
 
+    userid = request.authenticated_userid
     query = request.matchdict
     hubName = query['hub']
-    user = query['user']
+    owner = query['user']
+
+    # create authorization
+    if userid != owner:
+        myPermissions = db.Permissions(owner, hubName, userid).get()
+        if myPermissions is None or not myPermissions['Publicity']:
+            txn.commit()
+            url = request.route_url('myHubs')
+            return HTTPFound(location=url)
 
     chkpublic = "chkpublic" in request.params.keys()
-    hub = db.HubInfo(user, hubName).get()
+    hub = db.HubInfo(owner, hubName).get()
     hub['isPublic'] = chkpublic
-    db.HubInfo(user, hubName).put(hub, txn=txn)
+    db.HubInfo(owner, hubName).put(hub, txn=txn)
     txn.commit()
 
     if chkpublic:
-        Hubs.addUserToHub(hubName, user, 'Public')
+        Hubs.addUserToHub(hubName, owner, 'Public')
 
     elif 'Public' in hub['users']:
-        Hubs.removeUserFromHub(hubName, user, 'Public')
+        Hubs.removeUserFromHub(hubName, owner, 'Public')
 
     url = request.route_url('myHubs')
     return HTTPFound(location=url)
@@ -196,9 +204,17 @@ def addUser(request):
         current hub is seamless.
     """
 
+    userid = request.authenticated_userid
     newUser = request.params['userEmail']
     hubName = request.params['hubName']
     owner = request.params['owner']
+
+    # create authorization
+    if userid != owner:
+        myPermissions = db.Permissions(owner, hubName, userid).get()
+        if myPermissions is None or not myPermissions['Tracks']:
+            url = request.route_url('myHubs')
+            return HTTPFound(location=url)
 
     Hubs.addUserToHub(hubName, owner, newUser)
 
@@ -222,6 +238,14 @@ def removeUser(request):
     userid = request.unauthenticated_userid
     userToRemove = request.params['couserName']
     hubName = request.params['hubName']
+    owner = request.params['owner']
+
+    # create authorization
+    if userid != owner:
+        myPermissions = db.Permissions(owner, hubName, userid).get()
+        if myPermissions is None or not myPermissions['Moderator']:
+            url = request.route_url('myHubs')
+            return HTTPFound(location=url)
 
     Hubs.removeUserFromHub(hubName, userid, userToRemove)
 
@@ -244,16 +268,27 @@ def addTrack(request):
     """
 
     txn = db.getTxn()
+
+    userid = request.authenticated_userid
     query = request.matchdict
     hubName = query['hub']
     owner = query['user']
     category = request.params['category']
     trackName = request.params['trackName']
     url = request.params['url']
+    hub = db.HubInfo(owner, hubName).get()
 
-    hubInfo = db.HubInfo(owner, hubName).get()
-    hubInfo['tracks'][trackName] = {'categories': category, 'key': trackName, 'url': url}
-    db.HubInfo(owner, hubName).put(hubInfo, txn=txn)
+    # create authorization
+    if userid != owner:
+        myPermissions = db.Permissions(owner, hubName, userid).get()
+        if myPermissions is None or not myPermissions['Tracks']:
+            txn.commit()
+            url = request.route_url('myHubs')
+            return HTTPFound(location=url)
+
+    hub['tracks'][trackName] = {'categories': category, 'key': trackName, 'url': url}
+    db.HubInfo(owner, hubName).put(hub, txn=txn)
+
     txn.commit()
 
     url = request.route_url('myHubs')
@@ -275,16 +310,26 @@ def removeTrack(request):
     """
 
     txn = db.getTxn()
+
+    userid = request.authenticated_userid
     query = request.matchdict
     hubName = query['hub']
     owner = query['user']
     trackName = request.params['trackName']
 
-    hubInfo = db.HubInfo(owner, hubName).get()
+    hub = db.HubInfo(owner, hubName).get()
 
-    del hubInfo['tracks'][trackName]
+    # create authorization
+    if userid != owner:
+        myPermissions = db.Permissions(owner, hub, userid).get()
+        if myPermissions is None or not myPermissions['Tracks']:
+            txn.commit()
+            url = request.route_url('myHubs')
+            return HTTPFound(location=url)
 
-    db.HubInfo(owner, hubName).put(hubInfo, txn=txn)
+    del hub['tracks'][trackName]
+
+    db.HubInfo(owner, hubName).put(hub, txn=txn)
     txn.commit()
 
     url = request.route_url('myHubs')
@@ -307,17 +352,26 @@ def adjustPermsPOST(request):
 
     txn = db.getTxn()
 
+    userid = request.authenticated_userid
     query = request.matchdict
-    user = query['user']
+    owner = query['user']
     hub = query['hub']
     couser = query['couser']
+
+    # create authorization
+    if userid != owner:
+        myPermissions = db.Permissions(owner, hub, userid).get()
+        if myPermissions is None or not myPermissions['Moderator']:
+            txn.commit()
+            url = request.route_url('myHubs')
+            return HTTPFound(location=url)
 
     chkpublic = "Can change to public" if "chkpublic" in request.params.keys() else ""
     chklabels = "Can adjust labels" if "chklabels" in request.params.keys() else ""
     chktracks = "Can change tracks" if "chktracks" in request.params.keys() else ""
     chkmoderator = "Is moderator" if "chkmoderator" in request.params.keys() else ""
 
-    db.Permissions(user, hub, couser).put({'Publicity': chkpublic,
+    db.Permissions(owner, hub, couser).put({'Publicity': chkpublic,
                                            'Labels': chklabels,
                                            'Tracks': chktracks,
                                            'Moderator': chkmoderator}, txn=txn)
@@ -413,6 +467,15 @@ def deleteHub(request):
     txn = db.getTxn()
     userid = request.unauthenticated_userid
     hubName = request.json_body['args']['hubName']
+
+    hub = db.HubInfo(hubName).get()
+    owner = hub['owner']
+
+    # create authorization
+    if userid != owner:
+        txn.commit()
+        url = request.route_url('myHubs')
+        return HTTPFound(location=url)
 
     hub_info = None
     db.HubInfo(userid, hubName).put(hub_info, txn=txn)
