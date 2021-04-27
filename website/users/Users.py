@@ -1,2 +1,1 @@
-USERS = {'Morgan':'freeman',
-         'Donald':'dump'}
+USERS = {}
