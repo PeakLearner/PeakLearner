@@ -79,7 +79,7 @@ def main(global_config, **settings):
     config.add_route('public', '/public/{user}/{hub}/')
     config.add_route('myHubs', '/myHubs/')
     config.add_route('publicHubs', '/publicHubs/')
-    config.add_route('moreHubInfo', '/myHubs/{hub}/moreInfo/')
+    config.add_route('moreHubInfo', '/myHubs/{owner}/{hub}/moreInfo/')
     config.add_route('uploadHubUrl', '/uploadHubUrl/')
     config.add_route('jobs', '/jobs/')
     config.add_route('jobInfo', '/jobs/info/')
