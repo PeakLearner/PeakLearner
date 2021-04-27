@@ -49,8 +49,6 @@ def moreHubInfo(request):
     for key in myKeys:
         num_labels += db.Labels(*key).get().shape[0]
         # TODO: access the key by dictionary keys instead of 2 and 3 indecies for better readability
-        # key[2] = track name | key[3] = chrom name
-        print(f"Key2: {key[2]}, Key3: {key[3]}\n")
         labels[(key[2], key[3])] = db.Labels(*key).get().to_html()
 
     thisHubInfo = db.HubInfo(owner, hubName).get()
