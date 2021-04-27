@@ -321,7 +321,7 @@ def removeTrack(request):
 
     # create authorization
     if userid != owner:
-        myPermissions = db.Permissions(owner, hub, userid).get()
+        myPermissions = db.Permissions(owner, hubName, userid).get()
         if myPermissions is None or not myPermissions['Tracks']:
             txn.commit()
             url = request.route_url('myHubs')
