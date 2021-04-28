@@ -123,7 +123,7 @@
 {#                                        </button>#}
 {#                                    </form>#}
                                     <div class="edit-elements">
-                                        <button onclick="confirmDeleteHub('{{hub}}')" class="btn btn-warning"
+                                        <button onclick="confirmDeleteHub('{{hub}}', '{{hubInfos[hub]['owner']}}')" class="btn btn-warning"
                                                 style="font-size: 12px; padding: 0 5px; display:inline"> -
                                             Delete Hub
                                         </button>
@@ -152,7 +152,9 @@
                             <div class="card-text">
                                 <b>Tracks:</b> {{ hubInfos[hub]['tracks']|length }}
                                 <br>
-                                {% if hubInfos[hub]['owner'] == user or (user in hubInfos[hub]['users'] and permissions[(hub, user)]['Tracks']) %}
+                                {% if hubInfos[hub]['owner'] == user or
+                                        (user in hubInfos[hub]['users'] and permissions[(hub, user)]['Tracks']) or
+                                        (hubInfos[hub]['isPublic'] and permissions[(hub, 'Public')]['Tracks']) %}
                                     <ul class="list-group-flush" style="width:40%">
                                     {% for track in hubInfos[hub]['tracks'] %}
                                         <li class="list-group-item">
