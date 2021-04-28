@@ -12,7 +12,7 @@
     <link
         href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Jost:300,300i,400,400i,500,500i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i"
         rel="stylesheet">
-	
+
 	<!-- imported css -->
 	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
               integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
@@ -139,18 +139,12 @@
             </div>
         </nav>
 
-        <div class="container mt-4" style="background-color:#F8F9FA;
-                                                    padding:15px;
-                                                    max-width:1000px; 
-                                                    min-width:150px;"
-        >
-            {% block content %}
-                <div class="d-flex flex-column flex-grow">
-                    {% block filled %}
-                    {% endblock %}
-                </div>
-            {% endblock %}
-        </div>
+        {% block content %}
+            <div class="d-flex flex-column flex-grow">
+                {% block filled %}
+                {% endblock %}
+            </div>
+        {% endblock %}
 
     </div>
 {% endblock %}

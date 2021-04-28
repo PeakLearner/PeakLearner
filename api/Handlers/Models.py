@@ -141,16 +141,14 @@ def checkGenerateModels(modelSums, problem, data, txn=None):
 
     minError = nonZeroRegions[nonZeroRegions['errors'] == nonZeroRegions['errors'].min()]
 
-    numMinErrors = len(minError.index)
-
-    if numMinErrors == 0:
+    if len(minError.index) == 0:
         return False
 
-    # If a current model is consistent with the labels
     if minError.iloc[0]['errors'] == 0:
         return False
 
-    if numMinErrors > 1:
+    if len(minError.index) > 1:
+        # no need to generate new models if error is 0
         first = minError.iloc[0]
         last = minError.iloc[-1]
 
@@ -166,40 +164,41 @@ def checkGenerateModels(modelSums, problem, data, txn=None):
             return True
         return False
 
-    elif numMinErrors == 1:
-
+    elif len(minError.index) == 1:
         index = minError.index[0]
 
         model = minError.iloc[0]
         if model['fp'] > model['fn']:
             try:
-                compare = modelSums.iloc[index + 1]
+                above = modelSums.iloc[index + 1]
             except IndexError:
                 submitOOMJob(problem, data, model['penalty'], '*', txn=txn)
                 return True
 
+            minPenalty = model['penalty']
+
+            maxPenalty = above['penalty']
+
             # If the next model only has 1 more peak, not worth searching
-            if model['numPeaks'] <= compare['numPeaks'] + 1:
+            if model['numPeaks'] <= above['numPeaks'] + 1:
                 return False
         else:
 
             try:
-                compare = modelSums.iloc[index - 1]
+                below = modelSums.iloc[index - 1]
             except IndexError:
                 submitOOMJob(problem, data, model['penalty'], '/', txn=txn)
                 return True
 
+            minPenalty = below['penalty']
+
+            maxPenalty = model['penalty']
+
             # If the previous model is only 1 peak away, not worth searching
-            if compare['numPeaks'] + 1 >= model['numPeaks']:
+            if below['numPeaks'] + 1 >= model['numPeaks']:
                 return False
 
-        if compare['penalty'] > model['penalty']:
-            top = compare
-            bottom = model
-        else:
-            top = model
-            bottom = compare
-        submitSearch(data, problem, bottom, top, txn=txn)
+        submitGridSearch(problem, data, minPenalty, maxPenalty, txn=txn)
 
         return True
 
@@ -256,32 +255,6 @@ def submitGridSearch(problem, data, minPenalty, maxPenalty, num=pl.gridSearchSiz
                                  data['track'],
                                  problem,
                                  penalties)
-
-    job.putNewJobWithTxn(txn=txn)
-
-
-def submitSearch(data, problem, bottom, top, txn=None):
-    bottomLoss = db.Loss(data['user'],
-                         data['hub'],
-                         data['track'],
-                         problem['chrom'],
-                         problem['chromStart'],
-                         bottom['penalty']).get()
-
-    topLoss = db.Loss(data['user'],
-                      data['hub'],
-                      data['track'],
-                      problem['chrom'],
-                      problem['chromStart'],
-                      top['penalty']).get()
-
-    penalty = abs((topLoss['meanLoss'] - bottomLoss['meanLoss']) / (bottomLoss['peaks'] - topLoss['peaks']))
-
-    job = Jobs.SingleModelJob(data['user'],
-                              data['hub'],
-                              data['track'],
-                              problem,
-                              penalty)
 
     job.putNewJobWithTxn(txn=txn)
 
@@ -351,7 +324,7 @@ def getModelSummary(data):
 
     for problem in problems:
         # TODO: Replace 1 with user of hub NOT current user
-        modelSummaries = db.ModelSummaries(1,
+        modelSummaries = db.ModelSummaries(data['user'],
                                            data['hub'],
                                            data['track'],
                                            problem['chrom'],

@@ -54,6 +54,27 @@ class Handler(metaclass=HandlerMeta):
                 'POST': cls.do_POST,
                 'DELETE': cls.do_DELETE}
 
+    def keysWhichMatch(cls, *args):
+        """Get all keys matching the passed values"""
+        if len(cls.keys) < len(args) > 0:
+            raise ValueError('Number of keys provided is too long.\n'
+                             'Len Class Keys: %s\n'
+                             'Len Provided Keys: %s\n' % (len(cls.keys), len(args)))
+
+        index = 0
+        output = cls.db_key_tuples()
+
+        for keyToCheck in args:
+            temp = []
+            for key in output:
+                if key[index] == keyToCheck:
+                    temp.append(key)
+
+            index += 1
+            output = temp
+
+        return output
+
     # Override these
     def do_PUT(self, data):
         print('do_PUT Not Yet Implemented for class', self.name)

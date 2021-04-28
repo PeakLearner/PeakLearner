@@ -22,77 +22,68 @@ class HubHandler(Handler):
         else:
             print('no handler for %s' % self.query['handler'])
 
-    def do_POST(self, data):
-        return self.getCommands()[data['command']](data['args'], self.query)
 
-    @classmethod
-    def getCommands(cls):
-        return {'goTo': goToRegion}
+def addUserToHub(hubName, owner, newUser):
+    """Adds a user to a hub given the hub name, owner userid, and the userid of the user to be added
 
+    Adjusts the db.HubInfo object by adding the new user to the ['users'] dict item in the db object.
+    Additionally the permissions of that user are initialized to being empty.
+    """
 
-def goToRegion(data, query):
-    user = query['user']
-    hub = query['hub']
+    txn = db.getTxn()
 
-    hubInfo = db.HubInfo(user, hub).get()
-    genome = hubInfo['genome']
-    problems = db.Problems(genome).get()
-    tracks = list(hubInfo['tracks'].keys())
-    toGoTo = problems.apply(checkProblem, axis=1, args=(user, hub, tracks, data['type'].lower()))
-
-    possibleRegions = problems[toGoTo]
-
-    if possibleRegions.empty:
-        return
-
-    regionToGoTo = possibleRegions.sample()
-
-    # Need to convert to something jbrowse will understand
-    regionToGoTo = regionToGoTo.to_dict('records')[0]
-
-    region = {
-        'ref': regionToGoTo['chrom'],
-        'start': regionToGoTo['chromStart'],
-        'end': regionToGoTo['chromEnd']
-    }
-
-    print(region)
-
-    return region
-
-
-def checkProblem(row, user, hub, tracks, toCheck):
-
-    trackDf = pd.DataFrame(tracks, columns=['track'])
-
-    output = trackDf.apply(checkLabels, axis=1, args=(user, hub, row, toCheck))
-
-    if toCheck == 'labeled':
-        return output.any()
+    hubInfo = db.HubInfo(owner, hubName).get()
+    if 'users' in hubInfo.keys():
+        hubInfo['users'].append(newUser)
     else:
-        return output.all()
+        hubInfo['users'].append(newUser)
+
+    hubInfo['users'] = list(set(hubInfo['users']))
+    db.HubInfo(owner, hubName).put(hubInfo, txn=txn)
+    txn.commit()
+
+    # initialize permissions database object for a user and default to no permissions
+    db.Permissions(owner, hubName, newUser).put(["", "", "", "", ""])
 
 
-def checkLabels(row, user, hub, problem, toCheck):
-    labels = db.Labels(user,
-                       hub,
-                       row['track'],
-                       problem['chrom']).getInBounds(problem['chrom'],
-                                                     problem['chromStart'],
-                                                     problem['chromEnd'])
+def removeUserFromHub(hubName, owner, removedUser):
+    """Removes a user from a hub given the hub name, owner userid, and the userid of the user to be removed
 
-    if labels.empty:
-        if toCheck == 'unlabeled':
-            return True
-        else:
-            return False
-    else:
-        if toCheck == 'unlabeled':
-            return False
-        else:
-            return True
+    Adjusts the db.HubInfo object by calling the remove() function on the removed userid from the ['users'] item of the
+    db.HubInfo object.
+    """
+
+    txn = db.getTxn()
+    hub_info = db.HubInfo(owner, hubName).get()
+    hub_info['users'].remove(removedUser)
+    db.HubInfo(owner, hubName).put(hub_info, txn=txn)
+    txn.commit()
 
 
+def getHubInfos(keys, userid):
+    """Get a dictionary of hub infos accessible by their names
+
+    Parameters
+    ----------
+    keys: given keys of which hub infos matching these keys should be returned.
+    userid: id of the user of which hubs related to the user should be returned.
+
+    Returns
+    -------
+    hubInfos: dictionary of every hub info for a given set of keys and a given user are accessible by its hub name.
+    """
+
+    hubInfos = {}
+
+    for key in keys:
+        # TODO: make key[] indices more readable by converting to a dictionary
+        currentHub = db.HubInfo(key[0], key[1]).get()
+        currentHub['owner'] = key[0]
+
+        if userid in currentHub['users'] or userid == key[0] or currentHub['isPublic']:
+            hubInfos['{hubName}'.format(hubName=key[1])] = currentHub
+
+    return hubInfos
 
 
 def createTrackListWithHubInfo(info):
@@ -135,10 +126,14 @@ def createHubFromParse(parsed):
     user = parsed['user']
     genomesFile = parsed['genomesFile']
 
+    print("Hub: ", hub)
+
     # This will need to be updated if there are multiple genomes in file
     genome = genomesFile['genome']
 
-    hubInfo = {'genome': genome}
+    hubInfo = {'genome': genome,
+               'isPublic': parsed['isPublic'],
+               'users': parsed['users']}
 
     dataPath = os.path.join(cfg.jbrowsePath, cfg.dataPath)
 
@@ -264,7 +259,7 @@ def submitPregenWithData(doPregen, user, hub, track, coverageUrl, txn=None):
                              penalties,
                              trackUrl=coverageUrl)
 
-        job.putNewJob()
+        job.putNewJob(checkExists=False)
 
 
 def checkIfProblemHasLabels(problem, labels):
@@ -461,9 +456,22 @@ def parseUCSC(data):
 
     hub = readUCSCLines(lines)
 
+    invalid = ["", " "]
+    if data['hubName'] not in invalid:
+        hub['hub'] = data['hubName']
+
     # TODO: Add User to query
 
-    hub['user'] = data['user']
+    # SETUP HUB VALUE KEYS
+    user = data['user']
+    hub['user'] = user
+    hub['owner'] = user
+    hub['labels'] = 0
+    hub['users'] = []
+    if user:
+        hub['isPublic'] = False
+    else:
+        hub['isPublic'] = True
 
     if hub['genomesFile']:
         hub['genomesFile'] = loadGenomeUCSC(hub, path)

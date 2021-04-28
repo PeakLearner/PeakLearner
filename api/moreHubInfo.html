@@ -1,0 +1,26 @@
+{% extends "../website/templates/base.jinja2" %}
+
+{% block inner_head %}
+    <title>More Info</title>
+{% endblock %}
+
+{% block content %}
+    <a class="btn btn-secondary float-right" href="/myHubs/">Back</a>
+    <h2 class="text-center">{{ hubName }} More Info</h2>
+
+    <hr>
+
+    <div style="padding-left:20px;">
+        <b>Tracks:</b> {{ hubInfo['tracks']|length }}
+        <br>
+        <b>Labels:</b> {{ numLabels }}
+        <br>
+        {%for label in labels%}
+        <li>
+            {{label}}{{labels[label] | safe}}
+        </li>
+        <br>
+        {%endfor%}
+    </div>
+{% endblock %}
+

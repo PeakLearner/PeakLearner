@@ -1,0 +1,373 @@
+{% extends "../website/templates/base.jinja2" %}
+
+{% block inner_head %}
+    <title>My Hubs</title>
+
+    <link rel="stylesheet" href="static/css/hubs.css"/>
+
+    <script type="text/javascript" src="static/myHubs.js"></script>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-center">
+        <div class="flex-column">
+            <h2 class="text-center">Hubs</h2>
+            {% if user is not none %}
+            <h4 class="text-center">{{ user }}</h4>
+            {% else %}
+            <h4 class="text-center">Public</h4>
+            {% endif %}
+            <div class="text-center">
+                <a class="btn btn-primary" href="/newHub/" style="display:inline-block;">
+                Upload New Hub
+            </a>
+            </div>
+
+        </div>
+    </div>
+
+    <hr/>
+
+    <div>
+        <div class="float-left" onclick="checkHubs()">
+            <form class="form-inline">
+                <b style="margin-right: 10px">Filter: </b>
+                {% if user is not none %}
+                <div class="form-check form-check-inline rounded" style="padding:5px; background-color: #b22b16">
+                    <input class="form-check-input" type="checkbox" value="" id="owned-hubs"
+                           checked>
+                    <label class="form-check-label" for="owned-hubs" style="color: aliceblue;">
+                        Owned Hubs
+                    </label>
+                </div>
+                <div class="form-check form-check-inline bg-secondary rounded" style="padding:5px">
+                    <input class="form-check-input" type="checkbox" value="" id="shared-hubs"
+                           checked>
+                    <label class="form-check-label" for="shared-hubs" style="color: aliceblue;">
+                        Shared Hubs
+                    </label>
+                </div>
+                {% endif %}
+                <div class="form-check form-check-inline rounded" style="padding:5px; background-color: #3b9e00">
+                    <input class="form-check-input" type="checkbox" value="" id="public-hubs"
+                           checked>
+                    <label class="form-check-label" for="public-hubs" style="color: aliceblue;">
+                        Public Hubs
+                    </label>
+                </div>
+            </form>
+        </div>
+
+        <div class="float-right">
+            <button id="edit" class="btn btn-primary" onclick="editHubs(true)" style="display: inline-block; font-size: 10px;">
+                EDIT HUBS
+            </button>
+            <button id="stop-edit" class="btn btn-danger" onclick="editHubs(false)"
+                    style="display: none; font-size: 10px;">FINISH EDITING
+            </button>
+        </div>
+    </div>
+
+    <br><br>
+
+    <ul>
+        {% for hub in hubInfos %}
+
+            <li style="list-style-type: none">
+
+                {% if hubInfos[hub]['owner'] == user %}
+
+                    <div class="my-hubs">
+
+                        <div class="card" style="width: 95%;">
+
+                            <div class="card-header" id="myHubHeader">
+                                <a class="card-link rounded" id="myHubLink" href="/{{ user }}/{{ hub }}/">
+                                    {{ hub }}
+                                </a>
+
+                {% elif user in hubInfos[hub]['users'] %}
+
+                    <div class="shared-hubs">
+
+                        <div class="card" style="width: 95%;">
+
+                            <div class="card-header" id="otherHubHeader">
+                                <a class="card-link rounded" id="otherHubLink" href="/{{ hubInfos[hub]['owner'] }}/{{ hub }}/">
+                                    {{ hub }}
+                                </a>
+
+                {% elif hubInfos[hub]['isPublic'] %}
+
+                    <div class="public-hubs">
+
+                        <div class="card" style="width: 95%;">
+
+                            <div class="card-header" id="publicHubHeader">
+                                <a class="card-link rounded" id="publicHubLink" href="/{{ hubInfos[hub]['owner'] }}/{{ hub }}/">
+                                    {{ hub }}
+                                </a>
+
+                {% endif %}
+
+                                {% if hubInfos[hub]['owner'] == user %}
+{#                                    <form class="edit-elements" action="/deleteHub/" method="post"#}
+{#                                        style="display:none">#}
+{#                                        <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">#}
+{#                                        <button type="submit" class="btn btn-warning" formmethod="post"#}
+{#                                                style="font-size: 12px; padding: 0 5px; display:inline"> -#}
+{#                                            Delete Hub#}
+{#                                        </button>#}
+{#                                    </form>#}
+                                    <div class="edit-elements">
+                                        <button onclick="confirmDeleteHub('{{hub}}', '{{hubInfos[hub]['owner']}}')" class="btn btn-warning"
+                                                style="font-size: 12px; padding: 0 5px; display:inline"> -
+                                            Delete Hub
+                                        </button>
+                                    </div>
+
+                                {% endif %}
+
+                                {% if hubInfos[hub]['owner'] == user or (user in hubInfos[hub]['users'] and permissions[(hub, user)]['Publicity']) %}
+                                    <div class="float-right">
+                                        <form class="form-inline" action="/public/{{ hubInfos[hub]['owner'] }}/{{ hub }}/" method="POST">
+                                            <div class="form-check form-check-inline">
+                                                <label for="chkpublic" style="margin-right: 10px; color:antiquewhite">Public:</label>
+                                                <input type="checkbox" name="chkpublic" id="chkpublic" onChange="this.form.submit()"
+                                                        {% if hubInfos[hub]['isPublic'] %}
+                                                            checked
+                                                        {% endif %}
+                                                >
+                                            </div>
+                                        </form>
+                                    </div>
+                                {% endif %}
+
+                        </div>
+
+                        <div class="card-body">
+                            <div class="card-text">
+                                <b>Tracks:</b> {{ hubInfos[hub]['tracks']|length }}
+                                <br>
+                                {% if hubInfos[hub]['owner'] == user or
+                                        (user in hubInfos[hub]['users'] and permissions[(hub, user)]['Tracks']) or
+                                        (hubInfos[hub]['isPublic'] and permissions[(hub, 'Public')]['Tracks']) %}
+                                    <ul class="list-group-flush" style="width:40%">
+                                    {% for track in hubInfos[hub]['tracks'] %}
+                                        <li class="list-group-item">
+                                            {{ track }}
+                                            <form class="edit-elements" action="/removeTrack/{{ hubInfos[hub]['owner'] }}/{{ hub }}/" method="post"
+                                                                        style="display:none">
+                                                <input value="{{ track }}" id="trackName" type="hidden" name="trackName">
+                                                <button type="submit" class="btn btn-danger" formmethod="post"
+                                                        style="font-size: 10px; padding: 0 5px; display:inline"> -
+                                                    remove
+                                                </button>
+                                            </form>
+                                        </li>
+                                    {% endfor %}
+                                    </ul>
+                                    <form class="edit-elements" action="/addTrack/{{ hubInfos[hub]['owner'] }}/{{ hub }}/" method="POST" style="display: none">
+                                        <br>
+                                        <div class="input-group mb-3">
+                                            <div class="input-group-prepend">
+                                                <label class="input-group-text" id="add-track-label" for="trackName">
+                                                    Name
+                                                </label>
+                                            </div>
+                                            <input type="text" id="trackName" name="trackName" class="form-control"
+                                                    aria-describedby="add-track-label">
+                                            <div class="input-group-prepend">
+                                                <label class="input-group-text" id="add-category-label" for="category">
+                                                    Category
+                                                </label>
+                                            </div>
+                                            <input type="text" id="category" name="category" class="form-control"
+                                                    aria-describedby="add-category-label">
+                                            <div class="input-group-prepend">
+                                                <label class="input-group-text" id="add-url-label" for="url">
+                                                    URL
+                                                </label>
+                                            </div>
+                                            <input type="text" id="url" name="url" class="form-control"
+                                                    aria-describedby="add-url-label">
+                                            <input class="btn btn-outline-dark" type="submit" value="add track"
+                                                    style="margin-left: 10px">
+                                        </div>
+                                    </form>
+                                {% endif %}
+                                <b>Labels:</b> {{ labels[hub] }}
+                                <br>
+                                <a id="hubInfo-showMore" href="/myHubs/{{hubInfos[hub]['owner']}}/{{hub}}/moreInfo/">Show More {{hub}} Info...</a>
+
+
+
+                                <hr>
+
+                                <b>Owner:</b> {{ hubInfos[hub]['owner'] }}
+
+                                {% if hubInfos[hub]['owner'] == user or (user in hubInfos[hub]['users'] and permissions[(hub, user)]['Moderator']) %}
+
+                                    <br>
+                                    <b>Users | Permissions:</b>
+
+                                    {% if usersdict[hub] is defined and usersdict[hub]|length > 0 %}
+
+                                        <table class="table table-bordered table-striped table-responsive-md">
+                                            <thead class="thead-light">
+                                                <th scope="col">User</th>
+                                                <th scope="col" class="text-center">Publicity</th>
+                                                <th scope="col" class="text-center">Labels</th>
+                                                <th scope="col" class="text-center">Tracks</th>
+                                                <th scope="col" class="text-center">Moderator</th>
+                                            </thead>
+
+                                            <tbody>
+                                                {% for couser in usersdict[hub] %}
+                                                    {% if couser != "Public" and couser != user %}
+                                                        <tr>
+                                                            <th scope="row">
+                                                                <form class="edit-elements float-right" action="/hubRemoveUser/" method="post"
+                                                                    style="display:none">
+                                                                    <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
+                                                                    <input value="{{ couser }}" id="couserName" type="hidden"
+                                                                        name="couserName">
+                                                                    <input value="{{ hubInfos[hub]['owner'] }}" id="owner" type="hidden" name="owner">
+                                                                    <button type="submit" class="btn btn-danger" formmethod="post"
+                                                                            style="font-size: 10px; padding: 0 5px; display:inline"> -
+                                                                        remove
+                                                                    </button>
+                                                                </form>
+
+                                                                {{ couser }}
+                                                            </th>
+
+                                                            {% if permissions[(hub, couser)] is not none %}
+                                                                <form action="/adjustPerms/{{ hubInfos[hub]['owner'] }}/{{ hub }}/{{ couser }}" method="POST">
+                                                                    <fieldset>
+                                                                        <td class="text-center">
+                                                                            <input type="checkbox" name="chkpublic" id="chkpublic" onChange="this.form.submit()"
+                                                                                    {% if permissions[(hub, couser)][ "Publicity" ] %}
+                                                                                        checked
+                                                                                    {% endif %}
+                                                                            >
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <input type="checkbox" name="chklabels" id="chklabels" onChange="this.form.submit()"
+                                                                                    {% if permissions[(hub, couser)][ "Labels" ] %}
+                                                                                        checked
+                                                                                    {% endif %}
+                                                                            >
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <input type="checkbox" name="chktracks" id="chktracks" onChange="this.form.submit()"
+                                                                                    {% if permissions[(hub, couser)][ "Tracks" ] %}
+                                                                                        checked
+                                                                                    {% endif %}
+                                                                            >
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <input type="checkbox" name="chkmoderator" id="chkmoderator" onChange="this.form.submit()"
+                                                                                    {% if permissions[(hub, couser)][ "Moderator" ] %}
+                                                                                        checked
+                                                                                    {% endif %}
+                                                                            >
+                                                                        </td>
+                                                                    </fieldset>
+                                                                </form>
+                                                            {% endif %}
+                                                        {% endif %}
+
+                                                    </tr>
+
+                                                {% endfor %}
+
+                                                {% if "Public" in usersdict[hub] %}
+                                                    <tr>
+                                                        <th scope="row">
+                                                            Public
+                                                        </th>
+
+                                                        {% if permissions[(hub, 'Public')] is not none %}
+                                                            <form action="/adjustPerms/{{ hubInfos[hub]['owner'] }}/{{hub}}/Public" method="POST">
+                                                                <fieldset>
+                                                                    <td class="text-center">
+                                                                    </td>
+                                                                    <td class="text-center">
+                                                                        <input type="checkbox" name="chklabels" id="chklabels" onChange="this.form.submit()"
+                                                                                {% if permissions[(hub, "Public" )][ "Labels" ] %}
+                                                                                    checked
+                                                                                {% endif %}
+                                                                        >
+                                                                    </td>
+                                                                    <td class="text-center">
+                                                                        <input type="checkbox" name="chktracks" id="chktracks" onChange="this.form.submit()"
+                                                                                {% if permissions[(hub, "Public" )][ "Tracks" ] %}
+                                                                                    checked
+                                                                                {% endif %}
+                                                                        >
+                                                                    </td>
+                                                                    <td class="text-center">
+                                                                    </td>
+                                                                </fieldset>
+                                                            </form>
+                                                        {% endif %}
+
+                                                    </tr>
+
+                                                {% endif %}
+
+                                            </tbody>
+                                        </table>
+
+                                    {% else %}
+                                        No Added Users
+                                    {% endif %}
+
+                                {% endif %}
+
+                            </div>
+
+                        {% if hubInfos[hub]['owner'] == user or (user in hubInfos[hub]['users'] and permissions[(hub, user)][ 'Moderator' ]) %}
+                            <form class="edit-elements" action="/addUser/" method="POST" style="display: none">
+                                <br>
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <label class="input-group-text" id="add-user-label" for="userEmail">
+                                            User Email
+                                        </label>
+                                    </div>
+                                    <input type="email" id="userEmail" name="userEmail" class="form-control"
+                                            aria-describedby="add-user-label">
+                                    <input value="{{ hub }}" id="hubName" type="hidden" name="hubName">
+                                    <input value="{{ hubInfos[hub]['owner'] }}" id="owner" type="hidden" name="owner">
+                                    <input class="btn btn-outline-dark" type="submit" value="add user"
+                                            style="margin-left: 10px">
+                            </form>
+                        {% endif %}
+
+                        </div>
+
+                    </div>
+                </div>
+            </li>
+
+            {% if hubInfos[hub]['owner'] == user %}
+
+            <br class="my-hubs" id="hubs-break">
+
+            {% else %}
+
+            <br class="shared-hubs" id="hubs-break">
+
+            {% endif %}
+
+
+
+        {% endfor %}
+
+    </ul>
+{% endblock %}

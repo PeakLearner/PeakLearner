@@ -12,7 +12,8 @@
 
         function uploadHub() {
             let hubUrl = document.getElementById('hubUrl').value;
-            let query = {'command': 'uploadHub', 'args': {'hubUrl': hubUrl}}
+            let hubName = document.getElementById('hubName').value;
+            let query = {'command': 'uploadHub', 'args': {'hubUrl': hubUrl, 'hubName': hubName}}
 
             sendAjax('/uploadHubUrl/', query, newHubCallback)
         }
@@ -20,6 +21,36 @@
 {% endblock %}
 
 {% block content %}
+<div class="d-flex justify-content-center">
+    <div class="flex-column">
+        <h2 class="text-center">Upload a New Hub</h2>
+    </div>
+</div>
+
+<hr/>
+
+<div class="d-flex justify-content-center">
+    <form action="javascript:uploadHub()" style="min-width: 55%">
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <label class="input-group-text" for="hubUrl">Hub Url</label>
+            </div>
+            <input class="form-control" type="text" id="hubUrl" name="hubUrl">
+            
+        </div>
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <label class="input-group-text" for="hubName">Hub Name</label>
+            </div>
+            <input class="form-control" type="text" id="hubName" name="hubName">
+        </div>
+        <input class="btn btn-outline-dark" type="submit" value="Submit">
+    </form>
+    <p id="status" hidden="true"></p>
+</div>
+
+{# ORIGINAL UPLOAD FORM #} 
+{#
 <div class="container-fluid d-flex flex-column flex-grow h-100">
     <form action="javascript:uploadHub()">
         <label for="hubUrl">Hub Url</label><br>
@@ -28,4 +59,6 @@
     </form>
     <p id="status" hidden="true"></p>
 </div>
+#}
+
 {% endblock %}

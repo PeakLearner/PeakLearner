@@ -31,12 +31,6 @@ class Model(db.PandasDf):
     pass
 
 
-class Loss(db.Resource):
-    keys = ("user", "hub", "track", "chrom", "problemstart", "penalty")
-
-    pass
-
-
 # TODO: Add chrom as key, would lead to speed increases
 class Problems(db.PandasDf):
     keys = ("Genome",)
@@ -99,7 +93,6 @@ class Labels(db.PandasDf):
         startSame = item['chromStart'] == df['chromStart']
 
         endSame = item['chromEnd'] == df['chromEnd']
-
         return startSame & endSame
 
     def sortDf(self, df):
@@ -223,6 +216,27 @@ class HubInfo(db.Resource):
     def make_details(self):
         return None
 
+    def keysWhichMatch(cls, *args):
+        """Get all keys matching the passed values"""
+        if len(cls.keys) < len(args) > 0:
+            raise ValueError('Number of keys provided is too long.\n'
+                             'Len Class Keys: %s\n'
+                             'Len Provided Keys: %s\n' % (len(cls.keys), len(args)))
+
+        index = 0
+        output = cls.db_key_tuples()
+
+        for keyToCheck in args:
+            temp = []
+            for key in output:
+                if key[index] == keyToCheck:
+                    temp.append(key)
+
+            index += 1
+            output = temp
+
+        return output
+
     pass
 
 
@@ -331,5 +345,5 @@ def doRestoreWithSelected(backup):
     return backup
 
 
-
-
+class Permissions(db.Resource):
+    keys = ("user", "hub" ,"couser")

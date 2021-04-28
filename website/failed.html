@@ -1,0 +1,16 @@
+{% extends "templates/base.jinja2" %}
+
+{% block inner_head %}
+    <title>FAILURE</title>
+{% endblock %}
+
+{% block content %}
+    <div class="text-center">
+        <h2>AUTHENTICATION<br>FAILED</h2>
+    </div>
+    <script>
+        window.alert("Failed to Authenticate User")
+        window.location.href = "/"
+    </script>
+{% endblock %}
+

@@ -4,12 +4,10 @@ from .Labels import LabelHandler
 from .Jobs import JobHandler
 from .Tracks import TrackInfoHandler
 from .Features import FeatureHandler
-from .Loss import LossHandler
 
 __all__ = ['HubHandler',
            'TrackHandler',
            'LabelHandler',
            'JobHandler',
            'TrackInfoHandler',
-           'FeatureHandler',
-           'LossHandler']
+           'FeatureHandler']

@@ -16,6 +16,7 @@ genFeaturesPath = os.path.join('Slurm', 'GenerateFeatures.R')
 
 
 def model(task, dataPath, coveragePath, trackUrl):
+
     segmentsPath = '%s_penalty=%f_segments.bed' % (coveragePath, task['penalty'])
     lossPath = '%s_penalty=%f_loss.tsv' % (coveragePath, task['penalty'])
 
@@ -23,12 +24,6 @@ def model(task, dataPath, coveragePath, trackUrl):
 
     if os.path.exists(segmentsPath):
         if not sendSegments(segmentsPath, task, trackUrl):
-            return False
-    else:
-        return False
-
-    if os.path.exists(lossPath):
-        if not sendLoss(lossPath, task, trackUrl):
             return False
     else:
         return False
@@ -91,37 +86,7 @@ def sendSegments(segmentsFile, task, trackUrl):
 
 
 def sendLoss(lossFile, task, trackUrl):
-    strPenalty = str(task['penalty'])
-    lossUrl = '%sloss/' % trackUrl
-
-    lossData = pd.read_csv(lossFile, sep='\t', header=None)
-    lossData.columns = ['penalty',
-                        'segments',
-                        'peaks',
-                        'totalBases',
-                        'bedGraphLines',
-                        'meanPenalizedCost',
-                        'totalUnpenalizedCost',
-                        'numConstraints',
-                        'meanIntervals',
-                        'maxIntervals']
-
-    lossInfo = {'user': task['user'],
-                'hub': task['hub'],
-                'track': task['track'],
-                'problem': task['problem'],
-                'jobId': task['id']}
-
-    query = {'command': 'put',
-             'args': {'lossInfo': lossInfo, 'penalty': strPenalty, 'lossData': lossData.to_json()}}
-
-    r = requests.post(lossUrl, json=query)
-
-    if r.status_code == 200:
-        print('loss successfully sent with penalty', strPenalty, 'and with lossInfo:\n', lossInfo, '\n')
-        return True
-
-    return True
+    pass
 
 
 def getCoverageFile(task, dataPath):
