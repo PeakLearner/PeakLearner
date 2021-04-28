@@ -104,9 +104,9 @@
                     {# SLogin Section #}
                     <li>
                         {% if user is not none %}
-                            <form action="/logout/" method="get" class="nav-link">
-                                <input type="submit" value="Sign Out" class="btn btn-secondary" style="font-size: 15px; padding: 5px 5px">
-                            </form>
+                            <div class="col text-center">
+                                <a class="text-center btn btn-outline-dark" href="/logout/">Sign Out</a>
+                            </div>
                         {% else %}
                             <div class="col text-center">
                                 <a class="text-center btn btn-outline-dark" href="/login/" role="button"
