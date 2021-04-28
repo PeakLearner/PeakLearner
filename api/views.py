@@ -276,11 +276,17 @@ def addTrack(request):
     category = request.params['category']
     trackName = request.params['trackName']
     url = request.params['url']
+
     hub = db.HubInfo(owner, hubName).get()
 
     # create authorization
     if userid != owner:
-        myPermissions = db.Permissions(owner, hubName, userid).get()
+
+        if hub['isPublic']:
+            myPermissions = db.Permissions(owner, hubName, 'Public').get()
+        else:
+            myPermissions = db.Permissions(owner, hubName, userid).get()
+
         if myPermissions is None or not myPermissions['Tracks']:
             txn.commit()
             url = request.route_url('myHubs')
@@ -321,7 +327,12 @@ def removeTrack(request):
 
     # create authorization
     if userid != owner:
-        myPermissions = db.Permissions(owner, hubName, userid).get()
+
+        if hub['isPublic']:
+            myPermissions = db.Permissions(owner, hubName, 'Public').get()
+        else:
+            myPermissions = db.Permissions(owner, hubName, userid).get()
+
         if myPermissions is None or not myPermissions['Tracks']:
             txn.commit()
             url = request.route_url('myHubs')
@@ -467,13 +478,13 @@ def deleteHub(request):
     txn = db.getTxn()
     userid = request.unauthenticated_userid
     hubName = request.json_body['args']['hubName']
+    owner = request.json_body['args']['owner']
 
     # create authorization
-    # TODO: Just pass owner as a argument and then we can do auth check
-    # if userid != owner:
-    #     txn.commit()
-    #     url = request.route_url('myHubs')
-    #     return HTTPFound(location=url)
+    if userid != owner:
+        txn.commit()
+        url = request.route_url('myHubs')
+        return HTTPFound(location=url)
 
     hub_info = None
     db.HubInfo(userid, hubName).put(hub_info, txn=txn)
