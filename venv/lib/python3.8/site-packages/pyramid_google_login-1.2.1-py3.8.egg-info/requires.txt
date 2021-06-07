@@ -1,0 +1,3 @@
+pyramid_mako
+requests
+six

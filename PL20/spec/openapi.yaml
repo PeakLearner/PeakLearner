@@ -1,0 +1,535 @@
+openapi: 3.0.0
+info:
+  title: PeakLearner
+  version: 0.0.1
+paths:
+  '/{user}/{hub}/info/':
+    get:
+      summary: Get the hubInfo for this hub
+      description: >-
+        Gets the hubInfo for this hub. It contains the tracks, urls, the reference genome, and categories for that data
+      responses:
+        '200':
+          description: The hub exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hubInfo'
+        '404':
+          description: The hub doesn't exist
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+  '/{user}/{hub}/labels/':
+    get:
+      summary: Get the labels for a given hub/tracks
+      description: >-
+        Gets the labels for a given track, with parameters for limiting the
+        query
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/tracks'
+        - $ref: '#/components/parameters/ref'
+        - $ref: '#/components/parameters/start'
+        - $ref: '#/components/parameters/end'
+        - $ref: '#/components/parameters/outputType'
+
+      responses:
+        '200':
+          description: Returns a list of Labels in query
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Label'
+            text/csv:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Label'
+              example: "chrom\tchromStart\tchromEnd\tannotation\tcreatedBy\tlastModifiedBy\tlastModified\nchr1\t85387205\t90463430\tpeakStart\tTristan.Miller@nau.edu\tTristan.Miller@nau.edu\t2018-12-19 09:26:03.478039"
+        '204':
+          description: No data for this query
+          content: {}
+        '404':
+          description: Hub does not exist
+          content: {}
+    put:
+      summary: Add label for a given hub/tracks
+      description: >-
+        Adds the label at the given position to the current args.
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/tracks'
+        - $ref: '#/components/parameters/refRequired'
+        - $ref: '#/components/parameters/startRequired'
+        - $ref: '#/components/parameters/endRequired'
+        
+      responses:
+        '200':
+          description: Returns the label which was updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label'
+        '404':
+          description: Hub/tracks does not exist
+          content: {}
+    post:
+      summary: Update labels for a given hub/tracks
+      description: >-
+        Updates the label at the given position to the current args
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/tracks'
+        - $ref: '#/components/parameters/refRequired'
+        - $ref: '#/components/parameters/startRequired'
+        - $ref: '#/components/parameters/endRequired'
+        
+      responses:
+        '200':
+          description: Returns the label which was updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label'
+        '404':
+          description: Hub/tracks does not exist
+          content: {}
+    delete:
+      summary: Delete a label at this location
+      description: >-
+        Removes the label at the given position to the current args
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/tracks'
+        - $ref: '#/components/parameters/refRequired'
+        - $ref: '#/components/parameters/startRequired'
+        - $ref: '#/components/parameters/endRequired'
+        
+      responses:
+        '200':
+          description: Returns the label which was updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label'
+  '/{user}/{hub}/models/':
+    get:
+      summary: Get the models for a given hub/tracks
+      description: >-
+        Gets the models for a given track, with parameters for limiting the
+        query
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/tracks'
+        - $ref: '#/components/parameters/ref'
+        - $ref: '#/components/parameters/start'
+        - $ref: '#/components/parameters/end'
+        - $ref: '#/components/parameters/modelType'
+        - $ref: '#/components/parameters/outputType'
+
+      responses:
+        '200':
+          description: Returns a list of Models in query
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Model'
+            text/csv:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Model'
+              example: "chrom\tchromStart\tchromEnd\theight\tmodelType\n
+              chr1\t85387205\t90463430\t17.2378\tFLOPART"
+        '204':
+          description: No data for this query
+          content: { }
+        '404':
+          description: Hub does not exist
+          content: { }
+  '/{user}/{hub}/data/{handler}/':
+    get:
+      summary: Get data needed for jbrowse specific configuration files
+      description: >-
+        Jbrowse needs .json files for configuration so this parses hubInfo or returns the files needed for the refGene tracklist
+      responses:
+        '200':
+          description: A file exists
+          content:
+            application/json:
+              schema:
+                type: object
+                description: A configuration file JBrowse needs
+        '404':
+          description: A file doesn't exist
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - in: path
+          name: handler
+          required: true
+          schema:
+            type: string
+          description: "The filename or path trying to be aquired"
+  '/{user}/{hub}/{track}/labels/':
+    get:
+      summary: Get the labels for a given track
+      description: >-
+        Gets the labels for a given track, with parameters for limiting the
+        query
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/track'
+        - $ref: '#/components/parameters/ref'
+        - $ref: '#/components/parameters/start'
+        - $ref: '#/components/parameters/end'
+        - $ref: '#/components/parameters/outputType'
+
+      responses:
+        '200':
+          description: Returns a list of Labels in query
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Label'
+            text/csv:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Label'
+              example: "chrom\tchromStart\tchromEnd\tannotation\tcreatedBy\tlastModifiedBy\tlastModified\nchr1\t85387205\t90463430\tpeakStart\tTristan.Miller@nau.edu\tTristan.Miller@nau.edu\t2018-12-19 09:26:03.478039"
+        '204':
+          description: No data for this query
+          content: {}
+        '404':
+          description: Track does not exist
+          content: {}
+    put:
+      summary: Add label for a given track
+      description: >-
+        Adds the label at the given position to the current args
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/track'
+        - $ref: '#/components/parameters/refRequired'
+        - $ref: '#/components/parameters/startRequired'
+        - $ref: '#/components/parameters/endRequired'
+        
+      responses:
+        '200':
+          description: Returns the label which was updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label'
+        '404':
+          description: Track does not exist
+          content: {}
+    post:
+      summary: Update labels for a given track
+      description: >-
+        Updates the label at the given position to the current args
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/track'
+        - $ref: '#/components/parameters/refRequired'
+        - $ref: '#/components/parameters/startRequired'
+        - $ref: '#/components/parameters/endRequired'
+        
+      responses:
+        '200':
+          description: Returns the label which was updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label'
+        '404':
+          description: Track does not exist
+          content: {}
+    delete:
+      summary: Delete a label at this location
+      description: >-
+        Removes the label at the given position to the current args
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/track'
+        - $ref: '#/components/parameters/refRequired'
+        - $ref: '#/components/parameters/startRequired'
+        - $ref: '#/components/parameters/endRequired'
+        
+      responses:
+        '200':
+          description: Returns the label which was updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label'
+  '/{user}/{hub}/{track}/models/':
+    get:
+      summary: Get the models for a given track
+      description: >-
+        Gets the Models for a given track, with parameters for limiting the
+        query
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/track'
+        - $ref: '#/components/parameters/ref'
+        - $ref: '#/components/parameters/start'
+        - $ref: '#/components/parameters/end'
+        - $ref: '#/components/parameters/modelType'
+        - $ref: '#/components/parameters/outputType'
+
+      responses:
+        '200':
+          description: Returns a list of Models in query
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Model'
+            text/csv:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Model'
+              example: "chrom\tchromStart\tchromEnd\theight\tmodelType\n
+              chr1\t85387205\t90463430\t17.2378\tFLOPART"
+        '204':
+          description: No data for the track
+          content: {}
+        '404':
+          description: Track does not exist
+          content: {}
+    put:
+      summary: Put new PeakSegDiskModel
+      description: >-
+        Allows HPC clusters to upload the models which they create
+      parameters: 
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/track'
+        - $ref: '#/components/parameters/ref'
+        - $ref: '#/components/parameters/start'
+        - $ref: '#/components/parameters/end'
+        - $ref: '#/components/parameters/penalty'
+      responses:
+        '200':
+          description: Uploading the model was a success
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '404':
+          description: Track does not exist
+          content: {}
+      
+
+components:
+  schemas:
+    # Lowercase = string name for that thing, Uppercase is some object representing that thing
+    label:
+      type: string
+      enum: [peakStart, peakEnd, noPeak, unknown]
+    Label:
+      type: object
+      properties:
+        ref:
+          $ref: '#/components/schemas/ref'
+        start:
+          $ref: '#/components/schemas/index'
+        end:
+          $ref: '#/components/schemas/index'
+        label:
+          $ref: '#/components/schemas/label'
+        createdBy:
+          $ref: '#/components/schemas/user'
+        lastModifiedBy:
+          $ref: '#/components/schemas/user'
+        lastModified:
+          $ref: '#/components/schemas/Time'
+        track:
+          $ref: '#/components/schemas/track'
+    
+    hubInfo:
+      type: object
+      properties:
+        genome:
+          type: string
+          example: "hg19"
+        isPublic:
+          type: boolean
+        owner:
+          $ref: '#/components/schemas/user'
+        tracks:
+          type: object
+          anyOf:
+            - $ref: '#/components/schemas/Track'
+
+    track:
+      type: string
+      example: "aorta_ENCFF115HTK"
+    tracks:
+      type: string
+      example: "aorta_ENCFF115HTK,aorta_ENCFF502AXL,aorta_ENCFF974KVN"
+    Track:
+      type: object
+      properties:
+        categories: 
+          type: string
+          example: "data / aorta"
+        key:
+          $ref: '#/components/schemas/track'
+        url:
+          $ref: '#/components/schemas/url'
+          
+
+  
+    url:
+      type: string
+      example: "https://rcdata.nau.edu/genomic-ml/PeakSegFPOP/labels/H3K4me3_TDH_ENCODE/samples/aorta/ENCFF115HTK/coverage.bigWig"
+      description: Url to data for the track
+    
+    Model:
+      type: object
+      properties:
+        ref:
+          type: string
+        start: 
+          type: integer
+        end:
+          type: integer
+        score:
+          type: number
+        type:
+          type: string
+    Time:
+      type: object
+      example: "2018-12-19 09:26:03.478039"
+    ref:
+      type: string
+      example: "chr1"
+    index:
+      type: integer
+      example: 85387205
+    user:
+      type: string
+      format: email
+      example: Public
+    hub:
+      type: string
+      example: "H3K4me3_TDH_ENCODE"
+    type:
+      type: string
+      enum: [json, csv]
+  parameters:
+    user:
+      name: user
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/user'
+      description: "The user to query"
+    hub:        
+      name: hub
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/hub'
+      description: "The hub to query"
+    track:
+      name: track
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/track'
+      description: "The track to query"
+    tracks:
+      name: tracks
+      in: query
+      schema:
+        $ref: '#/components/schemas/tracks'
+      description: Which tracks to perform the operation on
+    ref:  
+      name: ref
+      in: query
+      schema:
+        type: string
+      description: "The reference chromosome to query"
+    refRequired:  
+      name: ref
+      in: query
+      required: true
+      schema:
+        type: string
+      description: "The reference chromosome to query"
+    start:  
+      name: start
+      in: query
+      schema:
+        type: number
+      description: "The start pair to start querying from, both start and end are required if one exists"
+    startRequired:  
+      name: start
+      in: query
+      required: true
+      schema:
+        type: number
+      description: "The start pair to start querying from"
+    end:
+      name: end
+      in: query
+      schema:
+        type: number
+      description: "The end pair to end querying atboth start and end are required if one exists"
+    endRequired:
+      name: end
+      in: query
+      required: true
+      schema:
+        type: number
+      description: "The end pair to end querying at"
+    modelType:
+      name: modelType
+      in: query
+      schema:
+        type: string
+        enum: [LOPART, FLOPART, None]
+      description: "What type of model to return"
+    penalty:
+      name: penalty
+      in: query
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+    outputType:
+      name: type
+      in: query
+      schema:
+        $ref: '#/components/schemas/type'
+        
+        
+servers:
+  - url: 'http://localhost:8080'
+    description: Development site
+  - url: 'https://peaklearner.rc.nau.edu'
+    description: The PeakLearner website
+

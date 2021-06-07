@@ -1,0 +1,15 @@
+openapi-core==0.13.8
+pyramid~=1.10.8
+pyramid_jinja2==2.8
+WebTest~=2.0.35
+wsgicors==0.7.0
+pandas==1.2.4
+scipy==1.6.3
+requests==2.25.1
+simpleBDB==1.1.17
+git+git://github.com/PeakLearner/pyramid_google_login.git
+git+git://github.com/deltarod/PeakError
+git+git://github.com/deltarod/PeakSegDisk
+git+git://github.com/deltarod/LOPART
+git+git://github.com/deltarod/FLOPART
+git+git://github.com/bbalasub1/glmnet_python.git

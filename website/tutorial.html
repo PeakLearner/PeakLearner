@@ -1,0 +1,232 @@
+{% extends "templates/base.jinja2" %}
+
+{% block inner_head %}
+<title>PeakLearner Tutorial</title>
+<style>
+    .page-title {
+        padding-left: 10px;
+        font-size: 35px;
+    }
+
+    .page-info {
+        font-size: 25px;
+    }
+
+    .tutorial-title {
+        font-size: 30px;
+    }
+
+    .carousel-item.active {
+        padding-left: 10px;
+    }
+
+    .carousel-indicators .active {
+        background-color: #111111;
+    }
+
+    .carousel-indicators li {
+        background-color: #999999;
+    }
+
+    .carousel-control-next,
+    .carousel-control-prev {
+        width: 50px;
+        align-items: flex-end;
+        top: inherit;
+    }
+
+    .tutorial-controls {
+        position: fixed;
+        right: 25px;
+        bottom: 25px;
+        width: 100px;
+        height: 50px;
+    }
+
+    .carousel-control-prev-icon,
+    .carousel-control-next-icon {
+        height: 50px;
+        width: 50px;
+    }
+
+    .carousel-control-prev-icon {
+        background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23111' viewBox='0 0 8 8'%3E%3Cpath d='M5.25 0l-4 4 4 4 1.5-1.5-2.5-2.5 2.5-2.5-1.5-1.5z'/%3E%3C/svg%3E");
+        left: inherit;
+    }
+
+    .carousel-control-next-icon {
+        background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23111' viewBox='0 0 8 8'%3E%3Cpath d='M2.75 0l-1.5 1.5 2.5 2.5-2.5 2.5 1.5 1.5 4-4-4-4z'/%3E%3C/svg%3E");
+        right: inherit;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid d-flex flex-column flex-grow h-100">
+    <div class="row flex-grow-1 page-title">
+        Tutorial
+    </div>
+    <div class="page-info">
+        A basic tutorial for using PeakLearner, a genome annotation and analysis tool.
+    </div>
+    <br>
+    <div class="row flex-grow-1 h-100">
+        <div id="tutorialCarousel" class="col carousel slide" data-ride="carousel" data-interval=false>
+            <div class="carousel-inner">
+                <div class="carousel-item active">
+                    <div class="tutorial-title">Introduction</div>
+                    <p>PeakLearner is an interactive genome annotation tool which uses machine learning to analyze
+                        peaks in genomic data.<br>
+                        Below is an example of a data track.</p>
+                    <img src="static/TrackExample.png" alt="An example of a genomic data track">
+                    <p>The X axis is each data point, or genomic region, and the Y axis is the number of reads for
+                        that data point.</p>
+                    <br>
+                    <p>Here is an example with labels Added.</p>
+                    <img src="static/LabelsExample.png" alt="An example of what the labels look like">
+                    <p>These are the current labels which can be used with PeakLearner.
+                        <br>Peak Start is for when there is a single peak start inside the annotation.
+                        <br>Peak End is for when there is a single peak end inside the annotation.
+                        <br>Peak is for when there are one or more peaks inside the annotation.
+                        <br>noPeak is for when there is supposed to be no peaks inside the annotation.</p>
+                    <br>
+                    <p>Once a label has been added, the system will generate a model to display. Below is the
+                        generated model given the above labels.</p>
+                    <img src="static/InitialModel.png"
+                         alt="An example of what the initial model would look like given the above labels">
+                    <p>On the right of the noPeak Label, there is a peak that hasn't been identified by the model.
+                        After Adding a peak label, the system now sees that as a peak, as well as adjusting the rest
+                        of the model to indentify similar peaks. Below is what that would look like.</p>
+                    <img src="static/AdditionalLabel.png"
+                         alt="An example of what the model would look like after correcting it">
+                    <p>In the above image, the peak on the left is now also being identified.</p>
+                </div>
+
+                <div class="carousel-item">
+                    <div class="tutorial-title">Login</div>
+                    <p>After open PeakLearner, You will see the welcome information</p>
+                    <img src="static/index.png" height="150px" alt="the index welcome text">
+                    <p>If you want to have access to your hub or store you hub in your account</p>
+                    <p>that can be used next time you open the webpage</p>
+                    <p>You should login in with google account</p>
+                    <p>Then move to the account section on the right up side</p>
+                    <img src="static/accountsection.png" height="150px" alt="the screenshot of account section">
+                    <p>click login and login with the google account</p>
+                    <p>Then you will jump back to the welcome page with you email on the welcome text and account
+                        section</p>
+                    <img src="static/LoginedWelcomePage.png" height="150px"
+                         alt="the screenshot of the logined page">
+                    <img src="static/LoginedAccountSection.png" height="150px"
+                         alt="the screenshot of the logined page">
+                    <p>Then you can check your hub now.</p>
+                </div>
+
+                <div class="carousel-item">
+                    <div class="tutorial-title">Labeling</div>
+                    <p>Labeling is intuitive with this configuration of Jbrowse.
+                        To add a label, select the type of label, then click the highlight button</p>
+                    <img src="static/LabelSelect.png"
+                         alt="An imagage depicting the dropdown menu to select a type of label"><br>
+                    <img src="static/HighlightButton.png"
+                         alt="An image depicting where the highlight button is on the page">
+                    <p>Then, click and drag from where you want one side of the label to be, to the other</p>
+                    <img src="static/StartOfLabel.png" alt="An image depicting the start of drawing a label">
+                    <p>After adding the label it should look like the below image.</p>
+                    <img src="static/EndOfLabel.png" alt="An image depicting the end result of adding a label">
+                    <p>Labels can also be changed and deleted either individually, or on labels which are aligned.</p>
+
+                    <div class="carousel-item">
+                        <div class="tutorial-title">My Hubs</div>
+                        <p>After login in, you will need to upload a new hub.txt.
+                            An example hub.txt can be found <a
+                                    href="https://rcdata.nau.edu/genomic-ml/PeakLearner/testHub/hub.txt">here</a>.
+                            On the navigation bar at the top, click hubs, then add new hub. (Note: this will change
+                            pages, do this in a new tab if you are following this guide)
+                        </p>
+                        <img src="static/AddNewHub.png" alt="Adding a new hub">
+                        <p>Then the hubs are successfully uploaded</p>
+                        <p>If you want to check your hubs, click MyHub button</p>
+                        <img src="static/MyhubButton.png" height="150px" alt="MyhubButton">
+                        <p>You will see the Myhub page, and at this page you can see what tracks you have in your
+                            account which shows at top</p>
+                        <p>Including how many tracks and labels you have, Every hub will show owner and all of the users
+                            also with their rights(oprations on hubs)</p>
+                        <p>Click the hub name will lead you to the newly created hub in the genome viewer called
+                            Jbrowse</p>
+                        <img src="static/HubInfo.png" height="200px" alt="Hub Information will be showed">
+                        <p>You can choose to show the hubs you have or other people shared with you or both</p>
+                        <img src="static/choiceofshowing.png" height="150px" alt="choose what to show">
+                        <p>If you want to add or delete users in the hub you own</p>
+                        <p>You can click the "Edit Hubs" button on the right side of the hub information</p>
+                        <img src="static/edithubs.png" height="150px" alt="how to edit a hub">
+                        <p>If you want to add some users in the hubs that you own, you can enter the e-mail address in
+                            the text box and press add button</p>
+                        <p>If you want to remove some users in the hub you own, you can click the "remove" button behind
+                            the user</p>
+                        <p>Once editing finished,press "FINISH EDITING"</p>
+                        <img src="static/editingpage.png" height="300px" alt="editing page">
+                        <p>Then you are clear to manage hubs</p>
+                    </div>
+
+                    <div class="carousel-item">
+                        <div class="tutorial-title">Getting Started</div>
+                        <p>When getting started with PeakLearner, you will need to upload a new hub.txt.
+                            An example hub.txt can be found <a
+                                    href="https://rcdata.nau.edu/genomic-ml/PeakLearner/testHub/hub.txt">here</a>.
+                            On the navigation bar at the top, click hubs, then add new hub. (Note: this will change
+                            pages, do this in a new tab if you are following this guide)
+                        </p>
+                        <img src="static/AddNewHub.png" alt="Adding a new hub">
+
+                        <p>On the new hub page, paste your hub.txt url into the textbox then hit submit.
+                            <!-- TODO: Add redirecting to newHub.html and update this -->
+                            <br>This will redirect you (Not yet implemented but planning to soon) to the newly created
+                            hub in the genome viewer called Jbrowse. An example of what this would look like can be seen
+                            below</p>
+                        <img src="static/NewHubInJbrowse.png"
+                             alt="The hub after being uploaded, being viewed from the Jbrowse genome viewer">
+                        <p>On the left is the available tracks, with the data from the hub.txt being in the data
+                            section.
+                            The reference section contains the problems which can be processed, as well as various Genes
+                            with which data points are aligned to.</p>
+                        <p>After selecting a few data tracks and a set of reference genes, the webpage might look like
+                            this.</p>
+                        <img src="static/AfterTrackSelection.png" alt="The hub after selecting a few data tracks">
+                        <p>With data tracks and a set of reference genes, labels can now be added to analyze the genomic
+                            data.</p>
+                    </div>
+                    <div class="carousel-item">
+                        <div class="tutorial-title">Labeling</div>
+                        <p>Labeling is intuitive with this configuration of Jbrowse.
+                            To add a label, click the label button as shown in the below image</p>
+                        <img src="static/HighlightButton.png"
+                             alt="An image depicting where the highlight button is on the page">
+                        <p>Then, click and drag from where you want one side of the label to be, to the other</p>
+                        <img src="static/StartOfLabel.png" alt="An image depicting the start of drawing a label">
+                        <p>After adding the label it should look like the below image.</p>
+                        <img src="static/EndOfLabel.png" alt="An image depicting the end result of adding a label">
+                        <p>Then, click on each label until the correct label is desired. For this example, I will set
+                            both labels to peak</p>
+                        <img src="static/SetToPeak.png" alt="Labels after being set to peak">
+                        <p>Labels can also be deleted, simply right click a label to delete it.</p>
+                        <img src="static/AfterDelete.png" alt="After deletion of a label">
+
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row flex-shrink-0 tutorial-controls">
+            <a class="carousel-control-prev" href="#tutorialCarousel" role="button" data-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="sr-only">Previous</span>
+            </a>
+            <a class="carousel-control-next" href="#tutorialCarousel" role="button" data-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="sr-only">Next</span>
+            </a>
+        </div>
+    </div>
+
+    {% endblock %}
+

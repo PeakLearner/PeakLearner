@@ -1,0 +1,57 @@
+{% extends "templates/base.jinja2" %}
+
+{% block inner_head %}
+    <title>Upload New Hub</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script type="text/javascript">
+
+        function newHubCallback(data, status)
+        {
+            window.location.href = data;
+        }
+
+        function uploadHub() {
+            let hubUrl = document.getElementById('hubUrl').value;
+            let query = {'command': 'uploadHub', 'args': {'url': hubUrl}}
+
+            sendAjax('/uploadHubUrl/', query, newHubCallback)
+        }
+    </script>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-center">
+    <div class="flex-column">
+        <h2 class="text-center">Upload a New Hub</h2>
+    </div>
+</div>
+
+<hr/>
+
+<div class="d-flex justify-content-center">
+    <form action="javascript:uploadHub()" style="min-width: 55%">
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <label class="input-group-text" for="hubUrl">Hub Url</label>
+            </div>
+            <input class="form-control" type="text" id="hubUrl" name="hubUrl">
+            
+        </div>
+        <input class="btn btn-outline-dark" type="submit" value="Submit">
+    </form>
+    <p id="status" hidden="true"></p>
+</div>
+
+{# ORIGINAL UPLOAD FORM #} 
+{#
+<div class="container-fluid d-flex flex-column flex-grow h-100">
+    <form action="javascript:uploadHub()">
+        <label for="hubUrl">Hub Url</label><br>
+        <input type="text" id="hubUrl" name="hubUrl"><br><br>
+        <input type="submit" value="Submit">
+    </form>
+    <p id="status" hidden="true"></p>
+</div>
+#}
+
+{% endblock %}

@@ -1,0 +1,17 @@
+/PeakLearner.cfg
+*/__pycache__/
+*.pyc
+/.idea/
+/server/data/
+*PeakLearnerSlurm.cfg
+*/data/
+/slurmdata/
+/runlog.txt
+bin/
+/PL20.egg-info/
+/backup
+/testProfile
+/certs
+/docs/.docusaurus
+/docs/build
+/docs/node_modules
