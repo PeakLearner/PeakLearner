@@ -1,6 +1,6 @@
 import pandas as pd
 from core.util import PLdb as db
-from core.Handlers import Models, Handler
+from core.Models import Models
 from simpleBDB import retry, txnAbortOnError
 
 
@@ -8,6 +8,8 @@ labelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
 jbrowseLabelColumns = ['ref', 'start', 'end', 'label']
 
 
+@retry
+@txnAbortOnError
 def addLabel(data, txn=None):
     # Duplicated because calls from updateLabel are causing freezing
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
@@ -74,7 +76,8 @@ def addHubLabels(data, txn=None):
     return data
 
 
-# Removes label from label file
+@retry
+@txnAbortOnError
 def deleteLabel(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
     if perms.hasPermission(data['currentUser'], 'Label'):
@@ -89,6 +92,8 @@ def deleteLabel(data, txn=None):
     return removed.to_dict()
 
 
+@retry
+@txnAbortOnError
 def deleteHubLabels(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
     if perms.hasPermission(data['currentUser'], 'Label'):
@@ -115,6 +120,8 @@ def deleteHubLabels(data, txn=None):
             trackTxn.commit()
 
 
+@retry
+@txnAbortOnError
 def updateLabel(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
     if perms.hasPermission(data['currentUser'], 'Label'):

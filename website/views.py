@@ -1,5 +1,7 @@
 from core.util import PLdb as db, PLConfig as cfg
-from core.Handlers import Models, Labels, Jobs
+from core.Models import Models
+from core.Jobs import Jobs
+from core.Labels import Labels
 from pyramid.view import view_config
 from pyramid.security import remember, forget
 from pyramid_google_login import *

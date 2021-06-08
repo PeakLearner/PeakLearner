@@ -3,9 +3,9 @@ import json
 import berkeleydb
 import logging
 import pandas as pd
-from core.Handlers import Models
-from core.util import PLdb as db, PLConfig as cfg
+from core.Models import Models
 from core.Handlers.Handler import Handler
+from core.util import PLdb as db, PLConfig as cfg
 
 log = logging.getLogger(__name__)
 

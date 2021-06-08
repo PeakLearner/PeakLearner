@@ -10,7 +10,8 @@ from simpleBDB import retry, txnAbortOnError
 log = logging.getLogger(__name__)
 from glmnet_python import cvglmnetPredict
 from core.util import PLConfig as pl, PLdb as db, bigWigUtil as bw
-from core.Handlers import Jobs, Tracks, Handler
+from core.Handlers import Tracks
+from core.Jobs import Jobs
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
@@ -21,20 +22,6 @@ flopartLabels = {'noPeak': 0,
                  'unknown': -2}
 modelTypes = ['lopart', 'flopart', 'none']
 pd.set_option('mode.chained_assignment', None)
-
-
-class ModelHandler(Handler.TrackHandler):
-    """Handles model Commands"""
-    key = 'models'
-
-    def do_POST(self, data, txn=None):
-        return self.getCommands()[data['command']](data['args'], txn=txn)
-
-    @classmethod
-    def getCommands(cls):
-        return {'get': getModels,
-                'getModelSummary': getModelSummary,
-                'put': putModel}
 
 
 @retry
@@ -328,6 +315,8 @@ def submitSearch(data, problem, bottom, top, regions, txn=None):
     job.putNewJobWithTxn(txn=txn)
 
 
+@retry
+@txnAbortOnError
 def putModel(data, txn=None):
     modelData = pd.read_json(data['modelData'])
     modelData.columns = modelColumns

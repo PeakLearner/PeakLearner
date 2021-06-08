@@ -7,9 +7,12 @@ import gzip
 import pandas as pd
 
 import simpleBDB
-from core.util import PLConfig as cfg, PLdb as db
+from core.Labels import Labels
 from core.Handlers.Handler import Handler
-from core.Handlers import Labels, Tracks, Models, Jobs, Permissions
+from core.util import PLConfig as cfg, PLdb as db
+from core.Handlers import Tracks, Permissions
+from core.Models import Models
+from core.Jobs import Jobs
 
 
 class HubHandler(Handler):

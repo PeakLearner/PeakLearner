@@ -60,13 +60,18 @@ def main(global_config, **settings):
     config.pyramid_openapi3_spec_directory(os.path.join(os.path.dirname(__file__), "spec/openapi.yaml"))
     config.pyramid_openapi3_add_explorer()
     config.add_route('hubInfo', '/{user}/{hub}/info/')
+
     config.add_route('hubLabels', '/{user}/{hub}/labels/')
-    config.add_route('hubModels', '/{user}/{hub}/models/')
     config.add_route('trackLabels', '/{user}/{hub}/{track}/labels/')
+    config.scan('core.Labels.views')
+
+    config.add_route('hubModels', '/{user}/{hub}/models/')
     config.add_route('trackModels', '/{user}/{hub}/{track}/models/')
+    config.scan('core.Models.views')
+
     config.add_route('jbrowseJson', '/{user}/{hub}/data/{handler}')
+    config.scan('core.Hubs.views')
     config.add_static_view(name='/{user}/{hub}', path='jbrowse:jbrowse')
-    config.scan('core.views')
 
 
     from wsgicors import CORS
