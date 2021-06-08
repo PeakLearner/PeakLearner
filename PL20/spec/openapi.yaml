@@ -3,6 +3,112 @@ info:
   title: PeakLearner
   version: 0.0.1
 paths:
+  '/Jobs/':
+    x-pyramid-route-name: jobs
+    get:
+      summary: Gets all the jobs
+      description: >-
+        Gets all the jobs currently on the server
+      parameters:
+        - $ref: '#/components/parameters/jsonOutputType'
+      responses:
+        200:
+          description: A list containing all the jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Job'
+            text/html:
+              schema:
+                type: string
+                description: HTML Page with a list of the jobs
+  '/Jobs/queue/':
+    x-pyramid-route-name: jobQueue
+    get:
+      summary: Gets the next available task and queues it
+      description: >-
+        If there is a task in a job which is able to be queued, queue it and return the job
+      responses:
+        200:
+          description: The job to be queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/taskOutput'
+        404:
+          description: There is no job to be queued
+  '/Jobs/{jobId}/':
+    x-pyramid-route-name: jobsWithId
+    get:
+      summary: Gets the job with the ID
+      description: >-
+        Retrieves a job given the ID in the url
+      parameters:
+        - $ref: '#/components/parameters/jobId'
+        - $ref: '#/components/parameters/jsonOutputType'
+      responses:
+        200:
+          description: The job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+            text/html:
+              schema:
+                type: string
+                description: HTML Page about the current job
+        404:
+          description: The job doesn't exist
+    post:
+      summary: Updates a task in a job
+      description: >-
+        Updates the task given the parameters
+      parameters:
+        - $ref: '#/components/parameters/jobId'
+        - $ref: '#/components/parameters/task'
+      responses:
+        200:
+          description: The job after the task was updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/taskOutput'
+        404:
+          description: The Job doesn't exist
+  /Jobs/{jobId}/restart/:
+    post:
+      summary: Restarts the job
+      description: >-
+        Restarts the given job
+      parameters:
+        - $ref: '#/components/parameters/jobId'
+      responses:
+        200:
+          description: The job after being restarted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        404:
+          description: Job doesn't exist
+  /Jobs/{jobId}/reset/:
+    post:
+      summary: Resets the job
+      description: >-
+        Resets the given job
+      parameters:
+        - $ref: '#/components/parameters/jobId'
+      responses:
+        200:
+          description: The job after being reset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        404:
+          description: Job doesn't exist
   '/{user}/{hub}/info/':
     get:
       summary: Get the hubInfo for this hub
@@ -438,7 +544,107 @@ components:
       example: "H3K4me3_TDH_ENCODE"
     type:
       type: string
-      enum: [json, csv]
+      enum: [json, csv, none]
+    Problem:
+      type: object
+      properties:
+        ref:
+          $ref: '#/components/schemas/ref'
+        start:
+          $ref: '#/components/schemas/index'
+        end:
+          $ref: '#/components/schemas/index'
+    jobStatus:
+      type: string
+      description: The current status of the job
+      enum: [New, Queued, Processing, Done, Error]
+    task:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/jobStatus'
+        type:
+          description: Current Task Type
+          enum: [model, feature]
+        taskId:
+          type: integer
+          minimum: 0
+        penalty:
+          type: number
+          minimum: 0.0
+      example:
+        status: New
+        type: feature
+        taskId: 0
+    Job:
+      description: A job to be passed to clusters
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 0
+        status:
+          $ref: '#/components/schemas/jobStatus'
+        user:
+          $ref: '#/components/schemas/user'
+        hub:
+          $ref: '#/components/schemas/hub'
+        track:
+          $ref: '#/components/schemas/track'
+        problem:
+          $ref: '#/components/schemas/Problem'
+        trackUrl:
+          $ref: '#/components/schemas/url'
+        priority:
+          type: integer
+          minimum: 0
+        iteration:
+          type: integer
+          minimum: 0
+        lastModified:
+          $ref: '#/components/schemas/Time'
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/task'
+    taskOutput:
+      type: object
+      description: What the output from task operations look like
+      properties:
+        status:
+          $ref: '#/components/schemas/jobStatus'
+        type:
+          description: Current Task Type
+          enum: [ model, feature ]
+        taskId:
+          type: integer
+          minimum: 0
+        penalty:
+          type: number
+          minimum: 0.0
+          description: The penalty to use for generating the model
+        user:
+          $ref: '#/components/schemas/user'
+        hub:
+          $ref: '#/components/schemas/hub'
+        track:
+          $ref: '#/components/schemas/track'
+        problem:
+          $ref: '#/components/schemas/Problem'
+        iteration:
+          type: integer
+          minimum: 0
+        jobStatus:
+          $ref: '#/components/schemas/jobStatus'
+        id:
+          type: integer
+          minimum: 0
+          description: The Job Id
+        trackUrl:
+          $ref: '#/components/schemas/url'
+
+
+
   parameters:
     user:
       name: user
@@ -525,8 +731,25 @@ components:
       in: query
       schema:
         $ref: '#/components/schemas/type'
-        
-        
+    jsonOutputType:
+      name: type
+      in: query
+      schema:
+        type: string
+        enum: [ json ]
+    jobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+    task:
+      name: task
+      in: query
+      schema:
+        $ref: '#/components/schemas/task'
+
 servers:
   - url: 'http://localhost:8080'
     description: Development site

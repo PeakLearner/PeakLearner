@@ -190,16 +190,6 @@ def go_home(request):
     return HTTPFound(location=url)
 
 
-@view_config(route_name='backup', renderer='backup.html')
-def backup(request):
-    """TODO: Document this view"""
-
-    user = request.authenticated_userid
-    return {'last_backup': db.getLastBackup(),
-            'backups': db.getAvailableBackups(),
-            'user': user}
-
-
 @view_config(route_name='stats', renderer='stats.html')
 def stats(request):
     """TODO: Document this view"""
@@ -242,20 +232,6 @@ def labelStats(request):
     return {'numLabeledChroms': numLabeledChroms,
             'numLabels': numLabels,
             'user': user}
-
-
-@view_config(route_name='jobStats', renderer='stats/job.html')
-def jobStats(request):
-    jobId = request.matchdict['id']
-
-    job = db.Job(jobId).get()
-
-    return job.__dict__()
-
-
-@view_config(route_name='jobsStats', renderer='stats/jobs.html')
-def jobsStats(request):
-    return Jobs.stats()
 
 
 @view_config(route_name='myHubs', renderer='myHubs.html')

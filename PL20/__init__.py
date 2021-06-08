@@ -21,7 +21,6 @@ def main(global_config, **settings):
     config.add_route('about', '/about/')
     config.add_route('newHub', '/newHub/')
     config.add_route('tutorial', '/tutorial/')
-    config.add_route('backup', '/backup/')
     config.add_route('stats', '/stats/')
     config.add_route('modelStats', '/stats/model/')
     config.add_route('labelStats', '/stats/label/')
@@ -34,10 +33,7 @@ def main(global_config, **settings):
     config.add_route('public', '/public/{user}/{hub}/')
     config.add_route('myHubs', '/myHubs/')
     config.add_route('moreHubInfo', '/myHubs/{owner}/{hub}/moreInfo/')
-    config.add_route('jobsStats', '/stats/job/')
-    config.add_route('jobStats', '/stats/job/{id}/')
     config.add_route('uploadHubUrl', '/uploadHubUrl/')
-    config.add_route('jobs', '/jobs/')
     config.add_route('jobInfo', '/jobs/info/')
     config.add_route('help', '/help/')
     config.add_route('api', '/api/')
@@ -59,6 +55,14 @@ def main(global_config, **settings):
     config.add_static_view(name="spec", path="spec")
     config.pyramid_openapi3_spec_directory(os.path.join(os.path.dirname(__file__), "spec/openapi.yaml"))
     config.pyramid_openapi3_add_explorer()
+
+    config.add_route('jobs', '/Jobs/')
+    config.add_route('jobQueue', '/Jobs/queue/')
+    config.add_route('jobsWithId', '/Jobs/{jobId}/')
+    config.add_route('resetJob', '/Jobs/{jobId}/reset/')
+    config.add_route('restartJob', '/Jobs/{jobId}/restart/')
+    config.scan('core.Jobs.views')
+
     config.add_route('hubInfo', '/{user}/{hub}/info/')
 
     config.add_route('hubLabels', '/{user}/{hub}/labels/')

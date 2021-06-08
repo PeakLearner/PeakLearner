@@ -4,39 +4,12 @@ import berkeleydb
 import logging
 import pandas as pd
 from core.Models import Models
-from core.Handlers.Handler import Handler
+from simpleBDB import retry, txnAbortOnError
 from core.util import PLdb as db, PLConfig as cfg
 
 log = logging.getLogger(__name__)
 
 statuses = ['New', 'Queued', 'Processing', 'Done', 'Error']
-
-
-class JobHandler(Handler):
-    """Handles Job Commands"""
-
-    def do_POST(self, data, txn=None):
-        funcToRun = self.getCommands()[data['command']]
-        args = {}
-        if 'args' in data:
-            args = data['args']
-
-        return funcToRun(args, txn=txn)
-
-    @classmethod
-    def getCommands(cls):
-        # TODO: Add update/delete/info
-        return {'get': getJob,
-                'getAll': getAllJobs,
-                'update': updateTask,
-                'resetJob': resetJob,
-                'resetAll': resetAllJobs,
-                'restartJob': restartJob,
-                'restartAllJobs': restartAllJobs,
-                'queueNextTask': queueNextTask,
-                'processNextQueuedTask': processNextQueuedTask,
-                'check': checkNewTask,
-                'dlJobs': addDownloadJobs}
 
 
 class JobType(type):
@@ -389,100 +362,6 @@ class PregenJob(GridSearchJob):
         super().__init__(user, hub, track, problem, penalties, priority, trackUrl=trackUrl, tasks=tasks)
 
 
-def updateTask(data, txn=None):
-    """Updates a task given the job/task id and stuff to update it with"""
-    jobId = data['id']
-    task = data['task']
-
-    jobDb = db.Job(jobId)
-    jobToUpdate = jobDb.get(txn=txn, write=True)
-    task = jobToUpdate.updateTask(task)
-    jobDb.put(jobToUpdate, txn=txn)
-
-    task = jobToUpdate.addJobInfoOnTask(task)
-
-    if cfg.doIdlePredictions:
-        if jobToUpdate.status.lower() == 'done':
-            checkForMoreJobs(task)
-            if checkIfRunDownloadJobs():
-                addDownloadJobs()
-    return task
-
-
-def addDownloadJobs(*args, txn=None):
-    # Check tracks for where a prediction needs to be made
-    currentProblems = None
-
-    cursor = db.HubInfo.getCursor(txn, bulk=True)
-
-    current = cursor.next(flags=berkeleydb.db.DB_RMW)
-
-    while current is not None:
-        # If at end of list
-        if current is None:
-            break
-        key, hubInfo = current
-
-        user, hub = key
-
-        if 'complete' in hubInfo:
-            current = cursor.next(flags=berkeleydb.db.DB_RMW)
-            continue
-
-        problems = db.Problems(hubInfo['genome']).get()
-
-        currentTrackProblems = pd.DataFrame()
-
-        for track, value in hubInfo['tracks'].items():
-
-            output = problems.apply(checkForModels, axis=1, args=(user, hub, track))
-
-            # If there is a model for every region, don't consider this for download jobs
-            if output['models'].all():
-                continue
-
-            output['track'] = track
-
-            currentTrackProblems = currentTrackProblems.append(output, ignore_index=True)
-
-        if currentTrackProblems.empty:
-            current = cursor.next(flags=berkeleydb.db.DB_RMW)
-            continue
-
-        # Tilde inverts the bool column
-        noModels = currentTrackProblems[~currentTrackProblems['models']]
-
-        # If no current problems, mark track as complete so it doesn't have to search the problems
-        if len(noModels.index) == 0:
-            hubInfo['complete'] = True
-            cursor.put(key, hubInfo)
-            current = cursor.next(flags=berkeleydb.db.DB_RMW)
-            continue
-
-        numLabels = currentTrackProblems['numLabels'].sum()
-
-        hubProblemsInfo = {'user': user,
-                           'hub': hub,
-                           'numLabels': numLabels,
-                           'problems': currentTrackProblems}
-
-        if currentProblems is None:
-            currentProblems = hubProblemsInfo
-            current = cursor.next(flags=berkeleydb.db.DB_RMW)
-            continue
-
-        # Run download job on hub with most labels
-        else:
-            if currentProblems['numLabels'] < hubProblemsInfo['numLabels']:
-                currentProblems = hubProblemsInfo
-
-        current = cursor.next(flags=berkeleydb.db.DB_RMW)
-
-    cursor.close()
-
-    if currentProblems is not None:
-        submitDownloadJobs(currentProblems, txn=txn)
-
 
 def submitDownloadJobs(problems, txn=None):
     currentProblems = problems['problems']
@@ -542,134 +421,61 @@ def checkIfRunDownloadJobs():
             return False
     return True
 
-
+@retry
+@txnAbortOnError
 def resetJob(data, txn=None):
     """resets a job to a new state"""
     jobId = data['jobId']
     jobDb = db.Job(jobId)
     jobToReset = jobDb.get(txn=txn, write=True)
+    if isinstance(jobToReset, dict):
+        return
     jobToReset.resetJob()
     jobDb.put(jobToReset, txn=txn)
     return jobToReset.__dict__()
 
 
-def resetAllJobs(data, txn=None):
-    """Resets all jobs"""
-    cursor = db.Job.getCursor(txn=txn, bulk=True)
-    current = cursor.next(flags=berkeleydb.db.DB_RMW)
-
-    while current is not None:
-        current.resetJob()
-        cursor.put(current)
-        current = cursor.next(flags=berkeleydb.db.DB_RMW)
-    cursor.close()
-
-
+@retry
+@txnAbortOnError
 def restartJob(data, txn=None):
-    print(data)
+    jobId = data['jobId']
+    jobDb = db.Job(jobId)
+    jobToRestart = jobDb.get(txn=txn, write=True)
+    if isinstance(jobToRestart, dict):
+        return
+    restarted = jobToRestart.restartUnfinished()
+    if restarted:
+        jobDb.put(jobToRestart, txn=txn)
+        return jobToRestart
 
 
-def restartAllJobs(data, txn=None):
+@retry
+@txnAbortOnError
+def updateTask(data, txn=None):
+    """Updates a task given the job/task id and stuff to update it with"""
+    jobId = data['id']
+    task = data['task']
 
-    cursor = db.Job.getCursor(txn, bulk=True)
-    current = cursor.next(flags=berkeleydb.db.DB_RMW)
+    jobDb = db.Job(jobId)
+    jobToUpdate = jobDb.get(txn=txn, write=True)
+    task = jobToUpdate.updateTask(task)
+    jobDb.put(jobToUpdate, txn=txn)
 
-    while current is not None:
-        key, job = current
+    task = jobToUpdate.addJobInfoOnTask(task)
 
-        restarted = job.restartUnfinished()
-
-        if restarted:
-            cursor.put(key, job)
-
-        current = cursor.next(flags=berkeleydb.db.DB_RMW)
-
-    cursor.close()
+    return task
 
 
+@retry
+@txnAbortOnError
 def getJob(data, txn=None):
     """Gets job by ID"""
     output = db.Job(data['id']).get(txn=txn).__dict__()
     return output
 
 
-# TODO: Figure out how to make the next 4 functions more reusable
-def processNextQueuedTask(data, txn=None):
-    db.Job.syncDb()
-
-    cursor = db.Job.getCursor(txn=txn, bulk=True)
-    # Get highest priority queued job
-
-    job, key, cursorAtBest = getHighestPriorityQueuedJob(cursor)
-
-    if job is None:
-        cursor.close()
-        return {'Error': 'ProcessNextQueuedTask'}
-
-    taskToProcess = None
-
-    for key in job.tasks.keys():
-        task = job.tasks[key]
-
-        if task['status'].lower() == 'queued':
-            taskToProcess = task
-            break
-
-    if taskToProcess is None:
-        return
-
-    taskToProcess['status'] = 'Processing'
-
-    job.updateJobStatus()
-
-    cursorAtBest.put(key, job)
-
-    cursorAtBest.close()
-
-    task = job.addJobInfoOnTask(taskToProcess)
-    return task
-
-
-def getHighestPriorityQueuedJob(cursor):
-    jobWithTask = None
-    keyWithTask = None
-    cursorAtBest = None
-
-    lowerStatus = [status.lower() for status in statuses]
-    queuedIndex = lowerStatus.index('queued')
-
-    current = cursor.next(flags=berkeleydb.db.DB_RMW)
-
-    while current is not None:
-        key, job = current
-        jobIndex = lowerStatus.index(job.status.lower())
-        # If job is new or queued
-        if jobIndex <= queuedIndex:
-            hasQueue = False
-
-            # Check to see that job has a queued task
-            for key in job.tasks.keys():
-                task = job.tasks[key]
-                if task['status'].lower() == 'queued':
-                    hasQueue = True
-
-            if hasQueue:
-                if jobWithTask is None:
-                    jobWithTask = job
-                    keyWithTask = key
-                    cursorAtBest = cursor.dup()
-
-                elif jobWithTask.getPriority() < job.getPriority():
-                    jobWithTask = job
-                    keyWithTask = key
-                    cursorAtBest.close()
-                    cursorAtBest = cursor.dup()
-        current = cursor.next(flags=berkeleydb.db.DB_RMW)
-
-    cursor.close()
-    return jobWithTask, keyWithTask, cursorAtBest
-
-
+@retry
+@txnAbortOnError
 def queueNextTask(data, txn=None):
     db.Job.syncDb()
 
@@ -786,6 +592,11 @@ def getAllJobs(data, txn=None):
 
     return jobs
 
+@retry
+@txnAbortOnError
+def getJobWithId(data, txn=None):
+    return db.Job(data['jobId']).get(txn=txn).__dict__()
+
 
 def stats():
     numJobs = newJobs = queuedJobs = processingJobs = doneJobs = 0
@@ -795,7 +606,7 @@ def stats():
     jobs = []
     for job in db.Job.all():
         numJobs = numJobs + 1
-        jobs.append(job)
+        jobs.append(job.__dict__())
         status = job.status.lower()
 
         if status == 'new':

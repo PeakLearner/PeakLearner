@@ -1,30 +1,11 @@
-from core.Handlers.Handler import TrackHandler
-from core.util import PLdb as db
 import pandas as pd
-
-
-class FeatureHandler(TrackHandler):
-    key = 'features'
-    """Handles Feature Commands"""
-
-    def do_POST(self, data, txn=None):
-        return self.getCommands()[data['command']](data['args'], txn=txn)
-
-    @classmethod
-    def getCommands(cls):
-        return {'get': getFeatures,
-                'put': putFeatures,
-                'getAll': getAllFeatures}
+from core.util import PLdb as db
 
 
 def getFeatures(data, txn=None):
     problem = data['problem']
     features = db.Features(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'])
     return features.get(txn=txn)
-
-
-def getAllFeatures(data, txn=None):
-    print(data)
 
 
 def putFeatures(data, txn=None):
