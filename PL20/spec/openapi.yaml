@@ -446,6 +446,50 @@ paths:
         '404':
           description: Track does not exist
           content: {}
+  '/{user}/{hub}/{track}/features/':
+    put:
+      summary: Put features
+      description: >-
+        Allows HPC clusters to upload the features which they generate
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/track'
+        - $ref: '#/components/parameters/ref'
+        - $ref: '#/components/parameters/start'
+        - $ref: '#/components/parameters/end'
+      responses:
+        '200':
+          description: Uploading the features was a success
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '404':
+          description: An error occured while uploading
+          content: { }
+  '/{user}/{hub}/{track}/loss/':
+    put:
+      summary: Put loss
+      description: >-
+        Allows HPC clusters to upload the loss for models which they generate
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/track'
+        - $ref: '#/components/parameters/ref'
+        - $ref: '#/components/parameters/start'
+        - $ref: '#/components/parameters/end'
+      responses:
+        '200':
+          description: Uploading the features was a success
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '404':
+          description: An error occured while uploading
+          content: { }
       
 
 components:

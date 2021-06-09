@@ -32,9 +32,13 @@ def getModel(request):
     return Response(status=404)
 
 
-@view_config(route_name='trackModels', request_method='PUT')
+@view_config(route_name='trackModels', request_method='PUT', renderer='json')
 def putModel(request):
-    return Response(status=404)
+    data = {**request.matchdict, **request.json_body}
+    output = Models.putModel(data)
+
+    if output is not None:
+        return output
 
 
 # ---- HUB MODELS ---- #

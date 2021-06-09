@@ -73,6 +73,12 @@ def main(global_config, **settings):
     config.add_route('trackModels', '/{user}/{hub}/{track}/models/')
     config.scan('core.Models.views')
 
+    config.add_route('features', '/{user}/{hub}/{track}/features/')
+    config.scan('core.Features.views')
+
+    config.add_route('loss', '/{user}/{hub}/{track}/loss/')
+    config.scan('core.Loss.views')
+
     config.add_route('jbrowseJson', '/{user}/{hub}/data/{handler}')
     config.scan('core.Hubs.views')
     config.add_static_view(name='/{user}/{hub}', path='jbrowse:jbrowse')

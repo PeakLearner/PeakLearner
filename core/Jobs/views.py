@@ -22,14 +22,15 @@ def getJobs(request):
         return Response(json.dumps(output), charset='utf8', content_type='application/json')
 
 
-@view_config(route_name='jobQueue', request_method='GET', renderer='json')
+@view_config(route_name='jobQueue', request_method='GET')
 def queueNextTask(request):
+    print('queueNextTask')
     # TODO: Some sort of authentication system
     task = Jobs.queueNextTask({})
     if task is None:
         return Response(status=404)
     else:
-        return task
+        return Response(json.dumps(task), charset='utf8', content_type='application/json')
 
 
 @view_config(route_name='jobsWithId', request_method='GET', renderer='website:stats/job.html')
@@ -47,13 +48,15 @@ def getJobWithId(request):
         return Response(json.dumps(output), charset='utf8', content_type='application/json')
 
 
-@view_config(route_name='jobsWithId', request_method='POST', renderer='json')
+@view_config(route_name='jobsWithId', request_method='POST')
 def postJobWithId(request):
-    data = {'id': request.matchdict['jobId'], 'task': {}}
-    for key in request.params.keys():
-        data['task'][key] = request.params[key]
+    print('postJob')
 
-    return Jobs.updateTask(data)
+    data = {'id': request.matchdict['jobId'], 'task': request.json_body}
+
+    output = Jobs.updateTask(data)
+
+    return Response(json.dumps(output), charset='utf8', content_type='application/json')
 
 
 @view_config(route_name='resetJob', request_method='POST', renderer='json')

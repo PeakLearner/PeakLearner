@@ -1,6 +1,6 @@
 import pandas as pd
 from core.util import PLdb as db
-from .Handler import TrackHandler
+from simpleBDB import retry, txnAbortOnError
 
 lossColumns = ['penalty',
                'segments',
@@ -14,18 +14,8 @@ lossColumns = ['penalty',
                'maxIntervals']
 
 
-class LossHandler(TrackHandler):
-    """Handles Label Commands"""
-    key = 'loss'
-
-    def do_POST(self, data, txn=None):
-        return self.getCommands()[data['command']](data['args'], txn=txn)
-
-    @classmethod
-    def getCommands(cls):
-        return {'put': putLoss}
-
-
+@retry
+@txnAbortOnError
 def putLoss(data, txn=None):
     penalty = data['penalty']
     lossInfo = data['lossInfo']
