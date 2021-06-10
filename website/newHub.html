@@ -12,9 +12,7 @@
 
         function uploadHub() {
             let hubUrl = document.getElementById('hubUrl').value;
-            let query = {'command': 'uploadHub', 'args': {'url': hubUrl}}
-
-            sendAjax('/uploadHubUrl/', query, newHubCallback)
+            sendAjax('/uploadHubUrl/', {'url': hubUrl}, newHubCallback, 'PUT')
         }
     </script>
 {% endblock %}

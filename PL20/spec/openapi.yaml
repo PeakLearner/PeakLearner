@@ -3,6 +3,26 @@ info:
   title: PeakLearner
   version: 0.0.1
 paths:
+  '/uploadHubUrl/':
+    put:
+      summary: Upload a new hub.txt to the system
+      description: >-
+        Route for uploading a new UCSC formatted hub.txt with a genomes.txt and trackList.txt in the same directory
+      parameters:
+        - $ref: '#/components/parameters/url'
+
+      responses:
+        '200':
+          description: Returns the label which was updated
+          content:
+            application/json:
+              schema:
+                type: string
+                example: /Public/H3K4me3_TDH_ENCODE/
+                description: The relative URL for the uploaded hub
+        '404':
+          description: Error parsing the hub info
+          content: { }
   '/Jobs/':
     x-pyramid-route-name: jobs
     get:
@@ -263,7 +283,127 @@ paths:
         '404':
           description: Hub does not exist
           content: { }
-  '/{user}/{hub}/data/{handler}/':
+  /{user}/{hub}/permissions/:
+    post:
+      summary: Modifies the permissions for a user in the track
+      description: >-
+        Modifies the permissions for a user in the track
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/couser'
+        - name: Label
+          in: query
+          schema:
+            type: boolean
+            description: Enable/Disable the ability to modify labels
+        - name: Track
+          in: query
+          schema:
+            type: boolean
+            description: Enable/Disable the ability to modify tracks
+        - name: Hub
+          in: query
+          schema:
+            type: boolean
+            description: Enable/Disable the ability to modify the hub
+        - name: Moderator
+          in: query
+          schema:
+            type: boolean
+            description: Enable/Disable the ability to moderate the hub
+
+      responses:
+        '200':
+          description: Refreshes the webpage
+  /{user}/{hub}/addUser/:
+    post:
+      summary: Adds a user to the hub's permissions
+      description: >-
+        Adds a user to the hub's permissions with default permissions of only label modifications
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - name: email
+          in: query
+          schema:
+            type: string
+            description: Email of the user to add
+            example:
+              Tristan.Miller@nau.edu
+
+      responses:
+        '200':
+          description: Refreshes the webpage
+  /{user}/{hub}/removeUser/:
+    post:
+      summary: Removes a user from the hub's permissions
+      description: >-
+        Removes a user from the hub's permissions
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - name: email
+          in: query
+          schema:
+            type: string
+            description: Email of the user to remove
+            example:
+              Tristan.Miller@nau.edu
+
+      responses:
+        '200':
+          description: Refreshes the webpage
+  /{user}/{hub}/addTrack/:
+    post:
+      summary: Adds a track to a hub
+      description: >-
+        Adds a track to a hub with a track name and categories. This could be changed to a PUT
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - name: track
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/track'
+        - name: category
+          in: query
+          required: true
+          schema:
+            type: string
+            description: Categories to go into, each sub category can be defined using a " / " between categories
+            example:
+              Data / Aorta
+        - name: url
+          in: query
+          required: true
+          schema:
+            type: string
+            description: URL to bigwig file of track served on an external server
+            example:
+              "https://rcdata.nau.edu/genomic-ml/PeakSegFPOP/labels/H3K4me3_TDH_ENCODE/samples/aorta/ENCFF115HTK/coverage.bigWig"
+
+      responses:
+        '200':
+          description: Refreshes the webpage
+  /{user}/{hub}/removeTrack/:
+    post:
+      summary: Removes a track from a hub
+      description: >-
+        ARemoves a track from a hub with a track name. This could be changed to a DELETE
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - name: track
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/track'
+      responses:
+        '200':
+          description: Refreshes the webpage
+  '/{user}/{hub}/data/{handler}':
     get:
       summary: Get data needed for jbrowse specific configuration files
       description: >-
@@ -432,17 +572,16 @@ paths:
         - $ref: '#/components/parameters/user'
         - $ref: '#/components/parameters/hub'
         - $ref: '#/components/parameters/track'
-        - $ref: '#/components/parameters/ref'
-        - $ref: '#/components/parameters/start'
-        - $ref: '#/components/parameters/end'
+        - $ref: '#/components/parameters/modelInfo'
         - $ref: '#/components/parameters/penalty'
+        - $ref: '#/components/parameters/modelData'
       responses:
         '200':
           description: Uploading the model was a success
           content:
             application/json:
               schema:
-                type: boolean
+                $ref: '#/components/schemas/modelInfo'
         '404':
           description: Track does not exist
           content: {}
@@ -455,9 +594,8 @@ paths:
         - $ref: '#/components/parameters/user'
         - $ref: '#/components/parameters/hub'
         - $ref: '#/components/parameters/track'
-        - $ref: '#/components/parameters/ref'
-        - $ref: '#/components/parameters/start'
-        - $ref: '#/components/parameters/end'
+        - $ref: '#/components/parameters/Problem'
+        - $ref: '#/components/parameters/featureData'
       responses:
         '200':
           description: Uploading the features was a success
@@ -477,9 +615,10 @@ paths:
         - $ref: '#/components/parameters/user'
         - $ref: '#/components/parameters/hub'
         - $ref: '#/components/parameters/track'
-        - $ref: '#/components/parameters/ref'
-        - $ref: '#/components/parameters/start'
-        - $ref: '#/components/parameters/end'
+        - $ref: '#/components/parameters/lossInfo'
+        - $ref: '#/components/parameters/penalty'
+        - $ref: '#/components/parameters/lossData'
+
       responses:
         '200':
           description: Uploading the features was a success
@@ -686,6 +825,21 @@ components:
           description: The Job Id
         trackUrl:
           $ref: '#/components/schemas/url'
+    modelInfo:
+      type: object
+      description: Additional information passed along
+      properties:
+        user:
+          $ref: '#/components/schemas/user'
+        hub:
+          $ref: '#/components/schemas/hub'
+        track:
+          $ref: '#/components/schemas/track'
+        problem:
+          $ref: '#/components/schemas/Problem'
+        jobId:
+          type: integer
+          minimum: 0
 
 
 
@@ -697,7 +851,14 @@ components:
       schema:
         $ref: '#/components/schemas/user'
       description: "The user to query"
-    hub:        
+    couser:
+      name: coUser
+      in: query
+      required: true
+      schema:
+        $ref: '#/components/schemas/user'
+      description: The user to modify for permissions
+    hub:
       name: hub
       in: path
       required: true
@@ -793,6 +954,54 @@ components:
       in: query
       schema:
         $ref: '#/components/schemas/task'
+    Problem:
+      name: problem
+      in: query
+      required: true
+      schema:
+        $ref: '#/components/schemas/Problem'
+    modelInfo:
+      name: modelInfo
+      in: query
+      required: true
+      schema:
+        $ref: '#/components/schemas/modelInfo'
+    modelData:
+      name: modelData
+      in: query
+      required: true
+      schema:
+        type: string
+        description: The output from pd.DataFrame.to_json() on the model
+    featureData:
+      name: data
+      in: query
+      required: true
+      schema:
+        type: string
+        description: The output from pd.DataFrame.to_dict('records')
+    lossInfo:
+      name: lossInfo
+      in: query
+      required: true
+      schema:
+        $ref: '#/components/schemas/modelInfo'
+    lossData:
+      name: lossData
+      in: query
+      required: true
+      schema:
+        type: string
+        description: The output from pd.DataFrame.to_json() on the loss
+    url:
+      name: url
+      in: query
+      required: true
+      schema:
+        type: string
+        example: https://rcdata.nau.edu/genomic-ml/PeakSegFPOP/labels/H3K4me3_TDH_ENCODE/hub.txt
+        description: The url to the hub.txt
+
 
 servers:
   - url: 'http://localhost:8080'

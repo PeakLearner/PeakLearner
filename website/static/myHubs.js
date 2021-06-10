@@ -148,15 +148,13 @@ function refreshAfterDelete(){
 /**
  * Ask user if they actually want to delete a hub and if so submit a post request with ajax
  *
- * @param hubName - name of the hub to delete
+ * @param hub - name of the hub to delete
  * @param owner - userid of the hub owner
  */
-function confirmDeleteHub(hubName, owner){
-    if(confirm(`Are you sure you want to delete ${hubName}`)) {
-        $.ajax('/deleteHub/', {
-            data: JSON.stringify({'args':{'hubName': hubName,
-                                                'owner': owner}}),
-            type: 'POST',
+function confirmDeleteHub(hub, owner){
+    if(confirm(`Are you sure you want to delete ${hub}`)) {
+        $.ajax(`/${owner}/${hub}/`, {
+            type: 'DELETE',
             timeout: 60000,
             // setTimeout required because when attempting to refresh immediately this results in a key error
             success: setTimeout(refreshAfterDelete, 1000)

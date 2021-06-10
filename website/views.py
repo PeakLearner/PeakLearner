@@ -1,7 +1,10 @@
+from pyramid.httpexceptions import HTTPFound
+
 from core.util import PLdb as db, PLConfig as cfg
 from core.Models import Models
 from core.Jobs import Jobs
 from core.Labels import Labels
+from core.Hubs import Hubs
 from pyramid.view import view_config
 from pyramid.security import remember, forget
 from pyramid_google_login import *
@@ -255,47 +258,4 @@ def getMyHubs(request):
     if userid is None:
         userid = 'Public'
 
-    hubInfos = {}
-    usersdict = {}
-    permissions = {}
-
-    txn = db.getTxn()
-    cursor = db.HubInfo.getCursor(txn=txn, bulk=True)
-
-    current = cursor.next()
-    while current is not None:
-        key, currHubInfo = current
-
-        owner = key[0]
-        hubName = key[1]
-
-        perms = db.Permission(owner, hubName).get(txn=txn)
-
-        if not perms.hasViewPermission(userid, currHubInfo):
-            print('no perm')
-            current = cursor.next()
-            continue
-
-        permissions[(owner, hubName)] = perms.users
-
-        usersdict[hubName] = perms.groups
-
-        everyLabelKey = db.Labels.keysWhichMatch(owner, hubName)
-
-        num_labels = 0
-        for key in everyLabelKey:
-            num_labels += len(db.Labels(*key).get(txn=txn).index)
-
-        currHubInfo['numLabels'] = num_labels
-
-        hubInfos[hubName] = currHubInfo
-
-        current = cursor.next()
-
-    cursor.close()
-    txn.commit()
-
-    return {"user": userid,
-            "hubInfos": hubInfos,
-            "usersdict": usersdict,
-            "permissions": permissions}
+    return Hubs.getHubInfosForMyHubs(userid)

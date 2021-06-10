@@ -1,6 +1,6 @@
 pyramid
-pyramid_jinja2
 pyramid_google_login
+pyramid_jinja2
 pyramid_openapi3
 uwsgi
 

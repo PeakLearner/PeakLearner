@@ -7,8 +7,6 @@
 
     <script type="text/javascript" src="static/myHubs.js"></script>
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-
 {% endblock %}
 
 {% block content %}
@@ -32,10 +30,11 @@
     <hr/>
 
     <div>
+        {% if user is not none and user != 'Public' %}
         <div class="float-left" onclick="checkHubs()">
             <form class="form-inline">
                 <b style="margin-right: 10px">Filter: </b>
-                {% if user is not none and user != 'Public' %}
+
                 <div class="form-check form-check-inline rounded" style="padding:5px; background-color: #b22b16">
                     <input class="form-check-input" type="checkbox" value="" id="owned-hubs"
                            checked>
@@ -50,7 +49,6 @@
                         Shared Hubs
                     </label>
                 </div>
-                {% endif %}
                 <div class="form-check form-check-inline rounded" style="padding:5px; background-color: #3b9e00">
                     <input class="form-check-input" type="checkbox" value="" id="public-hubs"
                            checked>
@@ -60,6 +58,7 @@
                 </div>
             </form>
         </div>
+        {% endif %}
 
         <div class="float-right">
             <button id="edit" class="btn btn-primary" onclick="editHubs(true)" style="display: inline-block; font-size: 10px;">
@@ -115,14 +114,6 @@
                 {% endif %}
 
                                 {% if hub['owner'] == user %}
-{#                                    <form class="edit-elements" action="/deleteHub/" method="post"#}
-{#                                        style="display:none">#}
-{#                                        <input value="{{ hubName }}" id="hubName" type="hidden" name="hubName">#}
-{#                                        <button type="submit" class="btn btn-warning" formmethod="post"#}
-{#                                                style="font-size: 12px; padding: 0 5px; display:inline"> -#}
-{#                                            Delete Hub#}
-{#                                        </button>#}
-{#                                    </form>#}
                                     <div class="edit-elements">
                                         <button onclick="confirmDeleteHub('{{hubName}}', '{{hub['owner']}}')" class="btn btn-warning"
                                                 style="font-size: 12px; padding: 0 5px; display:inline"> -
@@ -160,9 +151,9 @@
                                     {% for track in hub['tracks'] %}
                                         <li class="list-group-item">
                                             {{ track }}
-                                            <form class="edit-elements" action="/removeTrack/{{ hub['owner'] }}/{{ hubName }}/" method="post"
+                                            <form class="edit-elements" action="/{{ hub['owner'] }}/{{ hubName }}/removeTrack/" method="post"
                                                                         style="display:none">
-                                                <input value="{{ track }}" id="trackName" type="hidden" name="trackName">
+                                                <input value="{{ track }}" id="track" type="hidden" name="trackName">
                                                 <button type="submit" class="btn btn-danger" formmethod="post"
                                                         style="font-size: 10px; padding: 0 5px; display:inline"> -
                                                     remove
@@ -171,7 +162,7 @@
                                         </li>
                                     {% endfor %}
                                     </ul>
-                                    <form class="edit-elements" action="/addTrack/{{ hub['owner'] }}/{{ hubName }}/" method="POST" style="display: none">
+                                    <form class="edit-elements" action="/{{ hub['owner'] }}/{{ hubName }}/addTrack/" method="POST" style="display: none">
                                         <br>
                                         <div class="input-group mb-3">
                                             <div class="input-group-prepend">
@@ -179,7 +170,7 @@
                                                     Name
                                                 </label>
                                             </div>
-                                            <input type="text" id="trackName" name="trackName" class="form-control"
+                                            <input type="text" id="trackName" name="track" class="form-control"
                                                     aria-describedby="add-track-label">
                                             <div class="input-group-prepend">
                                                 <label class="input-group-text" id="add-category-label" for="category">
@@ -233,7 +224,7 @@
                                                     {% if coUser != "Public" and coUser != user %}
                                                         <tr>
                                                             <th scope="row">
-                                                                <form class="edit-elements float-right" action="/hubRemoveUser/" method="post"
+                                                                <form class="edit-elements float-right" action="/{{ hub['owner'] }}/{{ hubName }}/removeUser/" method="post"
                                                                     style="display:none">
                                                                     <input value="{{ hubName }}" id="hubName" type="hidden" name="hubName">
                                                                     <input value="{{ coUser }}" id="coUserName" type="hidden"
@@ -249,7 +240,7 @@
                                                             </th>
 
                                                             {% if coUserPerms is not none %}
-                                                                <form action="/adjustPerms/{{ hub['owner'] }}/{{ hubName }}/{{ coUser }}" method="POST">
+                                                                <form action="/{{ hub['owner'] }}/{{ hubName }}/permissions/" method="POST">
                                                                     <fieldset>
                                                                         <td class="text-center">
                                                                             <input type="checkbox" name="Label" id="chkLabel" onChange="this.form.submit()"
@@ -296,17 +287,18 @@
 
                                                         {% if perms is not none %}
                                                         {% set publicPerms = perms["Public"] %}
-                                                            <form action="/adjustPerms/{{ hub['owner'] }}/{{ hubName }}/Public" method="POST">
+                                                            <form action="/{{ hub['owner'] }}/{{ hubName }}/permissions/" method="POST">
                                                                 <fieldset>
+                                                                    <input type="hidden" id="coUser" name="coUser" value="Public">
                                                                     <td class="text-center">
-                                                                        <input type="checkbox" name="chklabels" id="chklabels" onChange="this.form.submit()"
+                                                                        <input type="checkbox" name="Label" id="chklabels" onChange="this.form.submit()"
                                                                                 {% if publicPerms[ "Label" ] %}
                                                                                     checked
                                                                                 {% endif %}
                                                                         >
                                                                     </td>
                                                                     <td class="text-center">
-                                                                        <input type="checkbox" name="chktracks" id="chktracks" onChange="this.form.submit()"
+                                                                        <input type="checkbox" name="Track" id="chktracks" onChange="this.form.submit()"
                                                                                 {% if publicPerms[ "Track" ] %}
                                                                                     checked
                                                                                 {% endif %}
@@ -336,7 +328,7 @@
                             </div>
 
                         {% if hub['owner'] == user %}
-                            <form class="edit-elements" action="/addUser/" method="POST" style="display: none">
+                            <form class="edit-elements" action="/{{hub['owner']}}/{{ hubName }}/addUser/" method="POST" style="display: none">
                                 <br>
                                 <div class="input-group mb-3">
                                     <div class="input-group-prepend">
@@ -346,8 +338,8 @@
                                     </div>
                                     <input type="email" id="userEmail" name="userEmail" class="form-control"
                                             aria-describedby="add-user-label">
-                                    <input value="{{ hubName }}" id="hubName" type="hidden" name="hubName">
-                                    <input value="{{ hub['owner'] }}" id="owner" type="hidden" name="owner">
+                                    <input value="{{ hubName }}" id="hiddenHubName" type="hidden" name="hub">
+                                    <input value="{{ hub['owner'] }}" id="hiddenOwner" type="hidden" name="owner">
                                     <input class="btn btn-outline-dark" type="submit" value="add user"
                                             style="margin-left: 10px">
                             </form>

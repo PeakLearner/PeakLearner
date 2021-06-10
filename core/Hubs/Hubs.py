@@ -1,39 +1,17 @@
 import os
-import requests
-import threading
 import json
-import tempfile
 import gzip
+import requests
+import tempfile
+import threading
 import pandas as pd
-
-import simpleBDB
-from core.Labels import Labels
-from core.Handlers.Handler import Handler
-from core.util import PLConfig as cfg, PLdb as db
-from core.Handlers import Tracks, Permissions
-from core.Models import Models
 from core.Jobs import Jobs
-
-
-class HubHandler(Handler):
-    """Handles Hub Commands"""
-
-    def do_GET(self, data, txn=None):
-        args = data['args']
-        if args['file'] == 'trackList.json':
-
-            hubInfo = db.HubInfo(self.query['user'], self.query['hub']).get()
-
-            return createTrackListWithHubInfo(hubInfo)
-        else:
-            print('no handler for %s' % self.query['handler'])
-
-    def do_POST(self, data, txn=None):
-        return self.getCommands()[data['command']](data['args'], self.query, txn=txn)
-
-    @classmethod
-    def getCommands(cls):
-        return {'goTo': goToRegion}
+from core.Labels import Labels
+from core.Models import Models
+from core.Handlers import Tracks
+from core.Permissions import Permissions
+from core.util import PLConfig as cfg, PLdb as db
+from simpleBDB import retry, txnAbortOnError, AbortTXNException
 
 
 def goToRegion(data, query, txn=None):
@@ -97,38 +75,9 @@ def checkLabels(row, user, hub, problem, toCheck):
             return True
 
 
-@simpleBDB.retry
-@simpleBDB.txnAbortOnError
-def addUserToHub(owner, hubName, newUser, request, txn=None):
-    """Adds a user to a hub given the hub name, owner userid, and the userid of the user to be added
-    Adjusts the db.HubInfo object by adding the new user to the ['users'] dict item in the db object.
-    Additionally the permissions of that user are initialized to being empty.
-    """
-
-    userid = request.authenticated_userid
-
-    txn = db.getTxn(parent=txn)
-
-    permDb = db.Permission(owner, hubName)
-    perms = permDb.get(txn=txn, write=True)
-
-    if not perms.hasPermission(userid, 'Hub'):
-        txn.commit()
-        return
-
-    perms.users[newUser] = Permissions.defaultPerms.copy()
-
-    print(perms.users)
-
-    permDb.put(perms, txn=txn)
-    txn.commit()
-
-    # TODO: Perhaps send an email to the user which was added?
-
-
-@simpleBDB.retry
-@simpleBDB.txnAbortOnError
-def removeUserFromHub(owner, hubName, delUser, request, txn=None):
+@retry
+@txnAbortOnError
+def removeUserFromHub(request, owner, hubName, delUser, txn=None):
     """Removes a user from a hub given the hub name, owner userid, and the userid of the user to be removed
     Adjusts the db.HubInfo object by calling the remove() function on the removed userid from the ['users'] item of the
     db.HubInfo object.
@@ -151,8 +100,8 @@ def removeUserFromHub(owner, hubName, delUser, request, txn=None):
     txn.commit()
 
 
-@simpleBDB.retry
-@simpleBDB.txnAbortOnError
+@retry
+@txnAbortOnError
 def addTrack(owner, hubName, userid, category, trackName, url, txn=None):
     hub = db.HubInfo(owner, hubName).get(txn=txn)
 
@@ -160,14 +109,14 @@ def addTrack(owner, hubName, userid, category, trackName, url, txn=None):
     perms = permDb.get(txn=txn)
 
     if not perms.hasPermission(userid, 'Hub'):
-        raise simpleBDB.AbortTXNException
+        raise AbortTXNException
 
     hub['tracks'][trackName] = {'categories': category, 'key': trackName, 'url': url}
     db.HubInfo(owner, hubName).put(hub, txn=txn)
 
 
-@simpleBDB.retry
-@simpleBDB.txnAbortOnError
+@retry
+@txnAbortOnError
 def removeTrack(owner, hubName, userid, trackName, txn=None):
     hub = db.HubInfo(owner, hubName).get(txn=txn)
 
@@ -175,21 +124,87 @@ def removeTrack(owner, hubName, userid, trackName, txn=None):
     perms = permDb.get(txn=txn)
 
     if not perms.hasPermission(userid, 'Hub'):
-        raise simpleBDB.AbortTXNException
+        raise AbortTXNException
 
     del hub['tracks'][trackName]
     db.HubInfo(owner, hubName).put(hub, txn=txn)
 
 
-@simpleBDB.retry
-@simpleBDB.txnAbortOnError
+@retry
+@txnAbortOnError
 def deleteHub(owner, hub, userid, txn=None):
     if userid != owner:
-        raise simpleBDB.AbortTXNException
+        raise AbortTXNException
 
     hub_info = None
     db.HubInfo(userid, hub).put(hub_info, txn=txn)
-    txn.commit()
+
+
+@retry
+@txnAbortOnError
+def getHubInfosForMyHubs(userid, txn=None):
+    hubInfos = {}
+    usersdict = {}
+    permissions = {}
+
+    cursor = db.HubInfo.getCursor(txn=txn, bulk=True)
+
+    current = cursor.next()
+    while current is not None:
+        key, currHubInfo = current
+
+        owner = key[0]
+        hubName = key[1]
+
+        perms = db.Permission(owner, hubName).get(txn=txn)
+
+        if not perms.hasViewPermission(userid, currHubInfo):
+            print('no perm')
+            current = cursor.next()
+            continue
+
+        permissions[(owner, hubName)] = perms.users
+
+        usersdict[hubName] = perms.groups
+
+        everyLabelKey = db.Labels.keysWhichMatch(owner, hubName)
+
+        num_labels = 0
+        for key in everyLabelKey:
+            num_labels += len(db.Labels(*key).get(txn=txn).index)
+
+        currHubInfo['numLabels'] = num_labels
+
+        hubInfos[hubName] = currHubInfo
+
+        current = cursor.next()
+
+    cursor.close()
+
+    return {"user": userid,
+            "hubInfos": hubInfos,
+            "usersdict": usersdict,
+            "permissions": permissions}
+
+
+@retry
+@txnAbortOnError
+def makeHubPublic(data, txn=None):
+    userid = data['currentUser']
+    owner = data['user']
+    hubName = data['hub']
+
+    if userid != owner:
+        perms = db.Permission(owner, hubName).get(txn=txn)
+        if not perms.hasPermission(userid, 'Hub'):
+            return False
+
+    chkpublic = "chkpublic" in data.keys()
+    hub = db.HubInfo(owner, hubName).get(txn=txn, write=True)
+    hub['isPublic'] = chkpublic
+    db.HubInfo(owner, hubName).put(hub, txn=txn)
+
+    return True
 
 
 def createTrackListWithHubInfo(info):
