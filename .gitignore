@@ -7,7 +7,7 @@
 */data/
 /slurmdata/
 /runlog.txt
-bin/
+/bin/
 /PL20.egg-info/
 /backup
 /testProfile
