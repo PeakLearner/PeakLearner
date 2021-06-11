@@ -26,8 +26,8 @@ RUN mkdir jbrowse/
 WORKDIR jbrowse/
 RUN git clone https://github.com/PeakLearner/jbrowse.git
 WORKDIR jbrowse/
-RUN ./setup.sh
 RUN git submodule update --init --remote
+RUN ./setup.sh
 WORKDIR ../../
 
 FROM jbrowse AS pythonSetup
