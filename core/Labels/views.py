@@ -8,10 +8,23 @@ from core.Labels import Labels
 def generateTrackQuery(func):
     # Handles loading the query value for hub based commands
     def wrap(request):
-        query = request.matchdict
-        query['ref'] = request.params['ref']
-        query['start'] = int(request.params['start'])
-        query['end'] = int(request.params['end'])
+
+        query = {**request.matchdict, **request.params}
+
+        try:
+            query = {**query, **request.json_body}
+        except json.decoder.JSONDecodeError:
+            pass
+
+        try:
+            query['ref'] = request.params['ref']
+            query['start'] = int(request.params['start'])
+            query['end'] = int(request.params['end'])
+        except KeyError:
+            query['ref'] = request.json_body['ref']
+            query['start'] = int(request.json_body['start'])
+            query['end'] = int(request.json_body['end'])
+
         if 'label' in request.params:
             query['label'] = request.params['label']
         query['currentUser'] = request.authenticated_userid
@@ -27,7 +40,11 @@ def generateTrackQuery(func):
 @view_config(route_name='trackLabels', request_method='GET')
 @generateTrackQuery
 def getLabels(request, query):
-    outputType = request.params['type']
+    try:
+        outputType = request.params['type']
+    except KeyError:
+        print('keyError')
+        outputType = 'json'
 
     output = Labels.getLabels(data=query)
 
@@ -37,6 +54,8 @@ def getLabels(request, query):
     if outputType == 'json' or outputType == 'application/json':
         outputDict = output.to_dict('records')
         return Response(json.dumps(outputDict), charset='utf8', content_type='application/json')
+    elif outputType == 'csv' or outputType == 'text/csv':
+        return Response(output.to_csv(sep='\t', index=False), charset='utf8', content_type='text/csv')
 
     return Response(status=404)
 
@@ -97,6 +116,8 @@ def getHubLabels(request):
     if outputType == 'json' or outputType == 'application/json':
         outputDict = output.to_dict('records')
         return Response(json.dumps(outputDict), charset='utf8', content_type='application/json')
+    elif outputType == 'csv' or outputType == 'text/csv':
+        return Response(output.to_csv(sep='\t', index=False), charset='utf8', content_type='text/csv')
 
     return Response(status=404)
 
@@ -118,6 +139,14 @@ def generateHubQuery(func):
         return func(query)
 
     return wrap
+
+
+@view_config(route_name='hubLabels', request_method='GET')
+@generateHubQuery
+def getHubLabels(query):
+    output = Labels.getHubLabels(query)
+
+    return Response(json.dumps(output), charset='utf8', content_type='application/json')
 
 
 @view_config(route_name='hubLabels', request_method='PUT')

@@ -391,7 +391,23 @@ paths:
     post:
       summary: Removes a track from a hub
       description: >-
-        ARemoves a track from a hub with a track name. This could be changed to a DELETE
+        Removes a track from a hub with a track name. This could be changed to a DELETE
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - name: track
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/track'
+      responses:
+        '200':
+          description: Refreshes the webpage
+  /{user}/{hub}/delete/:
+    delete:
+      summary: Deletes the hub
+      description: >-
+        Deletes the hub, permissions required, only deletes hubInfo and nothing else (Should this even be changed?)
       parameters:
         - $ref: '#/components/parameters/user'
         - $ref: '#/components/parameters/hub'

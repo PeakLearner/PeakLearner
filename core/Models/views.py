@@ -12,9 +12,14 @@ def getModel(request):
     query['end'] = int(request.params['end'])
     query['currentUser'] = request.authenticated_userid
     query['modelType'] = request.params['modelType']
-    query['scale'] = float(request.params['scale'])
-    query['visibleStart'] = int(request.params['visibleStart'])
-    query['visibleEnd'] = int(request.params['visibleEnd'])
+
+    # Only really needed when generating alternative models
+    try:
+        query['scale'] = float(request.params['scale'])
+        query['visibleStart'] = int(request.params['visibleStart'])
+        query['visibleEnd'] = int(request.params['visibleEnd'])
+    except KeyError:
+        pass
     outputType = request.params['type']
 
     output = Models.getModels(data=query)
@@ -28,6 +33,8 @@ def getModel(request):
     if outputType == 'json' or outputType == 'application/json':
         outputDict = json.dumps(output.to_dict('records'))
         return Response(outputDict, charset='utf8', content_type='application/json')
+    elif outputType == 'csv' or outputType == 'text/csv':
+        return Response(output.to_csv(sep='\t', index=False), charset='utf8', content_type='text/csv')
 
     return Response(status=404)
 

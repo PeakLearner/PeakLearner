@@ -1,0 +1,6 @@
+.pytest_cache
+backup
+bin
+jbrowse/jbrowse/
+slurmdata/
+/.git/

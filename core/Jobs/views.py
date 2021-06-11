@@ -7,8 +7,8 @@ from pyramid.response import Response
 @view_config(route_name='jobs', request_method='GET', renderer='website:stats/jobs.html')
 def getJobs(request):
 
-    if 'outputType' in request.params:
-        outputType = request.params['outputType']
+    if 'type' in request.params:
+        outputType = request.params['type']
     else:
         outputType = None
 
@@ -24,7 +24,6 @@ def getJobs(request):
 
 @view_config(route_name='jobQueue', request_method='GET')
 def queueNextTask(request):
-    print('queueNextTask')
     # TODO: Some sort of authentication system
     task = Jobs.queueNextTask({})
     if task is None:

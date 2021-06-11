@@ -81,8 +81,6 @@ define([
                                 class: 'modelMenuItem',
                                 id: type,
                                 onClick: (e) => {
-                                    console.log(e)
-                                    console.log(e.target)
                                     let selectedState = e.target.innerHTML;
 
                                     modelTypes.forEach(currentType => {
@@ -93,8 +91,6 @@ define([
                                             currentMenuItem.set('checked', false);
                                         }
                                     })
-
-                                    console.log(this)
                                     myBrowser.view.redrawTracks()
                                 }
                             }));

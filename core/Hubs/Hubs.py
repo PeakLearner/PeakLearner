@@ -14,6 +14,19 @@ from core.util import PLConfig as cfg, PLdb as db
 from simpleBDB import retry, txnAbortOnError, AbortTXNException
 
 
+@retry
+@txnAbortOnError
+def getHubJsons(query, handler, txn=None):
+    if handler == 'trackList.json':
+
+        hubInfo = db.HubInfo(query['user'], query['hub']).get(txn=txn)
+
+        return createTrackListWithHubInfo(hubInfo)
+    else:
+        print('no handler for %s' % query['handler'])
+
+@retry
+@txnAbortOnError
 def goToRegion(data, query, txn=None):
     user = query['user']
     hub = query['hub']

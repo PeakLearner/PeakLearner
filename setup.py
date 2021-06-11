@@ -15,7 +15,9 @@ requires = [
 # dictionary below.
 dev_requires = [
     'pytest',
+    'pytest_cov'
     'webtest',
+    'selenium',
 ]
 
 setup(

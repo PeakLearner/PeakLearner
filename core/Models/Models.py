@@ -20,7 +20,7 @@ flopartLabels = {'noPeak': 0,
                  'peakStart': 1,
                  'peakEnd': -1,
                  'unknown': -2}
-modelTypes = ['lopart', 'flopart', 'none']
+modelTypes = ['lopart', 'flopart']
 pd.set_option('mode.chained_assignment', None)
 
 
@@ -42,6 +42,7 @@ def getModels(data, txn=None):
             altout = generateAltModel(data, problem)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
+                print('getModels Output\n', output)
             continue
 
         nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
@@ -78,7 +79,11 @@ def getModels(data, txn=None):
                                  penalty)
         output = output.append(minErrorModel.getInBounds(data['ref'], data['start'], data['end']), ignore_index=True)
 
-    if len(output.index) > 1:
+    outlen = len(output.index)
+
+    if outlen == 1:
+        return output
+    elif outlen > 1:
         return output.sort_values('start', ignore_index=True)
     else:
         return []
@@ -447,6 +452,7 @@ def generateAltModel(data, problem):
     sumData = bw.bigWigSummary(trackUrl, chrom, start, end, scaledBins)
 
     if len(sumData) < 1:
+        log.warning('Sum Data is 0 for alt model', data)
         return []
 
     dbLabels = db.Labels(user, hub, track, chrom)

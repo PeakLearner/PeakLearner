@@ -21,12 +21,9 @@ def getHubInfo(request):
 def getJbrowseJsons(request):
     query = request.matchdict
     query['currentUser'] = request.authenticated_userid
-    method = request.method
 
     if 'json' in query['handler']:
-        data = {'command': 'getJson', 'args': {'file': query['handler']}}
-        query['handler'] = 'getJson'
-        output = json.dumps(Hubs.HubHandler(query).runCommand(method, data))
+        output = json.dumps(Hubs.getHubJsons(query, query['handler']))
         return Response(output,
                         charset='utf8', content_type='application/json')
     else:
@@ -34,7 +31,7 @@ def getJbrowseJsons(request):
         return Response(status=404)
 
 
-@view_config(route_name='hubRoute', request_method='DELETE')
+@view_config(route_name='deleteHub', request_method='DELETE')
 def deleteHub(request):
     """Delete a db.HubInfo object
 
