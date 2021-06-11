@@ -11,3 +11,18 @@ jobs:
         with:
           python-version: 3.8
       - run: sudo apt-get update
+      - run: sudo apt-get -y install libdb-dev libdb++-dev samtools r-base
+      - run: sudo Rscript -e 'install.packages("data.table")'
+      - run: mkdir bin/
+      - run: cd bin/
+      - run: wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigSummary
+      - run: wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigToBedGraph
+      - run: sudo chmod a+x bigWigSummary
+      - run: sudo chmod a+x bigWigToBedGraph
+      - run: cd ..
+      # Setup python dependencies
+      - run: python --version
+      - run: cd jbrowse/jbrowse
+      - run: ./setup.sh
+      - run: cd ../../
+      - run: pip install -e ".[dev]"
