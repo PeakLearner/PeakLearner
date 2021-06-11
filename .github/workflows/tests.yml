@@ -1,8 +1,8 @@
 name: run-tests
 on: [push, pull_request]
 jobs:
-  setupEnv:
-    name: Setup of the environment
+  tests:
+    name: Test Runner
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -13,23 +13,15 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get -y install libdb-dev libdb++-dev samtools r-base
       - run: sudo Rscript -e 'install.packages("data.table")'
-  setupBigWigStuff:
-    name: Setup the bigWig executables
-    runs-on: ubuntu-latest
-    needs: setupEnv
-    steps:
       - run: mkdir bin/
-      - run: cd bin/
       - run: wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigSummary
+        working-directory: bin/
       - run: wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigToBedGraph
+        working-directory: bin/
       - run: sudo chmod a+x bigWigSummary
+        working-directory: bin/
       - run: sudo chmod a+x bigWigToBedGraph
-      - run: cd ..
-  setupJbrowse:
-    name: Setup Jbrowse
-    runs-on: ubuntu-latest
-    needs: setupBigWigStuff
-    steps:
+        working-directory: bin/
       - run: python --version
       - run: ls
       - run: ./setup.sh
