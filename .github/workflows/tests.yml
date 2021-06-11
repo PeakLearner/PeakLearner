@@ -31,7 +31,6 @@ jobs:
     needs: setupBigWigStuff
     steps:
       - run: python --version
-      - run: cd jbrowse/jbrowse
       - run: ./setup.sh
         working-directory: jbrowse/jbrowse/
       - run: pip install -e ".[dev]"
