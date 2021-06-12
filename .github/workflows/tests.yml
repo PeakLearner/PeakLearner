@@ -4,6 +4,8 @@ jobs:
   tests:
     name: Test Runner
     runs-on: ubuntu-latest
+    environment:
+      name: CodeCov
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python 3.8

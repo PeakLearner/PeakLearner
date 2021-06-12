@@ -1,7 +1,0 @@
-setup.py
-PL20.egg-info/PKG-INFO
-PL20.egg-info/SOURCES.txt
-PL20.egg-info/dependency_links.txt
-PL20.egg-info/entry_points.txt
-PL20.egg-info/requires.txt
-PL20.egg-info/top_level.txt
