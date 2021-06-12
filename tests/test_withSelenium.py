@@ -42,7 +42,7 @@ class PeakLearnerTests(unittest.TestCase):
         try:
             self.driver = webdriver.Chrome()
         except WebDriverException:
-            self.driver = webdriver.Chrome('/buildtools/webdriver/chromedriver')
+            self.driver = webdriver.Chrome('chromedriver')
         self.driver.set_window_size(1280, 667)
 
     def tearDown(self):

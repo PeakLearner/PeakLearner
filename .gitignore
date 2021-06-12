@@ -16,3 +16,4 @@
 /docs/build
 /docs/node_modules
 /venv
+chromedriver
