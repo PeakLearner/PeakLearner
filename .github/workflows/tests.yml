@@ -31,12 +31,10 @@ jobs:
       - run: python3 -m pip install numpy==1.20.3
       - run: python3 -m pip install -r requirements.txt
       - run: pip install -e ".[dev]"
-      - run: python3 -m pytest --cov=core tests/test_PeakLearner.py
-      - run: codecov
+      - run: python3 -m pytest --cov=core --codecov tests/test_PeakLearner.py
   seleniumTests:
     name: Selenium Tests Runner
     runs-on: ubuntu-latest
-    needs: unitTests
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python 3.8
