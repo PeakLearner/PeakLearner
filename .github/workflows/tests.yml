@@ -1,8 +1,39 @@
 name: run-tests
 on: [push, pull_request]
 jobs:
-  tests:
-    name: Test Runner
+  unitTests:
+    name: Unit Tests Runner
+    runs-on: ubuntu-latest
+    environment:
+      name: CodeCov
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - run: python3 -m pip install -U pip
+      - run: sudo apt-get update
+      - run: sudo apt-get -y install libdb-dev libdb++-dev samtools r-base
+      - run: sudo Rscript -e 'install.packages("data.table")'
+      - run: mkdir bin/
+      - run: wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigSummary
+        working-directory: bin/
+      - run: wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigToBedGraph
+        working-directory: bin/
+      - run: sudo chmod a+x bigWigSummary
+        working-directory: bin/
+      - run: sudo chmod a+x bigWigToBedGraph
+        working-directory: bin/
+      - run: python --version
+      - run: ./setup.sh
+        working-directory: jbrowse/jbrowse/
+      - run: python3 -m pip install numpy==1.20.3
+      - run: python3 -m pip install -r requirements.txt
+      - run: pip install -e ".[dev]"
+      - run: python3 -m pytest tests/test_PeakLearner.py
+  seleniumTests:
+    name: Selenium Tests Runner
     runs-on: ubuntu-latest
     environment:
       name: CodeCov

@@ -21,7 +21,7 @@ dev_requires = [
 ]
 
 setup(
-    name='PL20',
+    name='PeakLearner',
     version='2.0.0',
     install_requires=requires,
     extras_require={
@@ -29,7 +29,7 @@ setup(
     },
     entry_points={
         'paste.app_factory': [
-            'main = PL20:main'
+            'main = PeakLearner:main'
         ],
     },
 )
