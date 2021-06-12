@@ -32,11 +32,11 @@ jobs:
       - run: python3 -m pip install -r requirements.txt
       - run: pip install -e ".[dev]"
       - run: python3 -m pytest --cov=core tests/test_PeakLearner.py
+      - run: codecov
   seleniumTests:
     name: Selenium Tests Runner
     runs-on: ubuntu-latest
-    environment:
-      name: CodeCov
+    needs: unitTests
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python 3.8

@@ -13,6 +13,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
@@ -39,10 +40,12 @@ class PeakLearnerTests(unittest.TestCase):
         self.host = subprocess.Popen(['uwsgi', 'wsgi.ini'],
                                      stdout=subprocess.PIPE)
 
+        options = Options()
+        options.headless = True
         try:
-            self.driver = webdriver.Chrome()
+            self.driver = webdriver.Chrome(options=options)
         except WebDriverException:
-            self.driver = webdriver.Chrome('chromedriver')
+            self.driver = webdriver.Chrome('chromedriver', options=options)
         self.driver.set_window_size(1280, 667)
 
     def tearDown(self):
