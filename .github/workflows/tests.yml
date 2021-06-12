@@ -24,7 +24,6 @@ jobs:
       - run: sudo chmod a+x bigWigToBedGraph
         working-directory: bin/
       - run: python --version
-      - run: ls
       - run: ./setup.sh
         working-directory: jbrowse/jbrowse/
       - run: python3 -m pip install numpy==1.20.3

@@ -12,7 +12,7 @@ from pyramid.response import Response
 def getHubInfo(request):
     """TODO: Document this view"""
     query = request.matchdict
-    output = Hubs.getHubInfo(query['user'], query['hub'])
+    output = Hubs.getHubInfo(query)
 
     return Response(json.dumps(output), charset='utf8', content_type='application/json')
 

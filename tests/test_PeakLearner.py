@@ -7,6 +7,18 @@ import unittest
 import threading
 from pyramid import testing
 from pyramid.paster import get_app
+
+dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
+dbDir = os.path.join(dataDir, 'db')
+dbTar = os.path.join('data', 'db.tar.gz')
+
+if os.path.exists(dbDir):
+    shutil.rmtree(dbDir)
+
+if not os.path.exists(dbDir):
+    with tarfile.open(dbTar) as tar:
+        tar.extractall(dataDir)
+
 from core.util import PLConfig as cfg, PLdb as db
 
 cfg.testing()
@@ -35,9 +47,6 @@ def lock_detect(func):
 
 
 class PeakLearnerTests(unittest.TestCase):
-    dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
-    dbDir = os.path.join(dataDir, 'db')
-    dbTar = os.path.join('data', 'db.tar.gz')
     user = 'Public'
     hub = 'H3K4me3_TDH_ENCODE'
     testHub = 'TestHub'
@@ -63,13 +72,6 @@ class PeakLearnerTests(unittest.TestCase):
     noPeakLabel['label'] = 'noPeak'
 
     def setUp(self):
-        if os.path.exists(self.dbDir):
-            shutil.rmtree(self.dbDir)
-
-        if not os.path.exists(self.dbDir):
-            with tarfile.open(self.dbTar) as tar:
-                tar.extractall(self.dataDir)
-
         self.config = testing.setUp()
         app = get_app('production.ini')
         from webtest import TestApp
@@ -120,7 +122,7 @@ class PeakLearnerTests(unittest.TestCase):
 
         requestOutput = request.json
 
-        print(requestOutput['tracks'].keys())
+        print(requestOutput)
 
         assert requestOutput['genome'] == 'hg19'
 

@@ -786,8 +786,11 @@ def downloadAndUnpackFile(url, path):
     return path
 
 
-def getHubInfo(user, hub):
-    return db.HubInfo(user, hub).get()
+@retry
+@txnAbortOnError
+def getHubInfo(data, txn=None):
+    print(data['user'], data['hub'])
+    return db.HubInfo(data['user'], data['hub']).get(txn=txn)
 
 
 
