@@ -18,6 +18,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
+waitTime = 60
 
 url = 'http://localhost:8080'
 dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
@@ -95,7 +96,7 @@ class PeakLearnerTests(unittest.TestCase):
 
         self.addPeak(2257, width=120)
 
-        time.sleep(2)
+        time.sleep(5)
 
         tracks = self.driver.find_elements(By.CLASS_NAME, 'track_peaklearnerbackend_view_track_model')
 
@@ -176,14 +177,14 @@ class PeakLearnerTests(unittest.TestCase):
 
         self.addLabel('peakStart', midPoint - labelWidth, midPoint - 1)
 
-        time.sleep(0.5)
+        time.sleep(3)
 
         self.addLabel('peakEnd', midPoint, midPoint + labelWidth)
 
-        time.sleep(0.5)
+        time.sleep(3)
 
     def addLabel(self, labelType, start, end):
-        wait = WebDriverWait(self.driver, 15)
+        wait = WebDriverWait(self.driver, waitTime)
         wait.until(EC.presence_of_element_located((By.ID, "track_aorta_ENCFF115HTK")))
 
         labelDropdown = self.driver.find_element(By.ID, 'current-label')
@@ -225,7 +226,7 @@ class PeakLearnerTests(unittest.TestCase):
         wait.until(EC.presence_of_element_located((By.ID, "track_aorta_ENCFF115HTK")))
 
     def zoomIn(self):
-        wait = WebDriverWait(self.driver, 15)
+        wait = WebDriverWait(self.driver, waitTime)
         wait.until(EC.presence_of_element_located((By.ID, "bigZoomIn")))
 
         element = self.driver.find_element(By.ID, 'bigZoomIn')
@@ -235,7 +236,7 @@ class PeakLearnerTests(unittest.TestCase):
         time.sleep(2)
 
     def zoomOut(self):
-        wait = WebDriverWait(self.driver, 15)
+        wait = WebDriverWait(self.driver, waitTime)
         wait.until(EC.presence_of_element_located((By.ID, "bigZoomOut")))
 
         element = self.driver.find_element(By.ID, 'bigZoomOut')
@@ -274,7 +275,7 @@ class PeakLearnerTests(unittest.TestCase):
                 break
 
     def enableLopart(self):
-        wait = WebDriverWait(self.driver, 15)
+        wait = WebDriverWait(self.driver, waitTime)
 
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "peaklearner")))
 
@@ -293,7 +294,7 @@ class PeakLearnerTests(unittest.TestCase):
     def moveToDefinedLocation(self):
         # Move to defined location
 
-        wait = WebDriverWait(self.driver, 15)
+        wait = WebDriverWait(self.driver, waitTime)
         wait.until(EC.presence_of_element_located((By.ID, 'search-box')))
 
         searchbox = self.driver.find_element(By.ID, 'search-box')
@@ -336,7 +337,7 @@ class PeakLearnerTests(unittest.TestCase):
         assert "93462708..193999814" in self.driver.title
 
     def scrollUp(self):
-        wait = WebDriverWait(self.driver, 15)
+        wait = WebDriverWait(self.driver, waitTime)
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'vertical_position_marker')))
 
         # scroll to top of page

@@ -4,22 +4,31 @@ from pyramid.view import view_config
 from pyramid.response import Response
 
 
-@view_config(route_name='jobs', request_method='GET', renderer='website:stats/jobs.html')
-def getJobs(request):
+def jobOutput(func):
 
-    if 'type' in request.params:
-        outputType = request.params['type']
-    else:
+    def wrap(request):
         outputType = None
 
-    output = Jobs.stats()
+        if 'Accept' in request.headers:
+            outputType = request.headers['Accept']
 
-    if outputType is None:
-        output['user'] = request.authenticated_userid
-        return output
+        output = func(request)
 
-    elif outputType == 'json':
-        return Response(json.dumps(output), charset='utf8', content_type='application/json')
+        if outputType is None:
+            output['user'] = request.authenticated_userid
+            return output
+
+        elif outputType == 'json' or outputType == 'application/json':
+            return Response(json.dumps(output), charset='utf8', content_type='application/json')
+
+    return wrap
+
+
+@view_config(route_name='jobs', request_method='GET', renderer='website:stats/jobs.html')
+@jobOutput
+def getJobs(request):
+
+    return Jobs.stats()
 
 
 @view_config(route_name='jobQueue', request_method='GET')
@@ -33,29 +42,17 @@ def queueNextTask(request):
 
 
 @view_config(route_name='jobsWithId', request_method='GET', renderer='website:stats/job.html')
+@jobOutput
 def getJobWithId(request):
     data = {'jobId': request.matchdict['jobId']}
-    output = Jobs.getJobWithId(data)
-
-    if 'type' in request.params:
-        outputType = request.params['type']
-    else:
-        output['user'] = request.authenticated_userid
-        return output
-
-    if outputType == 'json':
-        return Response(json.dumps(output), charset='utf8', content_type='application/json')
+    return Jobs.getJobWithId(data)
 
 
-@view_config(route_name='jobsWithId', request_method='POST')
+@view_config(route_name='jobsWithId', request_method='POST', renderer='json')
 def postJobWithId(request):
-    print('postJob')
-
     data = {'id': request.matchdict['jobId'], 'task': request.json_body}
 
-    output = Jobs.updateTask(data)
-
-    return Response(json.dumps(output), charset='utf8', content_type='application/json')
+    return Jobs.updateTask(data)
 
 
 @view_config(route_name='resetJob', request_method='POST', renderer='json')
