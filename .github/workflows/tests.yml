@@ -31,7 +31,11 @@ jobs:
       - run: python3 -m pip install numpy==1.20.3
       - run: python3 -m pip install -r requirements.txt
       - run: pip install -e ".[dev]"
-      - run: python3 -m pytest --cov=core --codecov tests/test_PeakLearner.py
+      - run: python3 -m pytest --cov=core --cov=website --cov-report=xml tests/test_PeakLearner.py
+      - uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage
   seleniumTests:
     name: Selenium Tests Runner
     runs-on: ubuntu-latest
