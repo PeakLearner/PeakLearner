@@ -61,7 +61,11 @@ def uploadHubUrl(request):
 
     data['user'] = request.authenticated_userid
 
-    return Hubs.parseHub(data)
+    output = Hubs.parseHub(data)
+
+    print('uhu out')
+
+    return output
 
 
 @view_config(route_name='public', request_method='POST')

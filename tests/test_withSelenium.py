@@ -50,16 +50,29 @@ class PeakLearnerTests(unittest.TestCase):
             self.driver = webdriver.Chrome('chromedriver', options=options)
         self.driver.set_window_size(1280, 667)
 
-    def tearDown(self):
-        os.kill(self.host.pid, signal.SIGTERM)
-        self.driver.close()
+
+    # This test is mainly here so that when this file is ran on CI, it will have a genomes file for hub.
+    def test_AddHub(self):
+        self.driver.get(url)
+
+        self.driver.find_element(By.ID, 'myHubs').click()
+
+        self.driver.find_element(By.ID, 'uploadHubButton').click()
+
+        hubUrl = 'https://rcdata.nau.edu/genomic-ml/PeakLearner/testHub/hub.txt'
+        self.driver.find_element(By.ID, 'hubUrl').send_keys(hubUrl)
+
+        self.driver.find_element(By.ID, 'submitButton').click()
+
+        wait = WebDriverWait(self.driver, waitTime*10)
+        wait.until(EC.presence_of_element_located((By.ID, 'search-box')))
 
     def test_LOPART_model(self):
         self.driver.get(url)
 
         self.driver.find_element(By.ID, 'myHubs').click()
 
-        self.driver.find_element(By.ID, 'publicHubLink').click()
+        self.driver.find_element(By.ID, 'H3K4me3_TDH_ENCODE_publicHubLink').click()
 
         self.moveToDefinedLocation()
 
@@ -353,3 +366,10 @@ class PeakLearnerTests(unittest.TestCase):
         action.drag_and_drop_by_offset(element, 0, -y)
 
         action.perform()
+
+    def tearDown(self):
+        os.kill(self.host.pid, signal.SIGTERM)
+
+        time.sleep(5)
+
+        self.driver.close()

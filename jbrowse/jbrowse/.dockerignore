@@ -3,6 +3,7 @@ backup
 jbrowse/jbrowse/
 slurmdata/
 /.git/
+data/
 
 *~
 /data/

@@ -19,7 +19,7 @@
             <h4 class="text-center">Public</h4>
             {% endif %}
             <div class="text-center">
-                <a class="btn btn-primary" href="/newHub/" style="display:inline-block;">
+                <a class="btn btn-primary" href="/newHub/" style="display:inline-block;" id="uploadHubButton">
                 Upload New Hub
             </a>
             </div>
@@ -85,7 +85,7 @@
                         <div class="card" style="width: 95%;">
 
                             <div class="card-header" id="myHubHeader">
-                                <a class="card-link rounded" id="myHubLink" href="/{{ user }}/{{ hubName }}/">
+                                <a class="card-link rounded" id="{{hubName}}_HubLink" href="/{{ user }}/{{ hubName }}/">
                                     {{ hubName }}
                                 </a>
 
@@ -107,7 +107,7 @@
                         <div class="card" style="width: 95%;">
 
                             <div class="card-header" id="publicHubHeader">
-                                <a class="card-link rounded" id="publicHubLink" href="/{{ hub['owner'] }}/{{ hubName }}/">
+                                <a class="card-link rounded" id="{{hubName}}_publicHubLink" href="/{{ hub['owner'] }}/{{ hubName }}/">
                                     {{ hubName }}
                                 </a>
 
