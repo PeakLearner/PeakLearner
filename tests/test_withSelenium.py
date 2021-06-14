@@ -6,6 +6,7 @@ import signal
 import shutil
 import tarfile
 import unittest
+import requests
 import selenium
 import threading
 import subprocess
@@ -53,6 +54,8 @@ class PeakLearnerTests(unittest.TestCase):
         self.driver.close()
 
     def test_LOPART_model(self):
+        r = requests.get(url)
+
         self.driver.get(url)
 
         self.driver.find_element(By.ID, 'myHubs').click()
