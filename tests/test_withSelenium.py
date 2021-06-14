@@ -50,7 +50,6 @@ class PeakLearnerTests(unittest.TestCase):
             self.driver = webdriver.Chrome('chromedriver', options=options)
         self.driver.set_window_size(1280, 667)
 
-
     # This test is mainly here so that when this file is ran on CI, it will have a genomes file for hub.
     def test_AddHub(self):
         self.driver.get(url)

@@ -42,10 +42,30 @@ def putModel(request):
     if output is not None:
         return output
 
+    return Response(status=404)
+
 
 # ---- HUB MODELS ---- #
 
 
 @view_config(route_name='hubModels', request_method='GET')
+@genomeDataOut
 def getHubModels(request):
-    return Response(status=404)
+    query = request.matchdict
+    try:
+        query['ref'] = request.params['ref']
+        query['start'] = int(request.params['start'])
+        query['end'] = int(request.params['end'])
+    except KeyError:
+        pass
+    query['currentUser'] = request.authenticated_userid
+
+    output = Models.getHubModels(query)
+
+    if isinstance(output, list):
+        return Response(status=204)
+
+    if len(output.index) < 1:
+        return Response(status=204)
+
+    return output

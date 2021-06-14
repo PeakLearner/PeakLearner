@@ -89,6 +89,39 @@ def getModels(data, txn=None):
         return []
 
 
+@retry
+@txnAbortOnError
+def getHubModels(data, txn=None):
+    modelSumKeys = db.ModelSummaries.keysWhichMatch(data['user'], data['hub'])
+
+    output = pd.DataFrame()
+
+    for key in modelSumKeys:
+        user, hub, track, ref, start = key
+        currentSum = db.ModelSummaries(*key).get(txn=txn)
+
+        whichModel = noPredictGuess(currentSum)
+
+        if len(whichModel.index) > 1:
+            whichModel = whichModel[whichModel['penalty'] == whichModel['penalty'].min()]
+
+        penalty = whichModel['penalty'].values[0]
+
+        model = db.Model(user, hub, track, ref, start, penalty).get(txn=txn)
+
+        model['track'] = track
+        model['penalty'] = penalty
+
+        print(model)
+
+        output = output.append(model, ignore_index=True)
+
+    if len(output.index) < 1:
+        return []
+
+    return output
+
+
 def whichModelToDisplay(data, problem, summary):
     try:
         prediction = doPrediction(data, problem)
