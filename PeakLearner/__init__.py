@@ -84,7 +84,6 @@ def main(global_config, **settings):
     config.add_route('uploadHubUrl', '/uploadHubUrl/')
     config.add_route('jobInfo', '/jobs/info/')
     config.add_route('help', '/help/')
-    config.add_route('api', '/api/')
     config.add_route('login', '/login/')
     config.add_route('failed', '/failed/')
     config.add_route('authenticate', '/authenticate/')

@@ -76,6 +76,7 @@ jobs:
     name: Generates the OpenAPI docs website
     runs-on: ubuntu-latest
     needs: [unitTests, seleniumTests]
+    if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v2
       - name: Generate Swagger UI

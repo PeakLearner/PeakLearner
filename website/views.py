@@ -64,13 +64,6 @@ def help(request):
     return {'user': user}
 
 
-@view_config(route_name='api', renderer='api.html')
-def api(request):
-
-    user = request.authenticated_userid
-    return {'user': user}
-
-
 @view_config(route_name='newHub', renderer='newHub.html')
 def newHub(request):
     """Upload hub renderer
