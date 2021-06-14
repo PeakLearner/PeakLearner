@@ -49,9 +49,9 @@ jobs:
       - uses: actions/checkout@v2
       - name: Set up Python 3.8
         uses: actions/setup-python@v2
-      - uses: nanasess/setup-chromedriver@master
         with:
           python-version: 3.8
+      - uses: nanasess/setup-chromedriver@master
       - run: python3 -m pip install -U pip
       - run: sudo apt-get update
       - run: sudo apt-get -y install libdb-dev libdb++-dev samtools r-base
