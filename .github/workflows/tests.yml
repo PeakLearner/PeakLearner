@@ -32,10 +32,16 @@ jobs:
       - run: python3 -m pip install -r requirements.txt
       - run: pip install -e ".[dev]"
       - run: python3 -m pytest --cov=core --cov=website --cov-report=xml tests/test_PeakLearner.py
-      - uses: codecov/codecov-action@v1
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage
+          files: ./coverage.xml
+          flags: unittests
+          env_vars: OS,PYTHON
+          fail_ci_if_error: true
+          path_to_write_report: ./codecov_report.txt
+          verbose: true
   seleniumTests:
     name: Selenium Tests Runner
     runs-on: ubuntu-latest
