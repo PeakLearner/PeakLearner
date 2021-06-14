@@ -19,7 +19,7 @@ from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 
-url = 'http://localhost.com:8080'
+url = 'http://localhost:8080'
 dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
 dbDir = os.path.join(dataDir, 'db')
 dbTar = os.path.join('data', 'db.tar.gz')
@@ -54,8 +54,6 @@ class PeakLearnerTests(unittest.TestCase):
         self.driver.close()
 
     def test_LOPART_model(self):
-        r = requests.get(url)
-
         self.driver.get(url)
 
         self.driver.find_element(By.ID, 'myHubs').click()
