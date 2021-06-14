@@ -130,13 +130,19 @@ class PeakLearnerTests(unittest.TestCase):
         for trackKey in requestOutput['tracks']:
             assert trackKey in expectedTrackKeys
 
+    def getJobs(self):
+        return self.testapp.get(self.jobsURL, headers={'Accept': 'application/json'})
+
+    def getLabels(self, params):
+        return self.testapp.get(self.labelURL, params=params, headers={'Accept': 'application/json'})
+
     def test_labels(self):
-        request = self.testapp.get(self.jobsURL, params={'type': 'json'})
+        request = self.getJobs()
 
         numJobsBefore = len(request.json['jobs'])
 
         # Blank Label Test
-        request = self.testapp.get(self.labelURL, params=self.rangeArgs)
+        request = self.getLabels(params=self.rangeArgs)
 
         numLabelsBefore = len(request.json)
 
@@ -144,7 +150,7 @@ class PeakLearnerTests(unittest.TestCase):
         request = self.testapp.put_json(self.labelURL, self.startLabel)
 
         # Check Label Added
-        request = self.testapp.get(self.labelURL, params=self.rangeArgs)
+        request = self.getLabels(params=self.rangeArgs)
 
         assert request.status_code == 200
 
@@ -159,7 +165,7 @@ class PeakLearnerTests(unittest.TestCase):
         assert serverLabel['end'] == self.startLabel['end']
         assert serverLabel['label'] == 'peakStart'
 
-        request = self.testapp.get(self.jobsURL, params={'type': 'json'})
+        request = self.getJobs()
 
         assert request.status_code == 200
 
@@ -172,7 +178,7 @@ class PeakLearnerTests(unittest.TestCase):
 
         assert request.status_code == 200
 
-        request = self.testapp.get(self.labelURL, params=self.rangeArgs)
+        request = self.getLabels(params=self.rangeArgs)
 
         assert request.status_code == 200
 
@@ -186,12 +192,12 @@ class PeakLearnerTests(unittest.TestCase):
 
         assert request.status_code == 200
 
-        request = self.testapp.get(self.jobsURL, params={'type': 'json'})
+        request = self.getJobs()
 
         # Check that system doesn't create duplicate jobs
         assert len(request.json['jobs']) == numJobsBefore
 
-        request = self.testapp.get(self.labelURL, params=self.rangeArgs)
+        request = self.getLabels(params=self.rangeArgs)
 
         assert request.status_code == 200
 
@@ -203,7 +209,7 @@ class PeakLearnerTests(unittest.TestCase):
 
             assert request.status_code == 200
 
-        request = self.testapp.get(self.labelURL, params=self.rangeArgs)
+        request = self.getLabels(params=self.rangeArgs)
 
         # No Content, No Body
         assert request.status_code == 204

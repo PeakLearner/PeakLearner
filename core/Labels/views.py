@@ -1,8 +1,8 @@
 import json
-
+from core import genomeDataOut
+from core.Labels import Labels
 from pyramid.view import view_config
 from pyramid.response import Response
-from core.Labels import Labels
 
 
 def generateTrackQuery(func):
@@ -38,26 +38,15 @@ def generateTrackQuery(func):
 
 
 @view_config(route_name='trackLabels', request_method='GET')
+@genomeDataOut
 @generateTrackQuery
 def getLabels(request, query):
-    try:
-        outputType = request.params['type']
-    except KeyError:
-        print('keyError')
-        outputType = 'json'
-
     output = Labels.getLabels(data=query)
 
     if isinstance(output, list):
         return Response(status=204)
 
-    if outputType == 'json' or outputType == 'application/json':
-        outputDict = output.to_dict('records')
-        return Response(json.dumps(outputDict), charset='utf8', content_type='application/json')
-    elif outputType == 'csv' or outputType == 'text/csv':
-        return Response(output.to_csv(sep='\t', index=False), charset='utf8', content_type='text/csv')
-
-    return Response(status=404)
+    return output
 
 
 @view_config(route_name='trackLabels', request_method='PUT')
@@ -87,41 +76,6 @@ def deleteLabel(request, query):
 # ---- HUB LABELS ---- #
 
 
-@view_config(route_name='hubLabels', request_method='GET')
-def getHubLabels(request):
-    query = request.matchdict
-    if 'ref' in request.params:
-        query['ref'] = request.params['ref']
-
-    if 'start' in request.params:
-        query['start'] = int(request.params['start'])
-
-    if 'end' in request.params:
-        query['end'] = int(request.params['end'])
-
-    if 'tracks' in request.params:
-        query['tracks'] = request.params['tracks'].split(',')
-
-    query['currentUser'] = request.authenticated_userid
-    outputType = request.params['type']
-
-    output = Labels.getHubLabels(data=query)
-
-    if output is None:
-        return Response(status=404)
-
-    if isinstance(output, list):
-        return Response(status=204)
-
-    if outputType == 'json' or outputType == 'application/json':
-        outputDict = output.to_dict('records')
-        return Response(json.dumps(outputDict), charset='utf8', content_type='application/json')
-    elif outputType == 'csv' or outputType == 'text/csv':
-        return Response(output.to_csv(sep='\t', index=False), charset='utf8', content_type='text/csv')
-
-    return Response(status=404)
-
-
 def generateHubQuery(func):
     # Handles loading the query value for hub based commands
     def wrap(request):
@@ -142,11 +96,29 @@ def generateHubQuery(func):
 
 
 @view_config(route_name='hubLabels', request_method='GET')
-@generateHubQuery
-def getHubLabels(query):
-    output = Labels.getHubLabels(query)
+@genomeDataOut
+def getHubLabels(request):
+    query = request.matchdict
+    if 'ref' in request.params:
+        query['ref'] = request.params['ref']
 
-    return Response(json.dumps(output), charset='utf8', content_type='application/json')
+    if 'start' in request.params:
+        query['start'] = int(request.params['start'])
+
+    if 'end' in request.params:
+        query['end'] = int(request.params['end'])
+
+    if 'tracks' in request.params:
+        query['tracks'] = request.params['tracks'].split(',')
+
+    query['currentUser'] = request.authenticated_userid
+
+    output = Labels.getHubLabels(data=query)
+
+    if isinstance(output, list):
+        return Response(status=204)
+
+    return output
 
 
 @view_config(route_name='hubLabels', request_method='PUT')
