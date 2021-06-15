@@ -26,11 +26,20 @@ The Slurm Server should work with 3.6 and up but this is also untested.
 6. `sudo chmod a+x bigWigSummary`
 7. `cd ..`
 9. `sudo apt update && sudo apt install samtools libdb5.3-dev`
-10. `python3 -m pip install -r requirements.txt` - Installs Python Requirements
-11. `cd jbrowse/jbrowse`
-12. `./setup.sh`
-13. `cd ..`
-14. `uwsgi wsgi.ini`
+10. `python3 -m venv venv/`
+11. `source venv/bin/activate`
+12. `pip install -U pip`
+13. `pip install numpy==1.20.3` - Needs to be done before installing requirements due to numpy quirks
+13. `pip install -r requirements.txt` - Installs Python Requirements
+14. `cd jbrowse/jbrowse`
+15. `./setup.sh`
+16. `cd ../../`
+17. `pip install -e .`
+18. `uwsgi wsgi.ini`
+
+Now that the CFG is created, stop the server with ctrl + C, then enter your google client secret into PeakLearner.cfg and change the client ID in production.ini to yours.
+
+
 The PeakLearner + Jbrowse webserver should now be started, and can be access at 127.0.0.1:8080.
 For use in deployment, 
 

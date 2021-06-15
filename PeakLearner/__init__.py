@@ -1,4 +1,5 @@
 import os
+from core.util import PLConfig as cfg
 from pyramid.security import Allow
 from website.users.Users import USERS
 from pyramid.config import Configurator
@@ -59,7 +60,7 @@ def main(global_config, **settings):
 
     # create authentication and authorization policies
     authn_policy = AuthTktAuthenticationPolicy(
-        config.get_settings()['security.google_login.client_secret'],
+        cfg.secret,
         callback=group_finder,
     )
     authz_policy = ACLAuthorizationPolicy()
