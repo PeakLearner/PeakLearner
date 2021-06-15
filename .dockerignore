@@ -1,14 +1,26 @@
-*/__pycache__/
-*.pyc
-/.idea/
-*PeakLearnerSlurm.cfg
-*/data/
-/slurmdata/
-/runlog.txt
-bin/
-/PL20.egg-info/
-/backup
-/testProfile
-/certs
-/venv
-/data/
+# Exclude everything
+*
+
+# Include only the required stuff
+
+!jbrowse
+# Some parts of jbrowse are not needed
+jbrowse/jbrowse/dist
+jbrowse/jbrowse/extlib
+jbrowse/jbrowse/.github
+jbrowse/jbrowse/node_modules
+jbrowse/jbrowse/plugins/*/test
+jbrowse/jbrowse/release
+jbrowse/jbrowse/sample_data
+jbrowse/jbrowse/tests
+jbrowse/jbrowse/utils
+jbrowse/jbrowse/website
+
+!core
+!PeakLearner
+!website
+!PeakLearner.cfg
+!production.ini
+!setup.py
+!requirements.txt
+!wsgi.ini
