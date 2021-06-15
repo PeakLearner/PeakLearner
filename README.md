@@ -1,6 +1,6 @@
 # PeakLearner
 ![](https://github.com/PeakLearner/PeakLearner/actions/workflows/tests.yml/badge.svg)
-[![codecov.io](https://codecov.io/github/PeakLearner/PeakLearner/coverage.svg?branch=master)](https://codecov.io/github/PeakLearner/PeakLearner)
+[![codecov.io](https://codecov.io/github/PeakLearner/PeakLearner/coverage.svg?branch=main)](https://codecov.io/github/PeakLearner/PeakLearner)
 
 An Interactive Labeling and model generation system for genomic data.
 
