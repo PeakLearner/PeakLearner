@@ -60,7 +60,7 @@ def main(global_config, **settings):
 
     # create authentication and authorization policies
     authn_policy = AuthTktAuthenticationPolicy(
-        cfg.secret,
+        config.get_settings()['security.google_login.client_secret'],
         callback=group_finder,
     )
     authz_policy = ACLAuthorizationPolicy()
