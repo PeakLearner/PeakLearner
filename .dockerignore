@@ -3,7 +3,7 @@
 
 # Include only the required stuff
 
-!jbrowse
+!jbrowse/*
 # Some parts of jbrowse are not needed
 jbrowse/jbrowse/dist
 jbrowse/jbrowse/extlib
@@ -11,10 +11,10 @@ jbrowse/jbrowse/.github
 jbrowse/jbrowse/node_modules
 jbrowse/jbrowse/plugins/*/test
 jbrowse/jbrowse/release
-jbrowse/jbrowse/sample_data
 jbrowse/jbrowse/tests
 jbrowse/jbrowse/utils
 jbrowse/jbrowse/website
+**/data
 
 !core
 !PeakLearner
@@ -24,3 +24,5 @@ jbrowse/jbrowse/website
 !setup.py
 !requirements.txt
 !wsgi.ini
+
+**/__pycache__

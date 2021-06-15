@@ -22,9 +22,9 @@ ADD http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigSummary bin
 RUN chmod a+x bin/bigWigSummary
 
 FROM envSetup AS jbrowse
-COPY ./jbrowse .
+COPY ./jbrowse ./jbrowse
 WORKDIR jbrowse/jbrowse/
-RUN ./setupNoData.sh
+RUN ./setup.sh
 WORKDIR ../../
 
 FROM jbrowse AS pythonSetup
