@@ -45,7 +45,7 @@ class PeakLearnerTests(unittest.TestCase):
                                      stdout=subprocess.PIPE)
 
         options = Options()
-        # options.headless = True
+        options.headless = True
         try:
             self.driver = webdriver.Chrome(options=options)
         except WebDriverException:

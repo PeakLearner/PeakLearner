@@ -19,3 +19,4 @@
 chromedriver
 .coverage
 coverage.*
+log.txt
