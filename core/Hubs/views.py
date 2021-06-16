@@ -1,20 +1,30 @@
 import json
-
-from pyramid.httpexceptions import HTTPFound
-
 from core.Hubs import Hubs
+from core.Labels import Labels
 from pyramid_google_login import *
 from pyramid.view import view_config
 from pyramid.response import Response
 
 
-@view_config(route_name='hubInfo', request_method='GET')
+@view_config(route_name='hubInfo', request_method='GET', renderer='website:hubInfo.html')
 def getHubInfo(request):
     """TODO: Document this view"""
+    outputType = None
+
+    if 'Accept' in request.headers:
+        outputType = request.headers['Accept']
+
     query = request.matchdict
     output = Hubs.getHubInfo(query)
 
-    return Response(json.dumps(output), charset='utf8', content_type='application/json')
+    if 'text/html' in outputType:
+        extraLabelInfo = Labels.hubInfoLabels(query)
+        output = {'hubInfo': output, 'user': request.authenticated_userid, **extraLabelInfo, 'hubName': query['hub']}
+        return output
+    elif outputType == 'json' or outputType == 'application/json':
+        return Response(json.dumps(output), charset='utf8', content_type='application/json')
+
+    return Response(status=404)
 
 
 @view_config(route_name='jbrowseJson', request_method='GET')

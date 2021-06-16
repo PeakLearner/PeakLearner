@@ -218,6 +218,25 @@ def getHubLabels(data, txn=None):
     return output
 
 
+@retry
+@txnAbortOnError
+def hubInfoLabels(query, txn=None):
+    labelKeys = db.Labels.keysWhichMatch(query['user'], query['hub'])
+
+    numLabels = 0
+    labels = {}
+    for key in labelKeys:
+        user, hub, track, chrom = key
+        labelsDf = db.Labels(*key).get(txn=txn)
+        numLabels += len(labelsDf.index)
+        if track not in labels:
+            labels[track] = {}
+
+        labels[track][chrom] = labelsDf.to_html()
+
+    return {'numLabels': numLabels, 'labels': labels}
+
+
 def stats():
     chroms = labels = 0
 

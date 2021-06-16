@@ -17,10 +17,8 @@ def jobOutput(func):
         if 'text/html' in outputType:
             output['user'] = request.authenticated_userid
             return output
-
         elif outputType == 'json' or outputType == 'application/json':
             return Response(json.dumps(output), charset='utf8', content_type='application/json')
-
         else:
             return Response(status=404)
 

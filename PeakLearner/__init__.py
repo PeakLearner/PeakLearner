@@ -1,5 +1,4 @@
 import os
-from core.util import PLConfig as cfg
 from pyramid.security import Allow
 from website.users.Users import USERS
 from pyramid.config import Configurator

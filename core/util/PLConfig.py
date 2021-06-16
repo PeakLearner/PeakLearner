@@ -20,7 +20,6 @@ save = False
 if 'http' not in configSections:
     config.add_section('http')
     config['http']['path'] = 'jbrowse/jbrowse/'
-    config['http']['google_secret'] = 'secret_goes_here'
 
     save = True
 
@@ -52,7 +51,6 @@ timeBetween = int(config['learning']['timeBetween'])
 numChanges = int(config['learning']['numChanges'])
 minLabeledRegions = int(config['learning']['minLabeledRegions'])
 doIdlePredictions = config['learning']['doIdlePredictions'].lower() == 'true'
-secret = config['http']['google_secret']
 
 
 def testing():

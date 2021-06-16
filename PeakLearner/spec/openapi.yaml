@@ -138,6 +138,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/hubInfo'
+            text/html:
+              schema:
+                type: string
+                description: The Webpage for this hubs info
+
         '404':
           description: The hub doesn't exist
       parameters:
