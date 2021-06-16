@@ -14,7 +14,7 @@ def jobOutput(func):
 
         output = func(request)
 
-        if outputType is None:
+        if 'text/html' in outputType:
             output['user'] = request.authenticated_userid
             return output
 
@@ -30,7 +30,6 @@ def jobOutput(func):
 @view_config(route_name='jobs', request_method='GET', renderer='website:stats/jobs.html')
 @jobOutput
 def getJobs(request):
-
     return Jobs.stats()
 
 

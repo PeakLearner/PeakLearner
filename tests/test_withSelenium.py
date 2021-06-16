@@ -30,6 +30,8 @@ class PeakLearnerTests(unittest.TestCase):
     dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
     dbDir = os.path.join(dataDir, 'db')
     dbTar = os.path.join('data', 'db.tar.gz')
+    user = 'Public'
+    hub = 'H3K4me3_TDH_ENCODE'
 
     def setUp(self):
         if os.path.exists(self.dbDir):
@@ -184,13 +186,27 @@ class PeakLearnerTests(unittest.TestCase):
 
                 assert inEnd
 
-    def test_JobsPage_Working(self):
+    def dtest_JobsPage_Working(self):
         self.driver.get(url)
 
         self.driver.find_element(By.ID, 'statsNav').click()
 
         self.driver.find_element(By.ID, 'jobStats').click()
 
+        self.checkIfError()
+
+    def test_moreInfoPage_Working(self):
+        self.driver.get(url)
+
+        self.driver.find_element(By.ID, 'myHubs').click()
+
+        hubId = '%s-%s-hubInfo-showMore' % (self.user, self.hub)
+
+        self.driver.find_element(By.ID, hubId).click()
+
+        self.checkIfError()
+
+    def checkIfError(self):
         # Assert that the page is working to begin with
         try:
             element = self.driver.find_element(By.ID, 'main-frame-error')
@@ -198,7 +214,8 @@ class PeakLearnerTests(unittest.TestCase):
             # If here, then prev line didn't error
             assert 1 == 0
         except selenium.common.exceptions.NoSuchElementException:
-            raise
+            if '404' in self.driver.title:
+                raise Exception('404 Exception')
 
     def addPeak(self, midPoint, width=40):
         labelWidth = width / 2

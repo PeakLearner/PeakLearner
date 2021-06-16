@@ -214,6 +214,6 @@ class PeakLearnerTests(unittest.TestCase):
         # No Content, No Body
         assert request.status_code == 204
 
-    def test_putModel(self):
+    # def test_putModel(self):
 
 
