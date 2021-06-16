@@ -9,10 +9,10 @@ from pyramid.response import Response
 @view_config(route_name='hubInfo', request_method='GET', renderer='website:hubInfo.html')
 def getHubInfo(request):
     """TODO: Document this view"""
-    outputType = None
-
     if 'Accept' in request.headers:
         outputType = request.headers['Accept']
+    else:
+        outputType = 'json'
 
     query = request.matchdict
     output = Hubs.getHubInfo(query)

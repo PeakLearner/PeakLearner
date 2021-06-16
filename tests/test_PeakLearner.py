@@ -82,7 +82,7 @@ class PeakLearnerTests(unittest.TestCase):
         res = self.testapp.get('/')
         assert res.status_code == 200
 
-    def test_addHub(self):
+    def test_AddHubAndEnvSetup(self):
         query = {'url': 'https://rcdata.nau.edu/genomic-ml/PeakLearner/testHub/hub.txt'}
 
         request = self.testapp.put('/uploadHubUrl/', query)
