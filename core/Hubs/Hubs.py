@@ -27,9 +27,9 @@ def getHubJsons(query, handler, txn=None):
 
 @retry
 @txnAbortOnError
-def goToRegion(data, query, txn=None):
-    user = query['user']
-    hub = query['hub']
+def goToRegion(data, txn=None):
+    user = data['user']
+    hub = data['hub']
 
     hubInfo = db.HubInfo(user, hub).get(txn=txn)
     genome = hubInfo['genome']

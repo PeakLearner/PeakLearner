@@ -45,7 +45,7 @@ class PeakLearnerTests(unittest.TestCase):
                                      stdout=subprocess.PIPE)
 
         options = Options()
-        options.headless = True
+        # options.headless = True
         try:
             self.driver = webdriver.Chrome(options=options)
         except WebDriverException:
@@ -53,7 +53,7 @@ class PeakLearnerTests(unittest.TestCase):
         self.driver.set_window_size(1280, 667)
 
     # This test is mainly here so that when this file is ran on CI, it will have a genomes file for hub.
-    def test_AddHub(self):
+    def dtest_AddHub(self):
         self.driver.get(url)
 
         self.driver.find_element(By.ID, 'myHubs').click()
@@ -68,7 +68,7 @@ class PeakLearnerTests(unittest.TestCase):
         wait = WebDriverWait(self.driver, waitTime*10)
         wait.until(EC.presence_of_element_located((By.ID, 'search-box')))
 
-    def test_LOPART_model(self):
+    def dtest_LOPART_model(self):
         self.driver.get(url)
 
         self.driver.find_element(By.ID, 'myHubs').click()
@@ -186,7 +186,7 @@ class PeakLearnerTests(unittest.TestCase):
 
                 assert inEnd
 
-    def test_JobsPage_Working(self):
+    def dtest_JobsPage_Working(self):
         self.driver.get(url)
 
         self.driver.find_element(By.ID, 'statsNav').click()
@@ -195,7 +195,7 @@ class PeakLearnerTests(unittest.TestCase):
 
         self.checkIfError()
 
-    def test_moreInfoPage_Working(self):
+    def dtest_moreInfoPage_Working(self):
         self.driver.get(url)
 
         self.driver.find_element(By.ID, 'myHubs').click()
@@ -205,6 +205,45 @@ class PeakLearnerTests(unittest.TestCase):
         self.driver.find_element(By.ID, hubId).click()
 
         self.checkIfError()
+
+    def test_goToLabeledRegion(self):
+        self.goToRegion('labeled')
+
+    def test_goToUnlabeledRegion(self):
+        self.goToRegion('unlabeled')
+
+    def goToRegion(self, region):
+        self.driver.get(url)
+
+        self.driver.find_element(By.ID, 'myHubs').click()
+
+        self.driver.find_element(By.ID, 'H3K4me3_TDH_ENCODE_publicHubLink').click()
+
+        self.moveToDefinedLocation()
+
+        self.selectTracks(numTracks=6)
+
+        title = self.driver.title
+
+        wait = WebDriverWait(self.driver, waitTime)
+
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "peaklearner")))
+
+        self.driver.find_element(By.CLASS_NAME, 'peaklearner').click()
+
+        if region == 'labeled':
+            elementId = 'labeledRegion'
+        else:
+            elementId = 'unlabeledRegion'
+
+        self.driver.find_element(By.ID, elementId).click()
+
+        wait = WebDriverWait(self.driver, waitTime)
+
+        wait.until(lambda x: title != self.driver.title)
+
+
+
 
     def checkIfError(self):
         # Assert that the page is working to begin with

@@ -135,6 +135,8 @@ def main(global_config, **settings):
     config.add_route('addTrack', '/{user}/{hub}/addTrack/')
     config.add_route('removeTrack', '/{user}/{hub}/removeTrack/')
     config.add_route('deleteHub', '/{user}/{hub}/delete/')
+    config.add_route('unlabeledHub', '/{user}/{hub}/unlabeled/')
+    config.add_route('labeledHub', '/{user}/{hub}/labeled/')
     config.add_route('jbrowseJson', '/{user}/{hub}/data/{handler}')
     config.scan('core.Hubs.views')
     config.add_static_view(name='/{user}/{hub}', path='jbrowse:jbrowse')

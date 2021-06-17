@@ -156,3 +156,18 @@ def removeTrack(request):
 
     url = request.route_url('myHubs', _app_url=get_app_url(request))
     return HTTPFound(location=url)
+
+
+@view_config(route_name='unlabeledHub', request_method='GET', renderer='json')
+def getUnlabeledRegion(request):
+    query = {**request.matchdict, 'type': 'unlabeled'}
+
+    return Hubs.goToRegion(query)
+
+
+@view_config(route_name='labeledHub', request_method='GET', renderer='json')
+def getLabeledRegion(request):
+    query = {**request.matchdict, 'type': 'labeled'}
+
+    return Hubs.goToRegion(query)
+

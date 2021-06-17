@@ -419,6 +419,38 @@ paths:
       responses:
         '200':
           description: Refreshes the webpage
+  '/{user}/{hub}/unlabeled/':
+    get:
+      summary: Gets an unlabeled region for the hub
+      description: >-
+        Gets an unlabeled region for the hub, and returns what is needed to navigate to that
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+      responses:
+        '200':
+          description: Returns the location to go to
+          content:
+            application/json:
+              schema:
+                type: string
+                description: The place to go
+  '/{user}/{hub}/labeled/':
+    get:
+      summary: Gets an labeled region for the hub
+      description: >-
+        Gets an labeled region for the hub, and returns what is needed to navigate to that
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+      responses:
+        '200':
+          description: Returns the location to go to
+          content:
+            application/json:
+              schema:
+                type: string
+                description: The place to go
   '/{user}/{hub}/data/{handler}':
     get:
       summary: Get data needed for jbrowse specific configuration files

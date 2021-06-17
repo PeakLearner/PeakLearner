@@ -51,6 +51,7 @@ define([
                         var datasetButton = new dijitMenuItem({
                             label: 'Upload New Dataset',
                             iconClass: 'dijitIconNewTask',
+                            id: 'uploadData',
                             onClick: lang.hitch(thisB, 'newDataset')
                         });
 
@@ -58,6 +59,7 @@ define([
 
                         var unlabeledButton = new dijitMenuItem({
                             label: 'Go to unlabeled region',
+                            id: 'unlabeledRegion',
                             onClick: lang.hitch(thisB, 'goToUnlabeled')
                         });
 
@@ -65,6 +67,7 @@ define([
 
                         var labeledButton = new dijitMenuItem({
                             label: 'Go to labeled region',
+                            id: 'labeledRegion',
                             onClick: lang.hitch(thisB, 'goToLabeled')
                         });
 

@@ -222,13 +222,13 @@ class Labels(db.PandasDf):
     def getInBounds(self, chrom, start, end, txn=None):
         labels = self.get(txn=txn)
 
-        if labels.index.dtype == 'object':
-            labels = labels.sort_values('chromStart', ignore_index=True)
-
         if labels is None:
             return None
         if len(labels.index) < 1:
             return labels
+
+        if labels.index.dtype == 'object':
+            labels = labels.sort_values('chromStart', ignore_index=True)
 
         isInBounds = labels.apply(checkInBounds, axis=1, args=(chrom, start, end))
 
