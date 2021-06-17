@@ -319,3 +319,57 @@ class PeakLearnerTests(unittest.TestCase):
         output = self.testapp.get(self.labelURL, params=params, headers={'Accept': '*/*'})
 
         assert output.status_code == 200
+
+    def test_unlabeledRegion(self):
+        unlabeledUrl = '%sunlabeled/' % self.hubURL
+
+        output = self.testapp.get(unlabeledUrl)
+
+        should = ['ref', 'start', 'end']
+
+        for key in output.json:
+            assert key in should
+
+        hubInfoURL = '%sinfo/' % self.hubURL
+        request = self.testapp.get(hubInfoURL)
+
+        hubInfo = request.json
+
+        for track in hubInfo['tracks']:
+            trackLabelsUrl = '%s%s/labels/' % (self.hubURL, track)
+
+            out = self.testapp.get(trackLabelsUrl, params=output.json, headers={'Accept': 'application/json'})
+
+            # No Content
+            assert out.status_code == 204
+
+    def test_labeledRegion(self):
+        unlabeledUrl = '%slabeled/' % self.hubURL
+
+        output = self.testapp.get(unlabeledUrl)
+
+        should = ['ref', 'start', 'end']
+
+        for key in output.json:
+            assert key in should
+
+        hubInfoURL = '%sinfo/' % self.hubURL
+        request = self.testapp.get(hubInfoURL)
+
+        hubInfo = request.json
+
+        labelsExist = False
+
+        for track in hubInfo['tracks']:
+            trackLabelsUrl = '%s%s/labels/' % (self.hubURL, track)
+
+            out = self.testapp.get(trackLabelsUrl, params=output.json, headers={'Accept': 'application/json'})
+
+            if out.status_code == 204:
+                continue
+
+            if out.status_code == 200:
+                if len(out.json) > 0:
+                    labelsExist = True
+
+        assert labelsExist
