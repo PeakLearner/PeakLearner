@@ -78,6 +78,7 @@ def getModels(data, txn=None):
         minErrorModelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'],
                                    penalty)
         minErrorModel = minErrorModelDb.getInBounds(data['ref'], data['start'], data['end'])
+        minErrorModel = minErrorModel[minErrorModel['annotation'] == 'peak']
         minErrorModel.columns = jbrowseModelColumns
         output = output.append(minErrorModel, ignore_index=True)
 
