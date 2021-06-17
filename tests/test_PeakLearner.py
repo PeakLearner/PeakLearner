@@ -54,12 +54,15 @@ class PeakLearnerTests(unittest.TestCase):
     hub = 'H3K4me3_TDH_ENCODE'
     testHub = 'TestHub'
     track = 'aorta_ENCFF115HTK'
+    sampleTrack = 'aorta_ENCFF502AXL'
     hubURL = '/%s/%s/' % (user, hub)
     testHubURL = '/%s/%s/' % (user, testHub)
     trackURL = '%s%s/' % (hubURL, track)
+    sampleTrackURL = '%s%s/' % (hubURL, sampleTrack)
     trackInfoURL = '%sinfo/' % trackURL
     labelURL = '%slabels/' % trackURL
     modelsUrl = '%smodels/' % trackURL
+    sampleModelsUrl = '%smodels/' % sampleTrackURL
     jobsURL = '/Jobs/'
     rangeArgs = {'ref': 'chr1', 'start': 0, 'end': 120000000, 'label': 'peakStart'}
     startLabel = rangeArgs.copy()
@@ -301,19 +304,18 @@ class PeakLearnerTests(unittest.TestCase):
         self.test_doSampleJob()
 
         params = {'ref': 'chr3', 'start': 0,
-               'end': 396044860}
+                  'end': 396044860}
 
-        output = self.testapp.get(self.modelsUrl, params=params, headers={'Accept': '*/*'})
+        print(self.sampleModelsUrl)
+
+        output = self.testapp.get(self.sampleModelsUrl, params=params, headers={'Accept': '*/*'})
 
         assert output.status_code == 200
 
     def test_labelsWithAcceptAnyHeader(self):
         params = {'ref': 'chr3', 'start': 0,
-               'end': 396044860}
+                  'end': 396044860}
 
         output = self.testapp.get(self.labelURL, params=params, headers={'Accept': '*/*'})
 
         assert output.status_code == 200
-
-
-

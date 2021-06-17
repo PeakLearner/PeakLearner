@@ -33,6 +33,7 @@ def getModels(data, txn=None):
 
     for problem in problems:
         problemTxn = db.getTxn(parent=txn)
+
         modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart']).get(txn=problemTxn)
 
@@ -80,8 +81,6 @@ def getModels(data, txn=None):
         output = output.append(minErrorModel.getInBounds(data['ref'], data['start'], data['end']), ignore_index=True)
 
     outlen = len(output.index)
-
-    print(output)
 
     if outlen == 1:
         return output
