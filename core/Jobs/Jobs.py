@@ -1,4 +1,5 @@
 import json
+import time
 
 import berkeleydb
 import logging
@@ -83,6 +84,10 @@ class Job(metaclass=JobType):
         self.id = str(storable['id'])
         self.iteration = storable['iteration']
         self.priority = int(storable['priority'])
+        try:
+            self.lastModified = storable['lastModified']
+        except KeyError:
+            pass
         return self
 
     def putNewJob(self, checkExists=True):
@@ -106,6 +111,8 @@ class Job(metaclass=JobType):
                                       self.track,
                                       self.problem['chrom'],
                                       self.problem['chromStart']).increment(txn=txn))
+
+        self.lastModified = time.time()
 
         db.Job(self.id).put(self.__dict__(), txn=txn)
 
@@ -172,6 +179,8 @@ class Job(metaclass=JobType):
         for key in task.keys():
             taskToUpdate[key] = task[key]
 
+        self.lastModified = time.time()
+
         self.updateJobStatus()
 
         return taskToUpdate
@@ -211,6 +220,8 @@ class Job(metaclass=JobType):
             task = self.tasks[key]
             task['Status'] = 'New'
 
+        self.lastModified = time.time()
+
     def restartUnfinished(self):
         restarted = False
         for task in self.tasks.values():
@@ -219,6 +230,7 @@ class Job(metaclass=JobType):
                 restarted = True
 
         self.updateJobStatus()
+        self.lastModified = time.time()
         return restarted
 
     def numTasks(self):
@@ -235,7 +247,8 @@ class Job(metaclass=JobType):
                   'iteration': self.iteration,
                   'tasks': self.tasks,
                   'trackUrl': self.trackUrl,
-                  'priority': int(self.priority)}
+                  'priority': int(self.priority),
+                  'lastModified': self.lastModified}
 
         if self.status.lower() == 'done':
             try:
@@ -254,6 +267,7 @@ class Job(metaclass=JobType):
         task['jobStatus'] = self.status
         task['id'] = self.id
         task['trackUrl'] = self.trackUrl
+        task['lastModified'] = self.lastModified
 
         return task
 
@@ -361,6 +375,37 @@ class PregenJob(GridSearchJob):
 
         super().__init__(user, hub, track, problem, penalties, priority, trackUrl=trackUrl, tasks=tasks)
 
+
+timeUntilRestart = 3600
+
+
+@retry
+@txnAbortOnError
+def checkRestartJobs(data, txn=None):
+    jobKeys = db.Job.db_key_tuples()
+
+    currentTime = time.time()
+
+    for key in jobKeys:
+        jobTxn = db.getTxn(parent=txn)
+        jobDb = db.Job(*key)
+        jobToCheck = jobDb.get(txn=jobTxn, write=True)
+
+        try:
+            timeDiff = currentTime - jobToCheck.lastModified
+        except AttributeError:
+            jobToCheck.lastModified = time.time()
+            jobDb.put(jobToCheck, txn=jobTxn)
+            jobTxn.commit()
+            continue
+
+        if timeDiff > timeUntilRestart:
+            jobToCheck.restartUnfinished()
+            jobDb.put(jobToCheck, txn=jobTxn)
+            jobTxn.commit()
+            continue
+
+        jobTxn.abort()
 
 
 def submitDownloadJobs(problems, txn=None):
@@ -636,3 +681,6 @@ def stats():
               'avgTime': avgTime}
 
     return output
+
+
+

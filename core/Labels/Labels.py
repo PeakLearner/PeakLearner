@@ -1,8 +1,9 @@
+import time
+
 import pandas as pd
 from core.util import PLdb as db
 from core.Models import Models
 from simpleBDB import retry, txnAbortOnError
-
 
 labelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
 jbrowseLabelColumns = ['ref', 'start', 'end', 'label']
@@ -19,7 +20,8 @@ def addLabel(data, txn=None):
                               'chromEnd': data['end'],
                               'annotation': data['label'],
                               'createdBy': data['currentUser'],
-                              'lastModifiedBy': data['currentUser']})
+                              'lastModifiedBy': data['currentUser'],
+                              'lastModified': time.time()})
         labelsDb = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
         labels = labelsDb.get(txn=txn, write=True)
         if not labels.empty:
@@ -47,7 +49,8 @@ def addHubLabels(data, txn=None):
                               'chromEnd': data['end'],
                               'annotation': data['label'],
                               'createdBy': data['currentUser'],
-                              'lastModifiedBy': data['currentUser']})
+                              'lastModifiedBy': data['currentUser'],
+                              'lastModified': time.time()})
 
         if 'tracks' in data:
             tracks = data['tracks']
@@ -131,7 +134,8 @@ def updateLabel(data, txn=None):
                                    'chromStart': data['start'],
                                    'chromEnd': data['end'],
                                    'annotation': label,
-                                   'lastModifiedBy': data['currentUser']})
+                                   'lastModifiedBy': data['currentUser'],
+                                   'lastModified': time.time()})
         labelDb = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
         db.Prediction('changes').increment(txn=txn)
         item, labels = labelDb.add(labelToUpdate, txn=txn)
@@ -147,7 +151,8 @@ def updateHubLabels(data, txn=None):
                                    'chromStart': data['start'],
                                    'chromEnd': data['end'],
                                    'annotation': data['label'],
-                                   'lastModifiedBy': data['currentUser']})
+                                   'lastModifiedBy': data['currentUser'],
+                                   'lastModified': time.time()})
 
         user = data['user']
         hub = data['hub']

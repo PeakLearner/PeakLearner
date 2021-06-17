@@ -3,6 +3,19 @@ from core.Jobs import Jobs
 from pyramid.view import view_config
 from pyramid.response import Response
 
+try:
+    import uwsgi
+    import uwsgidecorators
+
+    @uwsgidecorators.timer(300, target='mule')
+    def start_lock_detect(num):
+        Jobs.checkRestartJobs({})
+
+
+except ModuleNotFoundError:
+    loadLater = True
+    print('Running in non uwsgi mode, jobs won\'t be automatically restarted')
+
 
 def jobOutput(func):
 
