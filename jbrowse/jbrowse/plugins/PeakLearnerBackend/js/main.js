@@ -175,16 +175,15 @@ define([
                         }
                     };
 
-                    let url = this.browser.config.baseUrl + 'data/hub';
+                    let url = this.browser.config.baseUrl + region + '/';
 
                     let xhrArgs = {
                         url: url,
                         handleAs: "json",
-                        postData: JSON.stringify({'command': 'goTo', 'args': {'type': region}}),
                         load: regionCallback
                     };
 
-                    var deferred = dojo.xhrPost(xhrArgs);
+                    var deferred = dojo.xhrGet(xhrArgs);
                 },
                 newDataset: function () {
                     var hub = new NewHub();
