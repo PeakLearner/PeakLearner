@@ -14,13 +14,11 @@ def jobOutput(func):
 
         output = func(request)
 
-        if outputType is None:
+        if 'text/html' in outputType:
             output['user'] = request.authenticated_userid
             return output
-
         elif outputType == 'json' or outputType == 'application/json':
             return Response(json.dumps(output), charset='utf8', content_type='application/json')
-
         else:
             return Response(status=404)
 
@@ -30,7 +28,6 @@ def jobOutput(func):
 @view_config(route_name='jobs', request_method='GET', renderer='website:stats/jobs.html')
 @jobOutput
 def getJobs(request):
-
     return Jobs.stats()
 
 

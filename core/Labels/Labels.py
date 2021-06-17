@@ -208,14 +208,31 @@ def getHubLabels(data, txn=None):
             labels = pd.DataFrame()
 
             for refKey in availableRefs:
-                print(refKey)
                 labels = labels.append(db.Labels(*refKey).get(txn=txn))
 
         labels['track'] = track
 
         output = output.append(labels)
-
     return output
+
+
+@retry
+@txnAbortOnError
+def hubInfoLabels(query, txn=None):
+    labelKeys = db.Labels.keysWhichMatch(query['user'], query['hub'])
+
+    numLabels = 0
+    labels = {}
+    for key in labelKeys:
+        user, hub, track, chrom = key
+        labelsDf = db.Labels(*key).get(txn=txn)
+        numLabels += len(labelsDf.index)
+        if track not in labels:
+            labels[track] = {}
+
+        labels[track][chrom] = labelsDf.to_html()
+
+    return {'numLabels': numLabels, 'labels': labels}
 
 
 def stats():

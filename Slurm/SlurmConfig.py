@@ -40,7 +40,6 @@ if port == 80:
 else:
     remoteServer = "%s:%s/" % (config['remoteServer']['url'], config['remoteServer']['port'])
 
-configuration = config['general']['configuration'].lower()
 verify = config['remoteServer']['verify'].lower() == 'true'
 debug = config['general']['debug'].lower() == 'true'
 dataPath = config['slurm']['dataPath']

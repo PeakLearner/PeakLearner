@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 from simpleBDB import retry, txnAbortOnError
 
-
 log = logging.getLogger(__name__)
 from glmnet_python import cvglmnetPredict
 from core.util import PLConfig as pl, PLdb as db, bigWigUtil as bw
@@ -33,6 +32,7 @@ def getModels(data, txn=None):
 
     for problem in problems:
         problemTxn = db.getTxn(parent=txn)
+
         modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart']).get(txn=problemTxn)
 
@@ -75,9 +75,12 @@ def getModels(data, txn=None):
 
         penalty = noError['penalty'].iloc[0]
 
-        minErrorModel = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'],
-                                 penalty)
-        output = output.append(minErrorModel.getInBounds(data['ref'], data['start'], data['end']), ignore_index=True)
+        minErrorModelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'],
+                                   penalty)
+        minErrorModel = minErrorModelDb.getInBounds(data['ref'], data['start'], data['end'])
+        minErrorModel = minErrorModel[minErrorModel['annotation'] == 'peak']
+        minErrorModel.columns = jbrowseModelColumns
+        output = output.append(minErrorModel, ignore_index=True)
 
     outlen = len(output.index)
 
@@ -370,7 +373,6 @@ def putModel(data, txn=None):
     db.Prediction('changes').increment(txn=txn)
     errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
     db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
-
     return modelInfo
 
 
@@ -501,7 +503,8 @@ def generateAltModel(data, problem):
         if len(noUnknowns.index) < 1:
             labelsToUse = pd.DataFrame(columns=['start', 'end', 'change'])
         else:
-            labelsToUse = noUnknowns.apply(convertLabelsToIndexBased, axis=1, args=(start, denom, scaledBins, modelType))
+            labelsToUse = noUnknowns.apply(convertLabelsToIndexBased, axis=1,
+                                           args=(start, denom, scaledBins, modelType))
 
     if modelType == 'lopart':
         out = generateLopartModel(data, sumData, labelsToUse)
@@ -555,7 +558,7 @@ def sumDataToFlopart(data, lenBin):
     output = []
 
     for val in data:
-        output.append(val*lenBin)
+        output.append(val * lenBin)
 
     return output
 
@@ -583,13 +586,12 @@ def lopartToPeaks(lopartOut):
     if peaks.empty:
         return peaks
 
-    peaks['height'] = (peaks['height']**2) - 3/8
+    peaks['height'] = (peaks['height'] ** 2) - 3 / 8
 
     return peaks.drop(columns=['peak'])
 
 
 def flopartToPeaksUsingMaxJump(flopartOut, lenBin):
-
     flopartOut = flopartOut.rename(columns={'mean': 'height'})
 
     flopartOut['height'] = (flopartOut['height'] / lenBin)
@@ -605,7 +607,6 @@ def flopartToPeaksUsingMaxJump(flopartOut, lenBin):
         # Prev data point is the end of a peak
         else:
             if len(currentPeak.index) != 0:
-
                 output = output.append(maxJumpOnPeaks(currentPeak, peakPrev), ignore_index=True)
 
                 currentPeak = pd.DataFrame()
@@ -649,8 +650,8 @@ def maxJumpOnPeaks(currentPeak, peakPrev):
 
 
 def indexToStartEnd(row, start, scale):
-    row['start'] = round(row['start']/scale) + start
-    row['end'] = round(row['end']/scale) + start
+    row['start'] = round(row['start'] / scale) + start
+    row['end'] = round(row['end'] / scale) + start
     return row
 
 

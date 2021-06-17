@@ -1,5 +1,7 @@
 import os
 import time
+
+import pandas as pd
 import pytest
 import tarfile
 import shutil
@@ -11,6 +13,7 @@ from pyramid.paster import get_app
 dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
 dbDir = os.path.join(dataDir, 'db')
 dbTar = os.path.join('data', 'db.tar.gz')
+testDataPath = os.path.join('tests', 'data')
 
 if os.path.exists(dbDir):
     shutil.rmtree(dbDir)
@@ -51,12 +54,15 @@ class PeakLearnerTests(unittest.TestCase):
     hub = 'H3K4me3_TDH_ENCODE'
     testHub = 'TestHub'
     track = 'aorta_ENCFF115HTK'
+    sampleTrack = 'aorta_ENCFF502AXL'
     hubURL = '/%s/%s/' % (user, hub)
     testHubURL = '/%s/%s/' % (user, testHub)
     trackURL = '%s%s/' % (hubURL, track)
+    sampleTrackURL = '%s%s/' % (hubURL, sampleTrack)
     trackInfoURL = '%sinfo/' % trackURL
     labelURL = '%slabels/' % trackURL
     modelsUrl = '%smodels/' % trackURL
+    sampleModelsUrl = '%smodels/' % sampleTrackURL
     jobsURL = '/Jobs/'
     rangeArgs = {'ref': 'chr1', 'start': 0, 'end': 120000000, 'label': 'peakStart'}
     startLabel = rangeArgs.copy()
@@ -82,7 +88,7 @@ class PeakLearnerTests(unittest.TestCase):
         res = self.testapp.get('/')
         assert res.status_code == 200
 
-    def test_addHub(self):
+    def test_AddHubAndEnvSetup(self):
         query = {'url': 'https://rcdata.nau.edu/genomic-ml/PeakLearner/testHub/hub.txt'}
 
         request = self.testapp.put('/uploadHubUrl/', query)
@@ -121,8 +127,6 @@ class PeakLearnerTests(unittest.TestCase):
         assert request.status_code == 200
 
         requestOutput = request.json
-
-        print(requestOutput)
 
         assert requestOutput['genome'] == 'hg19'
 
@@ -213,3 +217,159 @@ class PeakLearnerTests(unittest.TestCase):
 
         # No Content, No Body
         assert request.status_code == 204
+
+    def test_doSampleJob(self):
+        modelsPath = os.path.join(testDataPath, 'Models')
+        dirs = os.listdir(modelsPath)
+
+        for jobDir in dirs:
+            a, jobId, taskId = jobDir.split('-')
+
+            jobDir = os.path.join(modelsPath, jobDir)
+
+            jobUrl = self.jobsURL + jobId + '/'
+
+            output = self.testapp.get(jobUrl, headers={'Accept': 'application/json'})
+
+            job = output.json
+
+            task = job['tasks'][taskId]
+
+            trackUrl = '/%s/%s/%s/' % (job['user'], job['hub'], job['track'])
+
+            if task['type'] == 'model':
+                fileBase = os.path.join(jobDir, 'coverage.bedGraph_penalty=%s_' % task['penalty'])
+                segmentsFile = fileBase + 'segments.bed'
+                lossFile = fileBase + 'loss.tsv'
+
+                # Upload Model
+
+                modelData = pd.read_csv(segmentsFile, sep='\t', header=None)
+                modelData.columns = ['chrom', 'start', 'end', 'annotation', 'mean']
+                sortedModel = modelData.sort_values('start', ignore_index=True)
+
+                modelInfo = {'user': job['user'],
+                             'hub': job['hub'],
+                             'track': job['track'],
+                             'problem': job['problem'],
+                             'jobId': job['id']}
+
+                modelUrl = '%smodels/' % trackUrl
+
+                query = {'modelInfo': modelInfo, 'penalty': task['penalty'], 'modelData': sortedModel.to_json()}
+                output = self.testapp.put_json(modelUrl, query)
+                assert output.status_code == 200
+
+                # Upload Loss
+
+                strPenalty = str(task['penalty'])
+                lossUrl = '%sloss/' % trackUrl
+
+                lossData = pd.read_csv(lossFile, sep='\t', header=None)
+                lossData.columns = ['penalty',
+                                    'segments',
+                                    'peaks',
+                                    'totalBases',
+                                    'bedGraphLines',
+                                    'meanPenalizedCost',
+                                    'totalUnpenalizedCost',
+                                    'numConstraints',
+                                    'meanIntervals',
+                                    'maxIntervals']
+
+                lossInfo = {'user': job['user'],
+                            'hub': job['hub'],
+                            'track': job['track'],
+                            'problem': job['problem'],
+                            'jobId': job['id']}
+
+                query = {'lossInfo': lossInfo, 'penalty': strPenalty, 'lossData': lossData.to_json()}
+
+                output = self.testapp.put_json(lossUrl, query)
+                assert output.status_code == 200
+            if task['type'] == 'feature':
+                featurePath = os.path.join(jobDir, 'features.tsv')
+                featureDf = pd.read_csv(featurePath, sep='\t')
+
+                featureQuery = {'data': featureDf.to_dict('records'),
+                                'problem': job['problem']}
+
+                featureUrl = '%sfeatures/' % trackUrl
+
+                output = self.testapp.put_json(featureUrl, featureQuery)
+
+                assert output.status_code == 200
+
+    def test_getPeakLearnerModels(self):
+        self.test_doSampleJob()
+
+        params = {'ref': 'chr3', 'start': 0,
+                  'end': 396044860}
+
+        print(self.sampleModelsUrl)
+
+        output = self.testapp.get(self.sampleModelsUrl, params=params, headers={'Accept': '*/*'})
+
+        assert output.status_code == 200
+
+    def test_labelsWithAcceptAnyHeader(self):
+        params = {'ref': 'chr3', 'start': 0,
+                  'end': 396044860}
+
+        output = self.testapp.get(self.labelURL, params=params, headers={'Accept': '*/*'})
+
+        assert output.status_code == 200
+
+    def test_unlabeledRegion(self):
+        unlabeledUrl = '%sunlabeled/' % self.hubURL
+
+        output = self.testapp.get(unlabeledUrl)
+
+        should = ['ref', 'start', 'end']
+
+        for key in output.json:
+            assert key in should
+
+        hubInfoURL = '%sinfo/' % self.hubURL
+        request = self.testapp.get(hubInfoURL)
+
+        hubInfo = request.json
+
+        for track in hubInfo['tracks']:
+            trackLabelsUrl = '%s%s/labels/' % (self.hubURL, track)
+
+            out = self.testapp.get(trackLabelsUrl, params=output.json, headers={'Accept': 'application/json'})
+
+            # No Content
+            assert out.status_code == 204
+
+    def test_labeledRegion(self):
+        unlabeledUrl = '%slabeled/' % self.hubURL
+
+        output = self.testapp.get(unlabeledUrl)
+
+        should = ['ref', 'start', 'end']
+
+        for key in output.json:
+            assert key in should
+
+        hubInfoURL = '%sinfo/' % self.hubURL
+        request = self.testapp.get(hubInfoURL)
+
+        hubInfo = request.json
+
+        labelsExist = False
+
+        for track in hubInfo['tracks']:
+            trackLabelsUrl = '%s%s/labels/' % (self.hubURL, track)
+
+            out = self.testapp.get(trackLabelsUrl, params=output.json, headers={'Accept': 'application/json'})
+
+            if out.status_code == 204:
+                continue
+
+            if out.status_code == 200:
+                if len(out.json) > 0:
+                    labelsExist = True
+
+        assert labelsExist

@@ -30,6 +30,8 @@ class PeakLearnerTests(unittest.TestCase):
     dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
     dbDir = os.path.join(dataDir, 'db')
     dbTar = os.path.join('data', 'db.tar.gz')
+    user = 'Public'
+    hub = 'H3K4me3_TDH_ENCODE'
 
     def setUp(self):
         if os.path.exists(self.dbDir):
@@ -183,6 +185,73 @@ class PeakLearnerTests(unittest.TestCase):
                 assert inStart
 
                 assert inEnd
+
+    def test_JobsPage_Working(self):
+        self.driver.get(url)
+
+        self.driver.find_element(By.ID, 'statsNav').click()
+
+        self.driver.find_element(By.ID, 'jobStats').click()
+
+        self.checkIfError()
+
+    def test_moreInfoPage_Working(self):
+        self.driver.get(url)
+
+        self.driver.find_element(By.ID, 'myHubs').click()
+
+        hubId = '%s-%s-hubInfo-showMore' % (self.user, self.hub)
+
+        self.driver.find_element(By.ID, hubId).click()
+
+        self.checkIfError()
+
+    def test_goToLabeledRegion(self):
+        self.goToRegion('labeled')
+
+    def test_goToUnlabeledRegion(self):
+        self.goToRegion('unlabeled')
+
+    def goToRegion(self, region):
+        self.driver.get(url)
+
+        self.driver.find_element(By.ID, 'myHubs').click()
+
+        self.driver.find_element(By.ID, 'H3K4me3_TDH_ENCODE_publicHubLink').click()
+
+        self.moveToDefinedLocation()
+
+        self.selectTracks(numTracks=6)
+
+        title = self.driver.title
+
+        wait = WebDriverWait(self.driver, waitTime)
+
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "peaklearner")))
+
+        self.driver.find_element(By.CLASS_NAME, 'peaklearner').click()
+
+        if region == 'labeled':
+            elementId = 'labeledRegion'
+        else:
+            elementId = 'unlabeledRegion'
+
+        self.driver.find_element(By.ID, elementId).click()
+
+        wait = WebDriverWait(self.driver, waitTime)
+
+        wait.until(lambda x: title != self.driver.title)
+
+    def checkIfError(self):
+        # Assert that the page is working to begin with
+        try:
+            element = self.driver.find_element(By.ID, 'main-frame-error')
+
+            # If here, then prev line didn't error
+            assert 1 == 0
+        except selenium.common.exceptions.NoSuchElementException:
+            if '404' in self.driver.title:
+                raise Exception('404 Exception')
 
     def addPeak(self, midPoint, width=40):
         labelWidth = width / 2
