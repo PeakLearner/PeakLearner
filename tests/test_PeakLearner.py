@@ -300,23 +300,14 @@ class PeakLearnerTests(unittest.TestCase):
     def test_getPeakLearnerModels(self):
         self.test_doSampleJob()
 
-        time.sleep(5)
-
         params = {'ref': 'chr3', 'start': 0,
                'end': 396044860}
-
-        print(self.modelsUrl)
 
         output = self.testapp.get(self.modelsUrl, params=params, headers={'Accept': '*/*'})
 
         assert output.status_code == 200
 
-        print(output)
-
-
-    def test_labelsAfterJobsAdded(self):
-        self.test_doSampleJob()
-
+    def test_labelsWithAcceptAnyHeader(self):
         params = {'ref': 'chr3', 'start': 0,
                'end': 396044860}
 

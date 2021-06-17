@@ -18,7 +18,7 @@ def genomeDataOut(func):
             output['user'] = request.authenticated_userid
             return output
 
-        if outputType == 'json' or outputType == 'application/json':
+        if outputType == 'json' or outputType == 'application/json' or outputType == '*/*':
             outputDict = output.to_dict('records')
             return Response(json.dumps(outputDict), charset='utf8', content_type='application/json')
 
