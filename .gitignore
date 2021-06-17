@@ -17,6 +17,7 @@
 /docs/node_modules
 /venv
 chromedriver
-.coverage
-coverage.*
+/.coverage
+/coverage.*
 log.txt
+!tests/*

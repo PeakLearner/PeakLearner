@@ -81,6 +81,8 @@ def getModels(data, txn=None):
 
     outlen = len(output.index)
 
+    print(output)
+
     if outlen == 1:
         return output
     elif outlen > 1:
@@ -370,7 +372,6 @@ def putModel(data, txn=None):
     db.Prediction('changes').increment(txn=txn)
     errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
     db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
-
     return modelInfo
 
 

@@ -24,5 +24,7 @@ def genomeDataOut(func):
 
         elif outputType == 'csv' or outputType == 'text/csv':
             return Response(output.to_csv(sep='\t', index=False), charset='utf8', content_type='text/csv')
+        else:
+            return Response(status=404)
 
     return wrap

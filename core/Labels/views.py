@@ -43,6 +43,8 @@ def generateTrackQuery(func):
 def getLabels(request, query):
     output = Labels.getLabels(data=query)
 
+    print(output)
+
     if isinstance(output, list):
         return Response(status=204)
 

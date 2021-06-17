@@ -13,7 +13,10 @@ def getModel(request):
     query['start'] = int(request.params['start'])
     query['end'] = int(request.params['end'])
     query['currentUser'] = request.authenticated_userid
-    query['modelType'] = request.params['modelType']
+    try:
+        query['modelType'] = request.params['modelType']
+    except KeyError:
+        query['modelType'] = 'NONE'
 
     # Only really needed when generating alternative models
     try:

@@ -208,13 +208,11 @@ def getHubLabels(data, txn=None):
             labels = pd.DataFrame()
 
             for refKey in availableRefs:
-                print(refKey)
                 labels = labels.append(db.Labels(*refKey).get(txn=txn))
 
         labels['track'] = track
 
         output = output.append(labels)
-
     return output
 
 
