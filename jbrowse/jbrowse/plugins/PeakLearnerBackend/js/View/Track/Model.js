@@ -53,6 +53,8 @@ function (
                 let modelTypes = ['NONE', 'LOPART', 'FLOPART'];
                 let typeToView;
 
+                let heightVal = canvas.style.height + (block.domNode.offsetHeight - canvas.style.height)
+
                 modelTypes.forEach(modelType => {
                     let menuCheck = dijit.byId(modelType)
 
@@ -90,7 +92,8 @@ function (
                         );
 
                         const score = Math.round(feature.get('score'));
-                        const height = (parseInt(canvas.style.height, 10) - score) + "px";
+                        const height = (parseInt(heightVal, 10) - score) + "px";
+                        let colors = {NONE: '#ff0000', LOPART: '#ff00a0', FLOPART: '#ff6f00'};
                         const indicator = dojo.create(
                             'div',
                             {
@@ -101,7 +104,7 @@ function (
                                     zIndex: 10000,
                                     top: height,
                                     position: 'absolute',
-                                    backgroundColor: 'red'
+                                    backgroundColor: colors[feature.get('type').toUpperCase()] || '#0040ff'
                                 },
                                 class: 'Model',
                             },
