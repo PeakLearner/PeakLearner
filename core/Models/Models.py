@@ -459,13 +459,11 @@ def getFLOPARTPenalty(data):
 
 def generateAltModel(data, problem):
     if 'modelType' not in data:
-        print('noModelType')
         return []
 
     modelType = data['modelType'].lower()
 
     if modelType not in modelTypes:
-        print('notInType')
         return []
 
     user = data['user']
