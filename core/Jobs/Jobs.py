@@ -247,8 +247,12 @@ class Job(metaclass=JobType):
                   'iteration': self.iteration,
                   'tasks': self.tasks,
                   'trackUrl': self.trackUrl,
-                  'priority': int(self.priority),
-                  'lastModified': self.lastModified}
+                  'priority': int(self.priority)}
+
+        try:
+            output['lastModified'] = self.lastModified
+        except AttributeError:
+            pass
 
         if self.status.lower() == 'done':
             try:
