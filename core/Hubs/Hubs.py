@@ -21,7 +21,7 @@ def getHubJsons(query, handler, txn=None):
 
         hubInfo = db.HubInfo(query['user'], query['hub']).get(txn=txn)
 
-        return createTrackListWithHubInfo(hubInfo)
+        return createTrackListWithHubInfo(hubInfo, query['user'], query['hub'])
     else:
         print('no handler for %s' % query['handler'])
 
@@ -220,12 +220,12 @@ def makeHubPublic(data, txn=None):
     return True
 
 
-def createTrackListWithHubInfo(info):
+def createTrackListWithHubInfo(info, owner, hub):
     if info is None:
         return
     refSeqPath = os.path.join('genomes', info['genome'], 'trackList.json')
 
-    tracklist = {'include': [refSeqPath], 'tracks': []}
+    tracklist = {'include': [refSeqPath], 'tracks': [], 'owner': owner, 'hub': hub}
 
     tracks = info['tracks']
 

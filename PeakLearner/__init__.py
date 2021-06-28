@@ -114,6 +114,7 @@ def main(global_config, **settings):
     config.add_route('jobsWithId', '/Jobs/{jobId}/')
     config.add_route('resetJob', '/Jobs/{jobId}/reset/')
     config.add_route('restartJob', '/Jobs/{jobId}/restart/')
+    config.add_route('trackJobs', '/{user}/{hub}/{track}/jobs/')
     config.scan('core.Jobs.views')
 
     config.add_route('hubInfo', '/{user}/{hub}/info/')
@@ -124,6 +125,7 @@ def main(global_config, **settings):
 
     config.add_route('hubModels', '/{user}/{hub}/models/')
     config.add_route('trackModels', '/{user}/{hub}/{track}/models/')
+    config.add_route('trackModelSums', '/{user}/{hub}/{track}/modelSums/')
     config.scan('core.Models.views')
 
     config.add_route('features', '/{user}/{hub}/{track}/features/')

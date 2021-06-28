@@ -650,7 +650,7 @@ paths:
               schema:
                 type: boolean
         '404':
-          description: An error occured while uploading
+          description: An error occurred while uploading
           content: { }
   '/{user}/{hub}/{track}/loss/':
     put:
@@ -667,15 +667,67 @@ paths:
 
       responses:
         '200':
-          description: Uploading the features was a success
+          description: Uploading the loss was a success
           content:
             application/json:
               schema:
                 type: boolean
         '404':
-          description: An error occured while uploading
+          description: An error occurred while uploading
           content: { }
-      
+  '/{user}/{hub}/{track}/jobs/':
+    get:
+      summary: Get jobs for current viewed track region
+      description: >-
+        Provides information on current jobs within a region
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/track'
+        - $ref: '#/components/parameters/ref'
+        - $ref: '#/components/parameters/start'
+        - $ref: '#/components/parameters/end'
+
+      responses:
+        '200':
+          description: Jobs retrieved
+          content:
+            application/json:
+              schema:
+                type: string
+        '204':
+          description: No Jobs
+          content: { }
+        '404':
+          description: An error occurred
+          content: { }
+  '/{user}/{hub}/{track}/modelSums/':
+    get:
+      summary: Get model summaries for current viewed track region
+      description: >-
+        Provides information on current models within a region
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/track'
+        - $ref: '#/components/parameters/ref'
+        - $ref: '#/components/parameters/start'
+        - $ref: '#/components/parameters/end'
+
+      responses:
+        '200':
+          description: Model sums retrieved
+          content:
+            application/json:
+              schema:
+                type: string
+        '204':
+          description: No models
+          content: { }
+        '404':
+          description: An error occurred
+          content: { }
+
 
 components:
   schemas:

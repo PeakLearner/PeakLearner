@@ -35,8 +35,7 @@ define([
                     this.browser.view.behaviorManager.swapBehaviors('highlightingMouse', 'normalMouse');
                 }
             };
-            if(!this.config.addBackend)
-            {
+            if (!this.config.addBackend) {
                 dojo.subscribe('/jbrowse/v1/n/globalHighlightChanged', newLabel)
             }
         },
@@ -77,8 +76,7 @@ define([
                             }
                         },
 
-                    addMenu: function(track, feature, highlight)
-                    {
+                    addMenu: function (track, feature, highlight) {
                         const states = ['peakStart', 'peakEnd', 'noPeak'];
 
                         let redrawAllCallback = () => {
