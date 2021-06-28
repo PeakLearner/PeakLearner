@@ -77,10 +77,14 @@ def getHubModels(request):
 # ---- MODEL SUMS ---- #
 
 
-@view_config(route_name='trackModelSums', request_method='GET')
+@view_config(route_name='trackModelSums', request_method='GET', renderer='json')
 def getTrackModelSums(request):
     data = {**request.matchdict, **request.params}
     data['start'] = int(data['start'])
     data['end'] = int(data['end'])
-    print(data)
-    return Response(status=204)
+
+    output = Models.getTrackModelSummaries(data)
+
+    if output is None:
+        return Response(status=204)
+    return output

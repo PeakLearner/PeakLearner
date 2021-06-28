@@ -57,7 +57,7 @@ function (
                 // Call WiggleHighlighter post draw
                 this.inherited(arguments)
 
-                let modelTypes = ['NONE', 'LOPART', 'FLOPART'];
+                let modelTypes = ['PEAK', 'LOPART', 'FLOPART'];
                 let typeToView;
 
                 let heightVal = canvas.style.height + (block.domNode.offsetHeight - canvas.style.height)
@@ -87,7 +87,6 @@ function (
                         visibleEnd: visEnd,
                         modelType: typeToView},
                     feature => {
-                        console.log(feature)
                         let s, e;
 
                         s = block.bpToX(
@@ -102,7 +101,7 @@ function (
 
                         const score = Math.round(feature.get('score'));
                         const height = (parseInt(heightVal, 10) - score) + "px";
-                        let colors = {NONE: '#ff0000', LOPART: '#ff00a0', FLOPART: '#ff6f00'};
+                        let colors = {PEAK: '#ff0000', LOPART: '#ff00a0', FLOPART: '#ff6f00'};
                         const indicator = dojo.create(
                             'div',
                             {
@@ -177,7 +176,6 @@ function (
                     onClick: event => {
                         let query = {ref: ref, start: visStart, end: visEnd}
                         let url = this.modelStore.track + '/jobs/'
-                        console.log(url)
                         this.modelStore.sendGet(query, jobCallback, url)
                     }
                 }))
@@ -188,7 +186,24 @@ function (
                     this._renderCoreDetails(container, ref, visStart, visEnd)
 
                     let modelSumsSection = dojo.create('div', {className: 'Model Summaries section'}, container)
-                    modelSumsSection.innerHTML += '<h2 class="sectiontitle">Model Summaries</h2>'
+                    if (modelSums){
+                        modelSumsSection.innerHTML += '<h2 class="sectiontitle">Model Summaries</h2>'
+
+                        modelSums.forEach( modelSum => {
+
+                            let problem = modelSum.problem;
+                            let modelSumDiv = dojo.create('div', {className: 'sum-' + problem.chrom + problem.chromStart}, modelSumsSection)
+                            modelSumDiv.innerHTML += '<h3>Ref: ' + problem.chrom +'</h3>';
+                            modelSumDiv.innerHTML += '<h3>Start: ' + problem.chromStart +'</h3>';
+                            modelSumDiv.innerHTML += '<h3>End: ' + problem.chromEnd +'</h3>';
+
+                            modelSumDiv.innerHTML += modelSum.htmlData
+                        })
+                    }
+                    else {
+                        modelSumsSection.innerHTML += '<h2>No Available Models</h2>'
+                    }
+
 
 
                     new Dialog({
@@ -202,7 +217,6 @@ function (
                     onClick: (event, test) => {
                         let query = {ref: ref, start: visStart, end: visEnd}
                         let url = this.modelStore.track + '/modelSums/'
-                        console.log(url)
                         this.modelStore.sendGet(query, modelCallback, url)
                     }
                 }))
@@ -221,9 +235,6 @@ function (
                 coreDetails.innerHTML += '<h3>Current Ref: ' + ref + '</h3>'
                 coreDetails.innerHTML += '<h3>Visible Start: ' + visStart + '</h3>'
                 coreDetails.innerHTML += '<h3>Visible End: ' + visEnd + '</h3>'
-
-
-
             },
         });
 });

@@ -58,6 +58,7 @@ class PeakLearnerTests(unittest.TestCase):
     hubURL = '/%s/%s/' % (user, hub)
     testHubURL = '/%s/%s/' % (user, testHub)
     trackURL = '%s%s/' % (hubURL, track)
+    axlTrackURL = '%s%s/' % (hubURL, 'aorta_ENCFF502AXL')
     sampleTrackURL = '%s%s/' % (hubURL, sampleTrack)
     trackInfoURL = '%sinfo/' % trackURL
     labelURL = '%slabels/' % trackURL
@@ -237,6 +238,8 @@ class PeakLearnerTests(unittest.TestCase):
 
             trackUrl = '/%s/%s/%s/' % (job['user'], job['hub'], job['track'])
 
+            print(trackUrl)
+
             if task['type'] == 'model':
                 fileBase = os.path.join(jobDir, 'coverage.bedGraph_penalty=%s_' % task['penalty'])
                 segmentsFile = fileBase + 'segments.bed'
@@ -282,6 +285,8 @@ class PeakLearnerTests(unittest.TestCase):
                             'track': job['track'],
                             'problem': job['problem'],
                             'jobId': job['id']}
+
+                print(job['problem'])
 
                 query = {'lossInfo': lossInfo, 'penalty': strPenalty, 'lossData': lossData.to_json()}
 
@@ -373,3 +378,31 @@ class PeakLearnerTests(unittest.TestCase):
                     labelsExist = True
 
         assert labelsExist
+
+    def test_getTrackJob(self):
+        jobsUrl = '%sjobs/' % self.trackURL
+
+        output = self.testapp.get(jobsUrl, params=self.rangeArgs)
+
+        assert len(output.json) != 0
+
+    def test_getTrackModelSums(self):
+
+        jobsUrl = '%smodelSums/' % self.axlTrackURL
+
+        modelRegion = {'ref': 'chr3', 'start': 93504854, 'end': 194041961}
+
+        output = self.testapp.get(jobsUrl, params=modelRegion)
+
+        print(output)
+
+        # There should be no models at this point
+        assert len(output.json) == 0
+
+        self.test_doSampleJob()
+
+        output = self.testapp.get(jobsUrl, params=modelRegion)
+
+        # There should be no models at this point
+
+        assert len(output.json) != 0
