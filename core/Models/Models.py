@@ -42,7 +42,6 @@ def getModels(data, txn=None):
             altout = generateAltModel(data, problem)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
-                print('getModels Output\n', output)
             continue
 
         nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
@@ -114,8 +113,6 @@ def getHubModels(data, txn=None):
 
         model['track'] = track
         model['penalty'] = penalty
-
-        print(model)
 
         output = output.append(model, ignore_index=True)
 

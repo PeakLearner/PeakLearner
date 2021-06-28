@@ -74,7 +74,8 @@ define([
                         myBrowser.addGlobalMenuItem('peaklearner', labeledButton);
 
 
-                        let modelTypes = ['NONE', 'LOPART', 'FLOPART']
+                        let modelTypes = ['NONE', 'LOPART', 'FLOPART'];
+                        let colors = {NONE: '#ff0000', LOPART: '#ff00a0', FLOPART: '#ff6f00'};
 
                         let modelTypeMenu = new Menu({id: 'modelTypeMenu'});
                         modelTypes.forEach(type => {
@@ -83,6 +84,9 @@ define([
                                 checked: (type === 'NONE'),
                                 class: 'modelMenuItem',
                                 id: type,
+                                style: {
+                                  background: colors[type]
+                                },
                                 onClick: (e) => {
                                     let selectedState = e.target.innerHTML;
 
