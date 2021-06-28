@@ -148,16 +148,20 @@ define([
 
                 return tracksToCheck;
             },
-            sendGet: function (query, callback) {
+            sendGet: function (query, callback, url) {
                 query['name'] = this.name;
-                query['type'] = 'json';
+
+                if (!url)
+                {
+                    url = this.getHandlerUrl()
+                }
 
                 let xhrArgs = {
                     handleAs: 'json',
                     method: 'get',
                     query: query
                 };
-                xhr(this.getHandlerUrl(), xhrArgs).then(
+                xhr(url, xhrArgs).then(
                     function (data) {
                         callback(data)
                     },
@@ -168,7 +172,6 @@ define([
             },
             sendPut: function (query, queryUrl, callback) {
                 query['name'] = this.name;
-                query['type'] = 'json';
 
                 let xhrArgs = {
                     handleAs: 'json',
@@ -186,7 +189,6 @@ define([
             },
             sendPost: function (query, queryUrl, callback) {
                 query['name'] = this.name;
-                query['type'] = 'json';
 
                 let xhrArgs = {
                     handleAs: 'json',
@@ -204,7 +206,6 @@ define([
             },
             sendDelete: function (query, queryUrl, callback) {
                 query['name'] = this.name;
-                query['type'] = 'json';
 
                 let xhrArgs = {
                     handleAs: 'json',

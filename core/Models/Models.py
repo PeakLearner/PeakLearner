@@ -745,3 +745,28 @@ def numCorrectModels():
         correct = correct + len(zeroErrors.index)
 
     return correct
+
+
+@retry
+@txnAbortOnError
+def getTrackModelSummaries(data, txn=None):
+    problems = Tracks.getProblems(data, txn=txn)
+
+    output = []
+
+    for problem in problems:
+        problemTxn = db.getTxn(parent=txn)
+
+        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
+                                           problem['chromStart']).get(txn=problemTxn)
+
+        problemTxn.commit()
+
+        if len(modelSummaries.index) < 1:
+            continue
+
+        output.append({'problem': problem, 'htmlData': modelSummaries.to_html()})
+
+    return output
+
+

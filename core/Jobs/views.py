@@ -85,3 +85,15 @@ def restartJob(request):
         return Response(status=404)
 
     return output.__dict__()
+
+
+@view_config(route_name='trackJobs', request_method='GET', renderer='json')
+def getTrackJobs(request):
+    data = {**request.matchdict, **request.params}
+    data['start'] = int(data['start'])
+    data['end'] = int(data['end'])
+    output = Jobs.getTrackJobs(data)
+
+    if len(output) < 1:
+        return Response(status=204)
+    return output

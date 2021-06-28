@@ -4,6 +4,8 @@ import time
 import berkeleydb
 import logging
 import pandas as pd
+
+from core.Handlers import Tracks
 from core.Models import Models
 from simpleBDB import retry, txnAbortOnError
 from core.util import PLdb as db, PLConfig as cfg
@@ -645,6 +647,53 @@ def getAllJobs(data, txn=None):
 @txnAbortOnError
 def getJobWithId(data, txn=None):
     return db.Job(data['jobId']).get(txn=txn).__dict__()
+
+
+@retry
+@txnAbortOnError
+def getTrackJobs(data, txn=None):
+    jobs = []
+
+    problems = Tracks.getProblems(data, txn=txn)
+
+    cursor = db.Job.getCursor(txn, bulk=True)
+
+    current = cursor.next()
+
+    while current is not None:
+
+        key, job = current
+
+        if data['user'] != job.user:
+            current = cursor.next()
+            continue
+
+        if data['hub'] != job.hub:
+            current = cursor.next()
+            continue
+
+        if data['track'] != job.track:
+            current = cursor.next()
+            continue
+
+        jobProblem = job.problem
+
+        if jobProblem['chrom'] != data['ref']:
+            current = cursor.next()
+            continue
+
+        toAppend = False
+
+        for problem in problems:
+            if jobProblem['chromStart'] == problem['chromStart']:
+                toAppend = True
+
+        if toAppend:
+            jobs.append(job.__dict__())
+
+        current = cursor.next()
+
+    return jobs
 
 
 def stats():
