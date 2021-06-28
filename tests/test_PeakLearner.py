@@ -386,7 +386,7 @@ class PeakLearnerTests(unittest.TestCase):
 
         assert len(output.json) != 0
 
-    def test_getTrackModelSums(self):
+    def test_GetTrackModelSums(self):
 
         jobsUrl = '%smodelSums/' % self.axlTrackURL
 

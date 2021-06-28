@@ -221,9 +221,9 @@ class PeakLearnerTests(unittest.TestCase):
 
         self.moveToDefinedLocation()
 
-        self.selectTracks(numTracks=6)
-
         title = self.driver.title
+
+        self.selectTracks(numTracks=6)
 
         wait = WebDriverWait(self.driver, waitTime)
 
