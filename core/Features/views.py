@@ -20,5 +20,9 @@ def getFeatures(request):
     # Unpacks the data into 1 dict
     data = {**request.matchdict, **request.params}
 
-    return Features.getFeatures(data)
+    out = Features.getFeatures(data)
+
+    if out is None:
+        return Response(status=204)
+    return out
 

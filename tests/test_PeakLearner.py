@@ -332,6 +332,14 @@ class PeakLearnerTests(unittest.TestCase):
 
         assert len(out.json.keys()) > 1
 
+        otherParams = params.copy()
+
+        otherParams['start'] += 1
+
+        out = self.testapp.get(featureUrl, params=otherParams)
+
+        assert out.status_code == 204
+
     def test_get_loss(self):
         self.test_doSampleJob()
         params = {'ref': 'chr3', 'start': 93504854, 'penalty': '10000'}
@@ -347,6 +355,16 @@ class PeakLearnerTests(unittest.TestCase):
         assert len(loss.keys()) > 1
 
         assert int(params['penalty']) == loss['penalty']
+
+    def test_get_modelSum(self):
+        self.test_doSampleJob()
+        params = {'ref': 'chr3', 'start': 93504854}
+
+        modelSumsUrl = '%smodelSum/' % self.axlTrackURL
+
+        out = self.testapp.get(modelSumsUrl, params=params)
+
+        assert len(out.json) != 0
 
     def test_unlabeledRegion(self):
         unlabeledUrl = '%sunlabeled/' % self.hubURL
@@ -467,7 +485,6 @@ class PeakLearnerTests(unittest.TestCase):
             break
 
 
-
     def test_jobSpawner(self):
         out = self.getJobs()
 
@@ -488,4 +505,13 @@ class PeakLearnerTests(unittest.TestCase):
         self.doJobsAsTheyCome()
 
         assert 1 == 0
+
+
+    def test_makeTestDataFiles(self):
+        out = self.testapp.get(self.queueUrl)
+
+        while out.status_code != 404:
+            currentJob = out.json
+            print(currentJob)
+            break
 
