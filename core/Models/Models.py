@@ -770,3 +770,26 @@ def getTrackModelSummaries(data, txn=None):
     return output
 
 
+@retry
+@txnAbortOnError
+def getTrackModelSummary(data, txn=None):
+
+    hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
+
+    problems = db.Problems(hubInfo['genome']).get(txn=txn)
+
+    sameChrom = problems[problems['chrom'] == data['ref']]
+
+    sameStart = sameChrom[sameChrom['chromStart'] == data['start']]
+
+    if len(sameStart) != 1:
+        return
+
+    problem = sameStart.iloc[0]
+
+    modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
+                                       problem['chromStart']).get(txn=txn)
+
+    return modelSummaries
+
+

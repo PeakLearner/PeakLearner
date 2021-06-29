@@ -88,3 +88,17 @@ def getTrackModelSums(request):
     if output is None:
         return Response(status=204)
     return output
+
+
+@view_config(route_name='trackModelSum', request_method='GET')
+@dfDataOut
+def getTrackModelSum(request):
+    data = {**request.matchdict, **request.params}
+    data['start'] = int(data['start'])
+
+    output = Models.getTrackModelSummary(data)
+
+    if output is None:
+        return Response(status=204)
+
+    return output
