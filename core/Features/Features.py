@@ -15,3 +15,14 @@ def putFeatures(data, txn=None):
     features.put(pd.Series(data['data'][0]), txn=txn)
 
     return True
+
+
+@retry
+@txnAbortOnError
+def getFeatures(data, txn=None):
+    features = db.Features(data['user'], data['hub'], data['track'], data['ref'], data['start']).get(txn=txn)
+
+    if isinstance(features, dict):
+        return
+
+    return features.to_dict()

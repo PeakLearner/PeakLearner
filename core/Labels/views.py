@@ -1,5 +1,5 @@
 import json
-from core import genomeDataOut
+from core import dfDataOut
 from core.Labels import Labels
 from pyramid.view import view_config
 from pyramid.response import Response
@@ -38,7 +38,7 @@ def generateTrackQuery(func):
 
 
 @view_config(route_name='trackLabels', request_method='GET')
-@genomeDataOut
+@dfDataOut
 @generateTrackQuery
 def getLabels(request, query):
     output = Labels.getLabels(data=query)
@@ -96,7 +96,7 @@ def generateHubQuery(func):
 
 
 @view_config(route_name='hubLabels', request_method='GET')
-@genomeDataOut
+@dfDataOut
 def getHubLabels(request):
     query = request.matchdict
     if 'ref' in request.params:
