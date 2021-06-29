@@ -32,3 +32,13 @@ def putLoss(data, txn=None):
     lossDb.put(lossData, txn=txn)
 
     return True
+
+
+@retry
+@txnAbortOnError
+def getLoss(data, txn=None):
+    lossDb = db.Loss(data['user'], data['hub'],
+                     data['track'], data['ref'],
+                     data['start'], data['penalty'])
+
+    return lossDb.get(txn=txn)

@@ -1,12 +1,12 @@
 import json
 from core.Models import Models
-from core import genomeDataOut
+from core import dfDataOut
 from pyramid.view import view_config
 from pyramid.response import Response
 
 
 @view_config(route_name='trackModels', request_method='GET')
-@genomeDataOut
+@dfDataOut
 def getModel(request):
     query = request.matchdict
     query['ref'] = request.params['ref']
@@ -52,7 +52,7 @@ def putModel(request):
 
 
 @view_config(route_name='hubModels', request_method='GET')
-@genomeDataOut
+@dfDataOut
 def getHubModels(request):
     query = request.matchdict
     try:

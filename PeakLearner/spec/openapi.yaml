@@ -632,6 +632,30 @@ paths:
           description: Track does not exist
           content: {}
   '/{user}/{hub}/{track}/features/':
+    get:
+      summary: Get features for current viewed track region
+      description: >-
+        Provides information on current features within a region
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/track'
+        - $ref: '#/components/parameters/ref'
+        - $ref: '#/components/parameters/start'
+
+      responses:
+        '200':
+          description: features retrieved
+          content:
+            application/json:
+              schema:
+                type: string
+        '204':
+          description: No features
+          content: { }
+        '404':
+          description: An error occurred
+          content: { }
     put:
       summary: Put features
       description: >-
@@ -653,6 +677,31 @@ paths:
           description: An error occurred while uploading
           content: { }
   '/{user}/{hub}/{track}/loss/':
+    get:
+      summary: Get loss for a model
+      description: >-
+        Provides information on loss given a model
+      parameters:
+        - $ref: '#/components/parameters/user'
+        - $ref: '#/components/parameters/hub'
+        - $ref: '#/components/parameters/track'
+        - $ref: '#/components/parameters/ref'
+        - $ref: '#/components/parameters/start'
+        - $ref: '#/components/parameters/penalty'
+
+      responses:
+        '200':
+          description: Loss retrieved
+          content:
+            application/json:
+              schema:
+                type: string
+        '204':
+          description: No loss
+          content: { }
+        '404':
+          description: An error occurred
+          content: { }
     put:
       summary: Put loss
       description: >-

@@ -238,8 +238,6 @@ class PeakLearnerTests(unittest.TestCase):
 
             trackUrl = '/%s/%s/%s/' % (job['user'], job['hub'], job['track'])
 
-            print(trackUrl)
-
             if task['type'] == 'model':
                 fileBase = os.path.join(jobDir, 'coverage.bedGraph_penalty=%s_' % task['penalty'])
                 segmentsFile = fileBase + 'segments.bed'
@@ -286,7 +284,7 @@ class PeakLearnerTests(unittest.TestCase):
                             'problem': job['problem'],
                             'jobId': job['id']}
 
-                print(job['problem'])
+                print(strPenalty)
 
                 query = {'lossInfo': lossInfo, 'penalty': strPenalty, 'lossData': lossData.to_json()}
 
@@ -324,6 +322,34 @@ class PeakLearnerTests(unittest.TestCase):
         output = self.testapp.get(self.labelURL, params=params, headers={'Accept': '*/*'})
 
         assert output.status_code == 200
+
+    def test_get_features(self):
+        self.test_doSampleJob()
+        params = {'ref': 'chr3', 'start': 93504854}
+
+        featureUrl = '%sfeatures/' % self.axlTrackURL
+
+        out = self.testapp.get(featureUrl, params=params)
+
+        assert out.status_code == 200
+
+        assert len(out.json.keys()) > 1
+
+    def test_get_loss(self):
+        self.test_doSampleJob()
+        params = {'ref': 'chr3', 'start': 93504854, 'penalty': '10000'}
+
+        lossUrl = '%sloss/' % self.axlTrackURL
+
+        out = self.testapp.get(lossUrl, params=params)
+
+        assert out.status_code == 200
+
+        loss = out.json
+
+        assert len(loss.keys()) > 1
+
+        assert int(params['penalty']) == loss['penalty']
 
     def test_unlabeledRegion(self):
         unlabeledUrl = '%sunlabeled/' % self.hubURL
