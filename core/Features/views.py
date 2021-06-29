@@ -13,3 +13,12 @@ def putFeatures(request):
         return Response(status=200)
 
     return Response(status=404)
+
+
+@view_config(route_name='features', request_method='GET', renderer='json')
+def getFeatures(request):
+    # Unpacks the data into 1 dict
+    data = {**request.matchdict, **request.params}
+
+    return Features.getFeatures(data)
+
