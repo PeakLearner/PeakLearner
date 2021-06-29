@@ -187,11 +187,11 @@ def go_home(request):
 
 
 @view_config(route_name='stats', renderer='stats.html')
-def stats(request):
+def statsView(request):
     """TODO: Document this view"""
 
-    numLabeledChroms, numLabels = Labels.stats()
-    currentJobStats = Jobs.stats()
+    numLabeledChroms, numLabels = Labels.labelsStats({})
+    currentJobStats = Jobs.jobsStats({})
 
     user = request.authenticated_userid
 
@@ -221,7 +221,7 @@ def modelStats(request):
 
 @view_config(route_name='labelStats', renderer='stats/labels.html')
 def labelStats(request):
-    numLabeledChroms, numLabels = Labels.stats()
+    numLabeledChroms, numLabels = Labels.labelsStats({})
 
     user = request.authenticated_userid
 

@@ -273,7 +273,10 @@ class Job(metaclass=JobType):
         task['jobStatus'] = self.status
         task['id'] = self.id
         task['trackUrl'] = self.trackUrl
-        task['lastModified'] = self.lastModified
+        try:
+            task['lastModified'] = self.lastModified
+        except AttributeError:
+            pass
 
         return task
 
@@ -611,6 +614,8 @@ def checkNewTask(data, txn=None):
     return out
 
 
+@retry
+@txnAbortOnError
 def getAllJobs(data, txn=None):
     jobs = []
 
@@ -621,19 +626,6 @@ def getAllJobs(data, txn=None):
     while current is not None:
 
         key, job = current
-
-        asDict = job.__dict__()
-
-        try:
-            dump = json.dumps(asDict)
-        except TypeError:
-            for key in asDict.keys():
-                try:
-                    keyDump = json.dumps(asDict[key])
-                except TypeError:
-                    print(key)
-                    print(asDict[key])
-
 
         jobs.append(job.__dict__())
 
@@ -696,13 +688,15 @@ def getTrackJobs(data, txn=None):
     return jobs
 
 
-def stats():
+@retry
+@txnAbortOnError
+def jobsStats(data, txn=None):
     numJobs = newJobs = queuedJobs = processingJobs = doneJobs = 0
 
     times = []
 
     jobs = []
-    for job in db.Job.all():
+    for job in db.Job.all(txn=txn):
         numJobs = numJobs + 1
         jobs.append(job.__dict__())
         status = job.status.lower()
@@ -734,6 +728,56 @@ def stats():
               'avgTime': avgTime}
 
     return output
+
+
+
+try:
+    import uwsgi
+    import uwsgidecorators
+
+    # run Job Spawner every 60 seconds
+    @uwsgidecorators.timer(60, target='mule')
+    def start_job_spawner(num):
+        spawnJobs(num)
+
+except ModuleNotFoundError:
+    print('Running in none uwsgi mode, ')
+
+
+@retry
+@txnAbortOnError
+def spawnJobs(data, txn=None):
+    jobCursor = db.Job.getCursor(txn, bulk=True)
+
+    current = jobCursor.next()
+
+    jobsByContig = {}
+
+    while current is not None:
+        key, job = current
+
+        contigKey = job.user, job.hub, job.track, job.problem['chrom'], str(job.problem['chromStart'])
+
+        if contigKey in jobsByContig:
+            jobsByContig[contigKey].append(job)
+        else:
+            jobsByContig[contigKey] = [job]
+
+        current = jobCursor.next()
+
+    for key in jobsByContig:
+        contigJobs = jobsByContig[key]
+
+        dontSpawn = False
+
+        for job in contigJobs:
+            if job.status.lower() != 'done':
+                dontSpawn = True
+
+        if dontSpawn:
+            continue
+
+
 
 
 

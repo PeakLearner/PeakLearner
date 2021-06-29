@@ -1,6 +1,7 @@
 import os
 from pyramid.security import Allow
 from website.users.Users import USERS
+from core.util import PLConfig as cfg
 from pyramid.config import Configurator
 from pyramid.security import ALL_PERMISSIONS
 from pyramid.events import NewResponse, subscriber
@@ -142,6 +143,11 @@ def main(global_config, **settings):
     config.add_route('jbrowseJson', '/{user}/{hub}/data/{handler}')
     config.scan('core.Hubs.views')
     config.add_static_view(name='/{user}/{hub}', path='jbrowse:jbrowse')
+
+
+    if cfg.testing:
+        config.add_route('modelSumUpload', '/modelSumUpload/')
+        config.add_route('runJobSpawn', '/runJobSpawn/')
 
 
     from wsgicors import CORS

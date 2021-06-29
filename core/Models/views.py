@@ -3,6 +3,7 @@ from core.Models import Models
 from core import genomeDataOut
 from pyramid.view import view_config
 from pyramid.response import Response
+from core.util import PLConfig as cfg
 
 
 @view_config(route_name='trackModels', request_method='GET')
@@ -88,3 +89,10 @@ def getTrackModelSums(request):
     if output is None:
         return Response(status=204)
     return output
+
+
+if cfg.testing:
+    @view_config(route_name='modelSumUpload')
+    def modelSumUploadView(request):
+        Models.modelSumUpload(request.json_body)
+        return Response(200)

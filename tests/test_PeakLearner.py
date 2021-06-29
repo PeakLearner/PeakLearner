@@ -65,6 +65,7 @@ class PeakLearnerTests(unittest.TestCase):
     modelsUrl = '%smodels/' % trackURL
     sampleModelsUrl = '%smodels/' % sampleTrackURL
     jobsURL = '/Jobs/'
+    queueUrl = '%squeue/' % jobsURL
     rangeArgs = {'ref': 'chr1', 'start': 0, 'end': 120000000, 'label': 'peakStart'}
     startLabel = rangeArgs.copy()
     startLabel['start'] = 15250059
@@ -144,7 +145,7 @@ class PeakLearnerTests(unittest.TestCase):
     def test_labels(self):
         request = self.getJobs()
 
-        numJobsBefore = len(request.json['jobs'])
+        numJobsBefore = len(request.json)
 
         # Blank Label Test
         request = self.getLabels(params=self.rangeArgs)
@@ -174,9 +175,9 @@ class PeakLearnerTests(unittest.TestCase):
 
         assert request.status_code == 200
 
-        assert len(request.json['jobs']) == numJobsBefore + 1
+        assert len(request.json) == numJobsBefore + 1
 
-        numJobsBefore = len(request.json['jobs'])
+        numJobsBefore = len(request.json)
 
         # Try adding another label
         request = self.testapp.put_json(self.labelURL, self.endLabel)
@@ -200,7 +201,7 @@ class PeakLearnerTests(unittest.TestCase):
         request = self.getJobs()
 
         # Check that system doesn't create duplicate jobs
-        assert len(request.json['jobs']) == numJobsBefore
+        assert len(request.json) == numJobsBefore
 
         request = self.getLabels(params=self.rangeArgs)
 
@@ -237,8 +238,6 @@ class PeakLearnerTests(unittest.TestCase):
             task = job['tasks'][taskId]
 
             trackUrl = '/%s/%s/%s/' % (job['user'], job['hub'], job['track'])
-
-            print(trackUrl)
 
             if task['type'] == 'model':
                 fileBase = os.path.join(jobDir, 'coverage.bedGraph_penalty=%s_' % task['penalty'])
@@ -285,8 +284,6 @@ class PeakLearnerTests(unittest.TestCase):
                             'track': job['track'],
                             'problem': job['problem'],
                             'jobId': job['id']}
-
-                print(job['problem'])
 
                 query = {'lossInfo': lossInfo, 'penalty': strPenalty, 'lossData': lossData.to_json()}
 
@@ -394,8 +391,6 @@ class PeakLearnerTests(unittest.TestCase):
 
         output = self.testapp.get(jobsUrl, params=modelRegion)
 
-        print(output)
-
         # There should be no models at this point
         assert len(output.json) == 0
 
@@ -406,3 +401,65 @@ class PeakLearnerTests(unittest.TestCase):
         # There should be no models at this point
 
         assert len(output.json) != 0
+
+    def test_stats_page(self):
+        output = self.testapp.get('/stats/')
+
+        assert output.status_code == 200
+
+    def test_model_stats_page(self):
+        output = self.testapp.get('/stats/model/')
+
+        assert output.status_code == 200
+
+    def test_label_stats_page(self):
+        output = self.testapp.get('/stats/label/')
+
+        assert output.status_code == 200
+
+    def test_jobs_stats_page(self):
+        output = self.testapp.get('/Jobs/', headers={'Accept': 'text/html'})
+
+        assert output.status_code == 200
+
+    def test_about_page(self):
+        out = self.testapp.get('/about/')
+
+        assert out.status_code == 200
+
+    def test_myHubs_page(self):
+        out = self.testapp.get('/myHubs/')
+
+        assert out.status_code == 200
+
+    def doJobsAsTheyCome(self):
+        out = self.testapp.get(self.queueUrl)
+
+        while out.status_code != 404:
+            currentJob = out.json
+            print(currentJob)
+            break
+
+
+
+    def test_jobSpawner(self):
+        out = self.getJobs()
+
+        assert out.status_code == 200
+
+        jobLen = len(out.json)
+
+        self.testapp.get('/runJobSpawn/')
+
+        out = self.getJobs()
+
+        assert out.status_code == 200
+
+        newJobLen = len(out.json)
+
+        assert jobLen == newJobLen
+
+        self.doJobsAsTheyCome()
+
+        assert 1 == 0
+

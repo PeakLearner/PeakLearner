@@ -2,19 +2,7 @@ import json
 from core.Jobs import Jobs
 from pyramid.view import view_config
 from pyramid.response import Response
-
-try:
-    import uwsgi
-    import uwsgidecorators
-
-    @uwsgidecorators.timer(300, target='mule')
-    def start_lock_detect(num):
-        Jobs.checkRestartJobs({})
-
-
-except ModuleNotFoundError:
-    loadLater = True
-    print('Running in non uwsgi mode, jobs won\'t be automatically restarted')
+from core.util import PLConfig as cfg
 
 
 def jobOutput(func):
@@ -41,7 +29,10 @@ def jobOutput(func):
 @view_config(route_name='jobs', request_method='GET', renderer='website:stats/jobs.html')
 @jobOutput
 def getJobs(request):
-    return Jobs.stats()
+    if 'Accept' in request.headers:
+        if request.headers['Accept'] == 'json' or request.headers['Accept'] == 'application/json':
+            return Jobs.getAllJobs({})
+    return Jobs.jobsStats({})
 
 
 @view_config(route_name='jobQueue', request_method='GET')
@@ -97,3 +88,10 @@ def getTrackJobs(request):
     if len(output) < 1:
         return Response(status=204)
     return output
+
+
+if cfg.testing:
+    @view_config(route_name='runJobSpawn')
+    def runJobSpawn(request):
+        Jobs.spawnJobs({})
+        return Response(status=204)
