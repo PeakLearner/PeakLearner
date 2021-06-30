@@ -40,7 +40,7 @@ def queueNextTask(request):
     # TODO: Some sort of authentication system
     task = Jobs.queueNextTask({})
     if task is None:
-        return Response(status=404)
+        return Response(status=204)
     else:
         return Response(json.dumps(task), charset='utf8', content_type='application/json')
 

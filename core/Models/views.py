@@ -106,7 +106,7 @@ def getTrackModelSum(request):
 
 
 if cfg.testing:
-    @view_config(route_name='modelSumUpload')
+    @view_config(route_name='modelSumUpload', request_method='PUT')
     def modelSumUploadView(request):
         Models.modelSumUpload(request.json_body)
         return Response(status=200)

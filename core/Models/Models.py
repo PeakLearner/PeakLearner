@@ -8,7 +8,7 @@ from simpleBDB import retry, txnAbortOnError
 
 log = logging.getLogger(__name__)
 from glmnet_python import cvglmnetPredict
-from core.util import PLConfig as pl, PLdb as db, bigWigUtil as bw
+from core.util import PLConfig as cfg, PLdb as db, bigWigUtil as bw
 from core.Handlers import Tracks
 from core.Jobs import Jobs
 
@@ -297,7 +297,7 @@ def submitPregenJob(problem, data, regions, txn=None):
     return job.putNewJobWithTxn(txn=txn)
 
 
-def submitGridSearch(problem, data, minPenalty, maxPenalty, regions, num=pl.gridSearchSize, txn=None):
+def submitGridSearch(problem, data, minPenalty, maxPenalty, regions, num=cfg.gridSearchSize, txn=None):
     minPenalty = float(minPenalty)
     maxPenalty = float(maxPenalty)
     penalties = np.linspace(minPenalty, maxPenalty, num + 2).tolist()[1:-1]
@@ -793,3 +793,17 @@ def getTrackModelSummary(data, txn=None):
     return modelSummaries
 
 
+if cfg.testing:
+    @retry
+    @txnAbortOnError
+    def modelSumUpload(data, txn=None):
+        user = data['user']
+        hub = data['hub']
+        track = data['track']
+        problem = data['problem']
+
+        sums = pd.DataFrame(data['sums'])
+
+        sumsDb = db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart'])
+
+        sumsDb.put(sums, txn=txn)
