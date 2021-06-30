@@ -335,6 +335,14 @@ class PeakLearnerTests(unittest.TestCase):
 
         assert len(out.json.keys()) > 1
 
+        otherParams = params.copy()
+
+        otherParams['start'] += 1
+
+        out = self.testapp.get(featureUrl, params=otherParams)
+
+        assert out.status_code == 204
+
     def test_get_loss(self):
         self.test_doSampleJob()
         params = {'ref': 'chr3', 'start': 93504854, 'penalty': '10000'}
@@ -350,6 +358,16 @@ class PeakLearnerTests(unittest.TestCase):
         assert len(loss.keys()) > 1
 
         assert int(params['penalty']) == loss['penalty']
+
+    def test_get_modelSum(self):
+        self.test_doSampleJob()
+        params = {'ref': 'chr3', 'start': 93504854}
+
+        modelSumsUrl = '%smodelSum/' % self.axlTrackURL
+
+        out = self.testapp.get(modelSumsUrl, params=params)
+
+        assert len(out.json) != 0
 
     def test_unlabeledRegion(self):
         unlabeledUrl = '%sunlabeled/' % self.hubURL
@@ -432,3 +450,33 @@ class PeakLearnerTests(unittest.TestCase):
         # There should be no models at this point
 
         assert len(output.json) != 0
+
+    def test_stats_page(self):
+        output = self.testapp.get('/stats/')
+
+        assert output.status_code == 200
+
+    def test_model_stats_page(self):
+        output = self.testapp.get('/stats/model/')
+
+        assert output.status_code == 200
+
+    def test_label_stats_page(self):
+        output = self.testapp.get('/stats/label/')
+
+        assert output.status_code == 200
+
+    def test_jobs_stats_page(self):
+        output = self.testapp.get('/Jobs/', headers={'Accept': 'text/html'})
+
+        assert output.status_code == 200
+
+    def test_about_page(self):
+        out = self.testapp.get('/about/')
+
+        assert out.status_code == 200
+
+    def test_myHubs_page(self):
+        out = self.testapp.get('/myHubs/')
+
+        assert out.status_code == 200

@@ -125,6 +125,10 @@ def main(global_config, **settings):
 
     config.add_route('hubModels', '/{user}/{hub}/models/')
     config.add_route('trackModels', '/{user}/{hub}/{track}/models/')
+    # This one is for retrieving a single model summary
+    # I can't really think of a good way to do both so I'm going to just split them
+    config.add_route('trackModelSum', '/{user}/{hub}/{track}/modelSum/')
+    # This one is for jbrowse right click menu
     config.add_route('trackModelSums', '/{user}/{hub}/{track}/modelSums/')
     config.scan('core.Models.views')
 
