@@ -109,4 +109,4 @@ if cfg.testing:
     @view_config(route_name='modelSumUpload')
     def modelSumUploadView(request):
         Models.modelSumUpload(request.json_body)
-        return Response(200)
+        return Response(status=200)

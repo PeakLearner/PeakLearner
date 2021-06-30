@@ -484,7 +484,6 @@ class PeakLearnerTests(unittest.TestCase):
             print(currentJob)
             break
 
-
     def test_jobSpawner(self):
         out = self.getJobs()
 
@@ -514,4 +513,3 @@ class PeakLearnerTests(unittest.TestCase):
             currentJob = out.json
             print(currentJob)
             break
-
