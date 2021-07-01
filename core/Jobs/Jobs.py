@@ -732,7 +732,7 @@ try:
     def start_job_spawner(num):
         spawnJobs(num)
 
-    @uwsgidecorators.timer(1440, target='mule')
+    @uwsgidecorators.timer(3600, target='mule')
     def start_restart_jobCheck(num):
         checkRestartJobs(num)
 
@@ -1012,4 +1012,18 @@ def submitSearch(data, problem, bottom, top, regions, txn=None):
                               problem,
                               penalty,
                               regions)
+
+
+if cfg.testing:
+    @retry
+    @txnAbortOnError
+    def makeJobHaveBadTime(data, txn=None):
+        jobDb = db.Job('0')
+        job = jobDb.get(txn=txn, write=True)
+
+        job.lastModified = 0
+        job.status = 'Queued'
+
+        jobDb.put(job.__dict__(), txn=txn)
+
 

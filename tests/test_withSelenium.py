@@ -43,8 +43,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.testapp = StopableWSGIServer.create(app, port=8080)
 
-        print(sys.path)
-
         options = Options()
         try:
             try:

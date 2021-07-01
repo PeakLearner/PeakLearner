@@ -35,7 +35,7 @@ def goToRegion(data, txn=None):
     genome = hubInfo['genome']
     problems = db.Problems(genome).get(txn=txn)
     tracks = list(hubInfo['tracks'].keys())
-    toGoTo = problems.apply(checkProblem, axis=1, args=(user, hub, tracks, data['type'].lower()))
+    toGoTo = problems.apply(checkProblem, axis=1, args=(user, hub, tracks, data['type'].lower(), txn))
 
     possibleRegions = problems[toGoTo]
 
@@ -56,11 +56,11 @@ def goToRegion(data, txn=None):
     return region
 
 
-def checkProblem(row, user, hub, tracks, toCheck):
+def checkProblem(row, user, hub, tracks, toCheck, txn):
 
     trackDf = pd.DataFrame(tracks, columns=['track'])
 
-    output = trackDf.apply(checkLabels, axis=1, args=(user, hub, row, toCheck))
+    output = trackDf.apply(checkLabels, axis=1, args=(user, hub, row, toCheck, txn))
 
     if toCheck == 'labeled':
         return output.any()
@@ -68,13 +68,13 @@ def checkProblem(row, user, hub, tracks, toCheck):
         return output.all()
 
 
-def checkLabels(row, user, hub, problem, toCheck):
+def checkLabels(row, user, hub, problem, toCheck, txn):
     labels = db.Labels(user,
                        hub,
                        row['track'],
                        problem['chrom']).getInBounds(problem['chrom'],
                                                      problem['chromStart'],
-                                                     problem['chromEnd'])
+                                                     problem['chromEnd'], txn=txn)
 
     if labels.empty:
         if toCheck == 'unlabeled':

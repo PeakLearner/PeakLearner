@@ -192,6 +192,33 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         assert job['jobStatus'].lower() == 'done'
 
+    def test_jobRestart(self):
+        from core.Jobs import Jobs
+
+        Jobs.makeJobHaveBadTime({})
+
+        jobUrl = '%s0/' % self.jobsURL
+
+        out = self.testapp.get(jobUrl, headers={'Accept': 'application/json'})
+
+        assert out.status_code == 200
+
+        jobToRestart = out.json
+
+        assert jobToRestart['status'].lower() == 'queued'
+        assert jobToRestart['lastModified'] == 0
+
+        Jobs.checkRestartJobs({})
+
+        out = self.testapp.get(jobUrl, headers={'Accept': 'application/json'})
+
+        assert out.status_code == 200
+
+        jobAfterRestart = out.json
+
+        assert jobAfterRestart['status'].lower() == 'new'
+        assert jobAfterRestart['lastModified'] != 0
+
     def doPredictionFeatureStep(self):
         # No Prediction Ready
         self.test_JobSpawner()
