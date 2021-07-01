@@ -727,14 +727,17 @@ try:
     import uwsgi
     import uwsgidecorators
 
-
     # run Job Spawner every 60 seconds
     @uwsgidecorators.timer(60, target='mule')
     def start_job_spawner(num):
         spawnJobs(num)
 
+    @uwsgidecorators.timer(1440, target='mule')
+    def start_restart_jobCheck(num):
+        checkRestartJobs(num)
+
 except ModuleNotFoundError:
-    print('Running in none uwsgi mode, Jobs wont automatically be spawned')
+    print('Running in none uwsgi mode, Jobs wont automatically be spawned or restarted')
 
 
 @retry
@@ -1009,3 +1012,4 @@ def submitSearch(data, problem, bottom, top, regions, txn=None):
                               problem,
                               penalty,
                               regions)
+

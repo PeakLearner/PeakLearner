@@ -47,18 +47,21 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         options = Options()
         try:
-            if os.environ['TESTING'].lower() == 'true':
-                options.headless = True
-        except KeyError:
-            pass
-        try:
-            self.driver = webdriver.Chrome(options=options)
-        except WebDriverException:
             try:
-                self.driver = webdriver.Chrome('chromedriver', options=options)
+                if os.environ['TESTING'].lower() == 'true':
+                    options.headless = True
+            except KeyError:
+                pass
+            try:
+                self.driver = webdriver.Chrome(options=options)
             except WebDriverException:
-                self.driver = webdriver.Chrome('/buildtools/webdriver/chromedriver', options=options)
-        self.driver.set_window_size(1280, 667)
+                try:
+                    self.driver = webdriver.Chrome('chromedriver', options=options)
+                except WebDriverException:
+                    self.driver = webdriver.Chrome('/buildtools/webdriver/chromedriver', options=options)
+            self.driver.set_window_size(1280, 667)
+        except:
+            self.testapp.close()
 
     # This test is mainly here so that when this file is ran on CI, it will have a genomes file for hub.
     def test_AddHub(self):
