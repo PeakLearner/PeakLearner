@@ -190,9 +190,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         job = out.json
 
-        assert job['jobStatus'].lower() != 'error'
-
-        assert 0
+        assert job['jobStatus'].lower() == 'done'
 
     def doPredictionFeatureStep(self):
         # No Prediction Ready

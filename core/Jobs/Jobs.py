@@ -309,7 +309,9 @@ class PredictJob(Job):
             if currentTask['status'].lower() == 'done':
                 prediction = Models.doPrediction(self, txn=txn)
 
-                newTask = {'type': 'model'}
+                taskId = '1'
+
+                newTask = {'type': 'model', 'taskId': taskId}
 
                 # If no prediction, Set job as error
                 if prediction is None or prediction is False:
@@ -319,7 +321,7 @@ class PredictJob(Job):
                     newTask['status'] = 'New'
                     newTask['penalty'] = str(prediction)
 
-                self.tasks['1'] = newTask
+                self.tasks[taskId] = newTask
 
         Job.updateJobStatus(self, txn=txn)
 
