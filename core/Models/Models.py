@@ -522,23 +522,23 @@ def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType):
     return output
 
 
-def doPrediction(data, problem):
-    features = db.Features(data['user'],
-                           data['hub'],
-                           data['track'],
-                           problem['chrom'],
-                           problem['chromStart']).get()
+def doPrediction(job, txn=None):
+    features = db.Features(job.user,
+                           job.hub,
+                           job.track,
+                           job.problem['chrom'],
+                           job.problem['chromStart']).get(txn=txn)
 
     if not isinstance(features, pd.Series):
         if not features:
             return False
 
-    model = db.Prediction('model').get()
+    model = db.Prediction('model').get(txn=txn)
 
     if not isinstance(model, dict):
         return False
 
-    colsToDrop = db.Prediction('badCols').get()
+    colsToDrop = db.Prediction('badCols').get(txn=txn)
 
     featuresDropped = features.drop(labels=colsToDrop)
 
@@ -546,7 +546,8 @@ def doPrediction(data, problem):
 
     if prediction is None:
         return False
-    return prediction
+
+    return float(10**prediction)
 
 
 def predictWithFeatures(features, model):

@@ -1,18 +1,17 @@
 import os
 import time
-
-import pandas as pd
 import pytest
-import tarfile
 import shutil
+import tarfile
+import webtest
 import unittest
 import threading
-from pyramid import testing
-from pyramid.paster import get_app
+import pandas as pd
+import pyramid.paster
+import pyramid.testing
+from tests import Base
+from core.util import PLConfig as cfg
 
-dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
-dbDir = os.path.join(dataDir, 'db')
-dbTar = os.path.join('data', 'db.tar.gz')
 testDataPath = os.path.join('tests', 'data')
 
 extraDataColumns = ['user', 'hub', 'track', 'ref', 'start']
@@ -20,43 +19,13 @@ featuresDf = pd.read_csv(os.path.join(testDataPath, 'features.csv'), sep='\t')
 modelSumsDf = pd.read_csv(os.path.join(testDataPath, 'modelSums.csv'), sep='\t')
 lossDf = pd.read_csv(os.path.join(testDataPath, 'losses.csv'), sep='\t')
 
-useThreads = False
-
-if os.path.exists(dbDir):
-    shutil.rmtree(dbDir)
-
-if not os.path.exists(dbDir):
-    with tarfile.open(dbTar) as tar:
-        tar.extractall(dataDir)
-
-from core.util import PLConfig as cfg, PLdb as db
-
 cfg.testing()
 sleepTime = 600
 
 lockDetect = True
 
 
-def checkLocks():
-    while lockDetect:
-        db.deadlock_detect()
-        time.sleep(1)
-
-
-def lock_detect(func):
-    def wrap(*args, **kwargs):
-        global lockDetect
-        thread = threading.Thread(target=checkLocks)
-        thread.start()
-        out = func(*args, **kwargs)
-        lockDetect = False
-        thread.join(timeout=5)
-        return out
-
-    return wrap
-
-
-class PeakLearnerTests(unittest.TestCase):
+class PeakLearnerTests(Base.PeakLearnerTestBase):
     user = 'Public'
     hub = 'H3K4me3_TDH_ENCODE'
     testHub = 'TestHub'
@@ -87,15 +56,12 @@ class PeakLearnerTests(unittest.TestCase):
     noPeakLabel['label'] = 'noPeak'
 
     def setUp(self):
-        self.config = testing.setUp()
-        self.app = get_app('production.ini')
-        from webtest import TestApp
+        super().setUp()
 
-        self.testapp = TestApp(self.app)
+        self.config = pyramid.testing.setUp()
+        self.app = pyramid.paster.get_app('production.ini')
 
-    def tearDown(self):
-        if os.path.exists(dbDir):
-            shutil.rmtree(dbDir)
+        self.testapp = webtest.TestApp(self.app)
 
     def test_serverWorking(self):
         res = self.testapp.get('/')

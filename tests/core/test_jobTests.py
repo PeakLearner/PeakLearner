@@ -6,10 +6,13 @@ import pandas as pd
 import pytest
 import tarfile
 import shutil
+import webtest
+import pyramid
 import unittest
 import threading
-from pyramid import testing
-from pyramid.paster import get_app
+import pyramid.paster
+import pyramid.testing
+from tests import Base
 
 dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
 dbDir = os.path.join(dataDir, 'db')
@@ -23,58 +26,18 @@ lossDf = pd.read_csv(os.path.join(testDataPath, 'losses.csv'), sep='\t')
 
 useThreads = False
 
-if os.path.exists(dbDir):
-    shutil.rmtree(dbDir)
 
-if not os.path.exists(dbDir):
-    with tarfile.open(dbTar) as tar:
-        tar.extractall(dataDir)
-
-from core.util import PLConfig as cfg, PLdb as db
-
-cfg.testing()
-sleepTime = 600
-
-lockDetect = True
-
-
-def checkLocks():
-    while lockDetect:
-        db.deadlock_detect()
-        time.sleep(1)
-
-
-def lock_detect(func):
-    def wrap(*args, **kwargs):
-        global lockDetect
-        thread = threading.Thread(target=checkLocks)
-        thread.start()
-        out = func(*args, **kwargs)
-        lockDetect = False
-        thread.join(timeout=5)
-        return out
-
-    return wrap
-
-
-class PeakLearnerJobsTests(unittest.TestCase):
+class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     jobsURL = '/Jobs/'
     queueUrl = '%squeue/' % jobsURL
 
     def setUp(self):
-        if not os.path.exists(dbDir):
-            with tarfile.open(dbTar) as tar:
-                tar.extractall(dataDir)
+        super().setUp()
 
-        self.config = testing.setUp()
-        self.app = get_app('production.ini')
-        from webtest import TestApp
+        self.config = pyramid.testing.setUp()
+        self.app = pyramid.paster.get_app('production.ini')
 
-        self.testapp = TestApp(self.app)
-
-    def donttearDown(self):
-        if os.path.exists(dbDir):
-            shutil.rmtree(dbDir)
+        self.testapp = webtest.TestApp(self.app)
 
     def getJobs(self):
         return self.testapp.get(self.jobsURL, headers={'Accept': 'application/json'})
@@ -176,8 +139,64 @@ class PeakLearnerJobsTests(unittest.TestCase):
 
         assert isinstance(outJob, Jobs.SingleModelJob)
 
-    def test_predictionJob(self):
-        self.test_jobSpawner()
+    def test_doPredictionWithNoPredictions(self):
+
+        job = self.doPredictionFeatureStep()
+
+        jobUrl = '%s%s/' % (self.jobsURL, job['id'])
+
+        data = {'taskId': job['taskId'], 'status': 'Done', 'totalTime': '0'}
+
+        out = self.testapp.post_json(jobUrl, data)
+
+        assert out.status_code == 200
+
+        job = out.json
+
+        assert job['jobStatus'].lower() == 'error'
+
+    def test_doPredictionWithPredictions(self):
+        job = self.doPredictionFeatureStep()
+
+        from core.Prediction import Prediction
+
+        Prediction.runPrediction({})
+
+        jobUrl = '%s%s/' % (self.jobsURL, job['id'])
+
+        data = {'taskId': job['taskId'], 'status': 'Done', 'totalTime': '0'}
+
+        out = self.testapp.post_json(jobUrl, data)
+
+        assert out.status_code == 200
+
+        job = out.json
+
+        assert job['jobStatus'].lower() != 'error'
+
+        out = self.testapp.get(self.queueUrl)
+
+        assert out.status_code == 200
+
+        jobWithPredictionPenalty = out.json
+
+        assert jobWithPredictionPenalty['type'] == 'model'
+
+        data = {'taskId': jobWithPredictionPenalty['taskId'], 'status': 'Done', 'totalTime': '0'}
+
+        out = self.testapp.post_json(jobUrl, data)
+
+        assert out.status_code == 200
+
+        job = out.json
+
+        assert job['jobStatus'].lower() != 'error'
+
+        assert 0
+
+    def doPredictionFeatureStep(self):
+        # No Prediction Ready
+        self.test_JobSpawner()
 
         out = self.testapp.get(self.queueUrl)
 
@@ -185,10 +204,29 @@ class PeakLearnerJobsTests(unittest.TestCase):
 
         predictionJob = out.json
 
-        assert predictionJob['jobStatus'].lower() != 'error'
+        assert predictionJob['jobStatus'].lower() == 'queued'
 
+        trackUrl = '/%s/%s/%s/' % (predictionJob['user'], predictionJob['hub'], predictionJob['track'])
 
-    def test_jobSpawner(self):
+        # Put a random feature there, really just to see that it works to begin with
+        feature = featuresDf.sample()
+        feature = feature.drop(columns=extraDataColumns)
+
+        if len(feature.index) < 1:
+            raise Exception
+
+        data = {'data': feature.to_dict('records'),
+                'problem': predictionJob['problem']}
+
+        featureUrl = '%sfeatures/' % trackUrl
+
+        out = self.testapp.put_json(featureUrl, data)
+
+        assert out.status_code == 200
+
+        return predictionJob
+
+    def test_JobSpawner(self):
         out = self.getJobs()
 
         assert out.status_code == 200

@@ -157,7 +157,7 @@ class Job(metaclass=JobType):
             if task['status'].lower() == 'new':
                 task.status = 'Queued'
 
-    def updateTask(self, task):
+    def updateTask(self, task, txn=None):
         """Updates a task given a dict with keys to put/update"""
         taskToUpdate = None
         for key in self.tasks.keys():
@@ -175,11 +175,11 @@ class Job(metaclass=JobType):
 
         self.lastModified = time.time()
 
-        self.updateJobStatus()
+        self.updateJobStatus(txn=txn)
 
         return taskToUpdate
 
-    def updateJobStatus(self):
+    def updateJobStatus(self, txn=None):
         """Update current job status to the min of the task statuses"""
         # A status outside the bounds
         minStatusVal = len(statuses)
@@ -300,30 +300,28 @@ class PredictJob(Job):
     def __init__(self, user, hub, track, problem):
         super().__init__(user, hub, track, problem, 0, tasks={'0': createFeatureTask(0)})
 
-    def updateJobStatus(self):
-        keys = self.tasks.keys()
+    def updateJobStatus(self, txn=None):
+        keys = list(self.tasks.keys())
 
         # When initially created, these only have the predict job
         if len(keys) == 1:
-            try:
-                prediction = Models.doPrediction(self.__dict__(), self.problem)
-            except:
-                self.status = 'Error'
-                return
+            currentTask = self.tasks[keys[0]]
+            if currentTask['status'].lower() == 'done':
+                prediction = Models.doPrediction(self, txn=txn)
 
-            newTask = {'type': 'model'}
+                newTask = {'type': 'model'}
 
-            # If no prediction, Set job as error
-            if prediction is None or prediction is False:
-                newTask['status'] = 'Error'
-                newTask['penalty'] = 'Unknown'
-            else:
-                newTask['status'] = 'New'
-                newTask['penalty'] = str(prediction)
+                # If no prediction, Set job as error
+                if prediction is None or prediction is False:
+                    newTask['status'] = 'Error'
+                    newTask['penalty'] = 'Unknown'
+                else:
+                    newTask['status'] = 'New'
+                    newTask['penalty'] = str(prediction)
 
-            self.tasks['1'] = newTask
+                self.tasks['1'] = newTask
 
-        Job.updateJobStatus(self)
+        Job.updateJobStatus(self, txn=txn)
 
     def resetJob(self):
         Job.resetJob(self)
@@ -505,7 +503,7 @@ def updateTask(data, txn=None):
 
     jobDb = db.Job(jobId)
     jobToUpdate = jobDb.get(txn=txn, write=True)
-    task = jobToUpdate.updateTask(task)
+    task = jobToUpdate.updateTask(task, txn=txn)
     jobDb.put(jobToUpdate, txn=txn)
 
     task = jobToUpdate.addJobInfoOnTask(task)

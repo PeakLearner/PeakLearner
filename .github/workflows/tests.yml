@@ -6,6 +6,8 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: CodeCov
+    env:
+      TESTING: True
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python 3.8
@@ -31,10 +33,8 @@ jobs:
       - run: python3 -m pip install numpy==1.20.3
       - run: python3 -m pip install -r requirements.txt
       - run: pip install -e ".[dev]"
-      - run: python3 -m pytest --cov=core --cov=website --cov=Slurm --cov-report=xml tests/test_PeakLearner.py
-      - run: python3 -m pytest --cov=core --cov=website --cov=Slurm --cov-report=xml --cov-append tests/core/test_jobTests.py
       - uses: nanasess/setup-chromedriver@master
-      - run: python3 -m pytest --cov=core --cov=website --cov=Slurm --cov-report=xml --cov-append tests/test_withSelenium.py
+      - run: python3 -m pytest --cov=core --cov=website --cov=Slurm --cov-report=xml tests/
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:

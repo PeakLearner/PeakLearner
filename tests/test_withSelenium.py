@@ -10,8 +10,10 @@ import requests
 import selenium
 import threading
 import subprocess
+from tests import Base
 from pyramid import testing
 from selenium import webdriver
+from core.util import PLdb as db
 from pyramid.paster import get_app
 from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
@@ -23,25 +25,14 @@ from selenium.webdriver.support import expected_conditions as EC
 waitTime = 60
 
 url = 'http://localhost:8080'
-dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
-dbDir = os.path.join(dataDir, 'db')
-dbTar = os.path.join('data', 'db.tar.gz')
 
 
-class PeakLearnerTests(unittest.TestCase):
-    dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
-    dbDir = os.path.join(dataDir, 'db')
-    dbTar = os.path.join('data', 'db.tar.gz')
+class PeakLearnerTests(Base.PeakLearnerTestBase):
     user = 'Public'
     hub = 'H3K4me3_TDH_ENCODE'
 
     def setUp(self):
-        if os.path.exists(self.dbDir):
-            shutil.rmtree(self.dbDir)
-
-        if not os.path.exists(self.dbDir):
-            with tarfile.open(self.dbTar) as tar:
-                tar.extractall(self.dataDir)
+        super().setUp()
 
         self.config = testing.setUp()
         app = get_app('production.ini')
@@ -51,7 +42,11 @@ class PeakLearnerTests(unittest.TestCase):
         self.testapp = StopableWSGIServer.create(app, port=8080)
 
         options = Options()
-        options.headless = True
+        try:
+            if os.environ['TESTING'].lower() == 'true':
+                options.headless = True
+        except KeyError:
+            pass
         try:
             self.driver = webdriver.Chrome(options=options)
         except WebDriverException:
@@ -241,6 +236,9 @@ class PeakLearnerTests(unittest.TestCase):
         self.driver.find_element(By.ID, 'H3K4me3_TDH_ENCODE_publicHubLink').click()
 
         self.moveToDefinedLocation()
+
+        # Zoom in once so just incase it goes to the defined location region which is labeled already
+        self.zoomIn()
 
         title = self.driver.title
 

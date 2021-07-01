@@ -9,47 +9,41 @@ try:
     import uwsgi
     import uwsgidecorators
 
-    # @uwsgidecorators.timer(cfg.timeBetween)
+    @uwsgidecorators.timer(cfg.timeBetween)
     def doLearning(num):
         print('prediction system running')
         if db.isLoaded():
-            datapoints = getDataPoints()
-            if datapoints is not None:
-                learn(*datapoints)
+            runPrediction({})
 except ModuleNotFoundError:
     pass
 
 
-# Checks that there are enough changes and labeled regions to begin learning
 @retry
 @txnAbortOnError
-def check(txn=None):
-    changes = db.Prediction('changes').get(txn=txn, write=True)
-    if changes > cfg.numChanges:
-        db.Prediction('changes').put(0, txn=txn)
-        return True
-    return False
+def runPrediction(data, txn=None):
 
-
-@retry
-@txnAbortOnError
-def getDataPoints(txn=None):
-    if not check():
+    datapoints = getDataPoints(txn=txn)
+    if datapoints is None:
         return
 
-    print('after check')
+    learn(*datapoints, txn=txn)
 
+
+def getDataPoints(txn=None):
     dataPoints = pd.DataFrame()
 
-    for key in db.ModelSummaries.db_key_tuples():
-        modelTxn = db.getTxn(parent=txn)
-        modelSum = db.ModelSummaries(*key).get(txn=modelTxn)
+    cursor = db.ModelSummaries.getCursor(txn=None, bulk=True)
+
+    current = cursor.next()
+
+    while current is not None:
+        key, modelSum = current
         if modelSum.empty:
-            modelTxn.abort()
+            current = cursor.next()
             continue
 
         if modelSum['regions'].max() < 1:
-            modelTxn.abort()
+            current = cursor.next()
             continue
 
         withPeaks = modelSum[modelSum['numPeaks'] > 0]
@@ -59,7 +53,7 @@ def getDataPoints(txn=None):
         logPenalties = np.log10(noError['penalty'].astype(float))
 
         featuresDb = db.Features(*key)
-        features = featuresDb.get()
+        features = featuresDb.get(txn=txn)
 
         for penalty in logPenalties:
             datapoint = features.copy()
@@ -67,7 +61,10 @@ def getDataPoints(txn=None):
             datapoint['logPenalty'] = penalty
 
             dataPoints = dataPoints.append(datapoint, ignore_index=True)
-        modelTxn.commit()
+
+        current = cursor.next()
+
+    cursor.close()
 
     # TODO: Save datapoints, update ones which have changed, not all of them every time
 
@@ -76,7 +73,7 @@ def getDataPoints(txn=None):
     Y = dataPoints['logPenalty']
     X = dataPoints.drop('logPenalty', 1)
 
-    return dropBadCols(X), Y
+    return dropBadCols(X, txn=txn), Y
 
 
 def makePrediction(data):
@@ -84,7 +81,7 @@ def makePrediction(data):
     print(model)
 
 
-def dropBadCols(df):
+def dropBadCols(df, txn=None):
     pd.set_option("display.max_rows", None, "display.max_columns", None)
     noNegatives = df.replace(-np.Inf, np.nan)
     output = noNegatives.dropna(axis=1)
@@ -92,12 +89,10 @@ def dropBadCols(df):
     # Take a note of what columns were dropped so that can be later used during prediction
     # This line just compares the two column indices and finds the differences
     badCols = list(set(df.columns) - set(output.columns))
-    db.Prediction('badCols').put(badCols)
+    db.Prediction('badCols').put(badCols, txn=txn)
     return output
 
 
-@retry
-@txnAbortOnError
 def learn(X, Y, txn=None):
     X = X.to_numpy(dtype=np.float64, copy=True)
     Y = Y.to_numpy(dtype=np.float64, copy=True)

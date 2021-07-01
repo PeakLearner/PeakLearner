@@ -32,19 +32,18 @@ if not loaded:
 
 def openDBs():
     global loaded
-    if db is not None:
-        print('opening db')
-        db.open_dbs()
-        loaded = True
+    print('opening db')
+    db.open_env()
+    db.createEnvWithDir(dbPath)
+    db.open_dbs()
+    loaded = True
 
 
-def closeDBs():
+def closeDBs(closeEnv=True):
     global loaded
     loaded = False
-    if db is not None:
-        print('closing db')
-        db.close_dbs()
-    db.env.close()
+    db.close_dbs()
+    db.close_env()
 
 
 def deadlock_detect():
@@ -61,7 +60,6 @@ try:
 
     @uwsgidecorators.postfork
     def doOpen():
-        db.createEnvWithDir(dbPath)
         openDBs()
         loaded = True
 
@@ -74,7 +72,6 @@ try:
 except ModuleNotFoundError:
     loadLater = True
     print('Running in non uwsgi mode, deadlocks won\'t be detected automatically')
-    db.createEnvWithDir(dbPath)
 
 
 def getTxn(parent=None):
@@ -437,5 +434,6 @@ class PermissionsCursor(db.Cursor):
 
 
 if loadLater:
-    print('openDBs')
+    db.open_env()
+    db.createEnvWithDir(dbPath)
     openDBs()
