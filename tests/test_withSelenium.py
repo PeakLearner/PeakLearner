@@ -24,6 +24,8 @@ from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 waitTime = 60
 
+
+
 url = 'http://localhost:8080'
 
 
@@ -41,6 +43,8 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.testapp = StopableWSGIServer.create(app, port=8080)
 
+        print(sys.path)
+
         options = Options()
         try:
             if os.environ['TESTING'].lower() == 'true':
@@ -50,7 +54,10 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         try:
             self.driver = webdriver.Chrome(options=options)
         except WebDriverException:
-            self.driver = webdriver.Chrome('chromedriver', options=options)
+            try:
+                self.driver = webdriver.Chrome('chromedriver', options=options)
+            except WebDriverException:
+                self.driver = webdriver.Chrome('/buildtools/webdriver/chromedriver', options=options)
         self.driver.set_window_size(1280, 667)
 
     # This test is mainly here so that when this file is ran on CI, it will have a genomes file for hub.
