@@ -29,6 +29,9 @@ def getModel(request):
 
     output = Models.getModels(data=query)
 
+    if output is None:
+        return Response(status=204)
+
     if isinstance(output, list):
         return Response(status=204)
 

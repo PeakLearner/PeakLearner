@@ -437,4 +437,5 @@ class PermissionsCursor(db.Cursor):
 
 
 if loadLater:
+    print('openDBs')
     openDBs()

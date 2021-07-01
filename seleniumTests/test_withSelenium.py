@@ -10,7 +10,9 @@ import requests
 import selenium
 import threading
 import subprocess
+from pyramid import testing
 from selenium import webdriver
+from pyramid.paster import get_app
 from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.keys import Keys
@@ -41,8 +43,12 @@ class PeakLearnerTests(unittest.TestCase):
             with tarfile.open(self.dbTar) as tar:
                 tar.extractall(self.dataDir)
 
-        self.host = subprocess.Popen(['uwsgi', 'wsgi.ini'],
-                                     stdout=subprocess.PIPE)
+        self.config = testing.setUp()
+        app = get_app('production.ini')
+
+        from webtest.http import StopableWSGIServer
+
+        self.testapp = StopableWSGIServer.create(app, port=8080)
 
         options = Options()
         options.headless = True
@@ -436,8 +442,6 @@ class PeakLearnerTests(unittest.TestCase):
         action.perform()
 
     def tearDown(self):
-        os.kill(self.host.pid, signal.SIGTERM)
-
-        time.sleep(5)
+        self.testapp.close()
 
         self.driver.close()

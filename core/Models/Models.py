@@ -15,6 +15,7 @@ from core.Jobs import Jobs
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
 jbrowseModelColumns = ["ref", "start", "end", "type", "score"]
+peakSegDiskPrePenalties = [1000, 10000, 100000, 1000000]
 flopartLabels = {'noPeak': 0,
                  'peakStart': 1,
                  'peakEnd': -1,
@@ -76,7 +77,11 @@ def getModels(data, txn=None):
 
         minErrorModelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'],
                                    penalty)
-        minErrorModel = minErrorModelDb.getInBounds(data['ref'], data['start'], data['end'])
+        try:
+            minErrorModel = minErrorModelDb.getInBounds(data['ref'], data['start'], data['end'])
+        except KeyError:
+            log.warning('Missing a model for summary', modelSummaries)
+            return
         minErrorModel = minErrorModel[minErrorModel['annotation'] == 'peak']
         minErrorModel.columns = jbrowseModelColumns
         output = output.append(minErrorModel, ignore_index=True)
@@ -163,8 +168,15 @@ def updateAllModelLabels(data, labels, txn):
         modelsums = modelSummaries.get(txn=modelTxn, write=True)
 
         if len(modelsums.index) < 1:
-            out = submitPregenJob(problem, data, len(labels.index), txn=modelTxn)
+
+            out = Jobs.PregenJob(data['user'],
+                                 data['hub'],
+                                 data['track'],
+                                 problem,
+                                 peakSegDiskPrePenalties,
+                                 len(labels.index))
             if out is not None:
+                out.putNewJobWithTxn(txn=modelTxn)
                 modelTxn.commit()
             else:
                 modelTxn.abort()
@@ -174,8 +186,6 @@ def updateAllModelLabels(data, labels, txn):
 
         modelSummaries.put(newSum, txn=modelTxn)
 
-        checkGenerateModels(newSum, problem, data, txn=modelTxn)
-
         modelTxn.commit()
 
 
@@ -184,173 +194,6 @@ def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
                      problem['chromStart'], modelSum['penalty']).get(txn=txn)
 
     return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
-
-
-def checkGenerateModels(modelSums, problem, data, txn=None):
-    nonZeroLabels = modelSums[modelSums['regions'] > 0]
-
-    if len(nonZeroLabels.index) == 0:
-        return False
-
-    nonZeroRegions = nonZeroLabels[nonZeroLabels['numPeaks'] > 0]
-
-    if len(nonZeroRegions.index) == 0:
-        return False
-
-    minError = nonZeroRegions[nonZeroRegions['errors'] == nonZeroRegions['errors'].min()]
-
-    numMinErrors = len(minError.index)
-
-    regions = minError['regions'].max()
-
-    if numMinErrors == 0:
-        return False
-
-    if minError.iloc[0]['errors'] == 0:
-        return False
-
-    if numMinErrors > 1:
-        # no need to generate new models if error is 0
-        first = minError.iloc[0]
-        last = minError.iloc[-1]
-
-        biggerFp = first['fp'] > last['fp']
-        smallerFn = first['fn'] < last['fn']
-
-        # Sanity check for bad labels, if the minimum is still the same values
-        # With little labels this could not generate new models
-        if biggerFp or smallerFn:
-            minPenalty = first['penalty']
-            maxPenalty = last['penalty']
-            submitGridSearch(problem, data, minPenalty, maxPenalty, regions, txn=txn)
-            return True
-        return False
-
-    elif numMinErrors == 1:
-        index = minError.index[0]
-
-        model = minError.iloc[0]
-        if model['fp'] > model['fn']:
-            try:
-                compare = modelSums.iloc[index + 1]
-            except IndexError:
-                submitOOMJob(problem, data, model['penalty'], '*', regions, txn=txn)
-                return True
-
-            # If the next model only has 1 more peak, not worth searching
-            if model['numPeaks'] <= compare['numPeaks'] + 1:
-                return False
-        else:
-
-            try:
-                compare = modelSums.iloc[index - 1]
-            except IndexError:
-                submitOOMJob(problem, data, model['penalty'], '/', regions, txn=txn)
-                return True
-
-            # If the previous model is only 1 peak away, not worth searching
-            if compare['numPeaks'] + 1 >= model['numPeaks']:
-                return False
-
-        if compare['penalty'] > model['penalty']:
-            top = compare
-            bottom = model
-        else:
-            top = model
-            bottom = compare
-        submitSearch(data, problem, bottom, top, regions, txn=txn)
-
-        return True
-
-    return True
-
-
-def submitOOMJob(problem, data, penalty, jobType, regions, txn=None):
-    if jobType == '*':
-        penalty = float(penalty) * 10
-    elif jobType == '/':
-        penalty = float(penalty) / 10
-    else:
-        print("Invalid OOM Job")
-        return
-
-    job = Jobs.SingleModelJob(data['user'],
-                              data['hub'],
-                              data['track'],
-                              problem,
-                              penalty,
-                              regions)
-
-    job.putNewJobWithTxn(txn=txn)
-
-
-def submitPregenJob(problem, data, regions, txn=None):
-    penalties = getPrePenalties()
-
-    job = Jobs.PregenJob(data['user'],
-                         data['hub'],
-                         data['track'],
-                         problem,
-                         penalties,
-                         regions)
-
-    return job.putNewJobWithTxn(txn=txn)
-
-
-def submitGridSearch(problem, data, minPenalty, maxPenalty, regions, num=cfg.gridSearchSize, txn=None):
-    minPenalty = float(minPenalty)
-    maxPenalty = float(maxPenalty)
-    penalties = np.linspace(minPenalty, maxPenalty, num + 2).tolist()[1:-1]
-    if 'trackUrl' in data:
-        job = Jobs.GridSearchJob(data['user'],
-                                 data['hub'],
-                                 data['track'],
-                                 problem,
-                                 penalties,
-                                 regions,
-                                 trackUrl=data['trackUrl'])
-    else:
-        job = Jobs.GridSearchJob(data['user'],
-                                 data['hub'],
-                                 data['track'],
-                                 problem,
-                                 penalties,
-                                 regions)
-
-    job.putNewJobWithTxn(txn=txn)
-
-
-def submitSearch(data, problem, bottom, top, regions, txn=None):
-    bottomLoss = db.Loss(data['user'],
-                         data['hub'],
-                         data['track'],
-                         problem['chrom'],
-                         problem['chromStart'],
-                         bottom['penalty']).get()
-
-    topLoss = db.Loss(data['user'],
-                      data['hub'],
-                      data['track'],
-                      problem['chrom'],
-                      problem['chromStart'],
-                      top['penalty']).get()
-
-    if topLoss is None or bottomLoss is None:
-        return
-
-    penalty = abs((topLoss['meanLoss'] - bottomLoss['meanLoss'])
-                  / (bottomLoss['peaks'] - topLoss['peaks'])).iloc[0].astype(float)
-
-    print('submitSearch', penalty, type(penalty))
-
-    job = Jobs.SingleModelJob(data['user'],
-                              data['hub'],
-                              data['track'],
-                              problem,
-                              penalty,
-                              regions)
-
-    job.putNewJobWithTxn(txn=txn)
 
 
 @retry
@@ -433,10 +276,6 @@ def getModelSummary(data, txn=None):
 def getErrorSeries(penalty, numPeaks, regions=0):
     return pd.Series({'regions': regions, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
                       'errors': 0, 'penalty': penalty, 'numPeaks': numPeaks})
-
-
-def getPrePenalties():
-    return [1000, 10000, 100000, 1000000]
 
 
 # TODO: This could be better (learning a penalty based on PeakSegDisk Models?)
@@ -773,7 +612,6 @@ def getTrackModelSummaries(data, txn=None):
 @retry
 @txnAbortOnError
 def getTrackModelSummary(data, txn=None):
-
     hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
 
     problems = db.Problems(hubInfo['genome']).get(txn=txn)

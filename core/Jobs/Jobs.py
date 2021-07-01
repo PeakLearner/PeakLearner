@@ -1,4 +1,6 @@
 import json
+
+import numpy as np
 import time
 
 import berkeleydb
@@ -109,10 +111,10 @@ class Job(metaclass=JobType):
 
         self.id = str(db.JobInfo('Id').incrementId(txn=txn))
         self.iteration = str(db.Iteration(self.user,
-                                      self.hub,
-                                      self.track,
-                                      self.problem['chrom'],
-                                      self.problem['chromStart']).increment(txn=txn))
+                                          self.hub,
+                                          self.track,
+                                          self.problem['chrom'],
+                                          self.problem['chromStart']).increment(txn=txn))
 
         self.lastModified = time.time()
 
@@ -149,7 +151,6 @@ class Job(metaclass=JobType):
         if (self.problem['chrom'] != jobToCheck.problem['chrom']
                 or int(self.problem['chromStart']) != int(jobToCheck.problem['chromStart'])
                 or int(self.problem['chromEnd']) != int(jobToCheck.problem['chromEnd'])):
-
             return False
 
         if self.jobType != jobToCheck.jobType:
@@ -475,6 +476,7 @@ def checkIfRunDownloadJobs():
             return False
     return True
 
+
 @retry
 @txnAbortOnError
 def resetJob(data, txn=None):
@@ -624,7 +626,6 @@ def getAllJobs(data, txn=None):
     current = cursor.next()
 
     while current is not None:
-
         key, job = current
 
         jobs.append(job.__dict__())
@@ -634,6 +635,7 @@ def getAllJobs(data, txn=None):
     cursor.close()
 
     return jobs
+
 
 @retry
 @txnAbortOnError
@@ -730,10 +732,10 @@ def jobsStats(data, txn=None):
     return output
 
 
-
 try:
     import uwsgi
     import uwsgidecorators
+
 
     # run Job Spawner every 60 seconds
     @uwsgidecorators.timer(60, target='mule')
@@ -765,19 +767,255 @@ def spawnJobs(data, txn=None):
 
         current = jobCursor.next()
 
+    jobCursor.close()
+
+    if len(jobsByContig.keys()) < 1:
+        return
+
+    # Only spawn jobs when all jobs are no longer new
     for key in jobsByContig:
         contigJobs = jobsByContig[key]
 
-        dontSpawn = False
-
         for job in contigJobs:
-            if job.status.lower() != 'done':
-                dontSpawn = True
+            if statuses.index(job.status) < statuses.index('Queued'):
+                # If there are jobs which are not at least queued yet
+                return
 
-        if dontSpawn:
+    jobs = getPotentialJobs(jobsByContig, txn=txn)
+
+    jobsLeft = cfg.maxJobsToSpawn - len(jobs)
+
+    if jobsLeft > 0:
+        resOut = getResolutionJobs(jobsLeft, txn=None)
+        if resOut is not None and len(resOut) > 0:
+            jobs.extend(resOut)
+
+    for job in jobs:
+        job.putNewJobWithTxn(txn=txn)
+
+
+def getResolutionJobs(numJobs, txn=None):
+    log.warning('Not Yet Implemented')
+    return []
+
+
+def getPotentialJobs(contigJobs, txn=None):
+    output = []
+
+    # Checks all regions where models have already potentially been computed
+    for key in contigJobs:
+        modelSums = db.ModelSummaries(*key).get(txn=txn)
+
+        nonZeroRegions = modelSums[modelSums['regions'] > 0]
+
+        if len(nonZeroRegions.index) < 1:
+            # if there are no labels in that region, but a prediction model has been generated
             continue
 
+        withPeaks = nonZeroRegions[nonZeroRegions['numPeaks'] > 0]
+
+        zeroError = withPeaks[withPeaks['errors'] < 1]
+
+        if len(zeroError.index) < 1:
+            # Nothing with zero Error, try and refine
+
+            jobToAppend = jobToRefine(key, withPeaks, txn=txn)
+
+            if jobToAppend is None:
+                continue
+            output.append(jobToAppend)
+            continue
+
+        if len(output) > cfg.maxJobsToSpawn:
+            break
+
+    # If not enough jobs, check for predict jobs
+    jobsLeft = cfg.maxJobsToSpawn - len(output)
+    if jobsLeft > 0:
+        predictOut = checkForPredictJobs(jobsLeft, txn=txn)
+        if predictOut is not None and len(predictOut) > 0:
+            output.extend(predictOut)
+
+    return output
 
 
+def checkForPredictJobs(numJobs, txn=None):
+    output = []
+
+    hubInfoCursor = db.HubInfo.getCursor(txn=txn, bulk=True)
+
+    current = hubInfoCursor.next()
+
+    while current is not None:
+        key, hubInfo = current
+
+        user, hub = key
+
+        problems = db.Problems(hubInfo['genome']).get(txn=txn)
+
+        for track in hubInfo['tracks']:
+            for problemRowKey, row in problems.iterrows():
+                problemKey = *key, track, row.chrom, row.chromStart
+                if db.Problems.has_key(problemKey):
+                    continue
+                output.append(PredictJob(user, hub, track, row.to_dict()))
+
+                numJobs -= 1
+
+                if numJobs < 1:
+                    break
+            if numJobs < 1:
+                break
+        if numJobs < 1:
+            break
+        current = hubInfoCursor.next()
+
+    hubInfoCursor.close()
+
+    return output
 
 
+def jobToRefine(key, modelSums, txn=None):
+    user, hub, track, ref, start = key
+
+    data = {'user': user, 'hub': hub, 'track': track}
+
+    genome = db.HubInfo(user, hub).get(txn=txn)['genome']
+
+    problems = db.Problems(genome).get(txn=txn)
+
+    chrom = problems[problems['chrom'] == ref]
+    start = chrom[chrom['chromStart'] == int(start)]
+
+    problem = start.to_dict('records')[0]
+
+    minError = modelSums[modelSums['errors'] == modelSums['errors'].min()]
+
+    numMinErrors = len(minError.index)
+
+    regions = minError['regions'].max()
+
+    if numMinErrors == 0:
+        return
+
+    if minError.iloc[0]['errors'] == 0:
+        return
+
+    if numMinErrors > 1:
+        # no need to generate new models if error is 0
+        first = minError.iloc[0]
+        last = minError.iloc[-1]
+
+        biggerFp = first['fp'] > last['fp']
+        smallerFn = first['fn'] < last['fn']
+
+        # Sanity check for bad labels, if the minimum is still the same values
+        # With little labels this could not generate new models
+        if biggerFp or smallerFn:
+            minPenalty = first['penalty']
+            maxPenalty = last['penalty']
+            return submitGridSearch(problem, data, minPenalty, maxPenalty, regions, txn=txn)
+        return
+
+    elif numMinErrors == 1:
+        index = minError.index[0]
+
+        model = minError.iloc[0]
+        if model['fp'] > model['fn']:
+            try:
+                compare = modelSums.iloc[index + 1]
+            except IndexError:
+                return submitOOMJob(problem, data, model['penalty'], '*', regions, txn=txn)
+
+            # If the next model only has 1 more peak, not worth searching
+            if model['numPeaks'] <= compare['numPeaks'] + 1:
+                return
+        else:
+            try:
+                compare = modelSums.iloc[index - 1]
+            except IndexError:
+                return submitOOMJob(problem, data, model['penalty'], '/', regions, txn=txn)
+
+            # If the previous model is only 1 peak away, not worth searching
+            if compare['numPeaks'] + 1 >= model['numPeaks']:
+                return
+
+        if compare['penalty'] > model['penalty']:
+            top = compare
+            bottom = model
+        else:
+            top = model
+            bottom = compare
+
+        return submitSearch(data, problem, bottom, top, regions, txn=txn)
+
+    return
+
+
+def submitOOMJob(problem, data, penalty, jobType, regions, txn=None):
+    if jobType == '*':
+        penalty = float(penalty) * 10
+    elif jobType == '/':
+        penalty = float(penalty) / 10
+    else:
+        print("Invalid OOM Job")
+        return
+
+    return SingleModelJob(data['user'],
+                          data['hub'],
+                          data['track'],
+                          problem,
+                          penalty,
+                          regions)
+
+
+def submitGridSearch(problem, data, minPenalty, maxPenalty, regions, num=cfg.gridSearchSize, txn=None):
+    minPenalty = float(minPenalty)
+    maxPenalty = float(maxPenalty)
+    penalties = np.linspace(minPenalty, maxPenalty, num + 2).tolist()[1:-1]
+    if 'trackUrl' in data:
+        return GridSearchJob(data['user'],
+                             data['hub'],
+                             data['track'],
+                             problem,
+                             penalties,
+                             regions,
+                             trackUrl=data['trackUrl'])
+
+    return GridSearchJob(data['user'],
+                         data['hub'],
+                         data['track'],
+                         problem,
+                         penalties,
+                         regions)
+
+
+def submitSearch(data, problem, bottom, top, regions, txn=None):
+    bottomLoss = db.Loss(data['user'],
+                         data['hub'],
+                         data['track'],
+                         problem['chrom'],
+                         problem['chromStart'],
+                         bottom['penalty']).get()
+
+    topLoss = db.Loss(data['user'],
+                      data['hub'],
+                      data['track'],
+                      problem['chrom'],
+                      problem['chromStart'],
+                      top['penalty']).get()
+
+    if topLoss is None or bottomLoss is None:
+        return
+
+    penalty = abs((topLoss['meanLoss'] - bottomLoss['meanLoss'])
+                  / (bottomLoss['peaks'] - topLoss['peaks'])).iloc[0].astype(float)
+
+    print('submitSearch', penalty, type(penalty))
+
+    return SingleModelJob(data['user'],
+                              data['hub'],
+                              data['track'],
+                              problem,
+                              penalty,
+                              regions)
