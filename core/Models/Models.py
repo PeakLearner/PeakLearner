@@ -176,7 +176,7 @@ def updateAllModelLabels(data, labels, txn):
                                  peakSegDiskPrePenalties,
                                  len(labels.index))
             if out is not None:
-                out.putNewJobWithTxn(txn=modelTxn)
+                out.putNewJob(txn=modelTxn)
                 modelTxn.commit()
             else:
                 modelTxn.abort()

@@ -51,7 +51,7 @@ class PeakLearnerTests(unittest.TestCase):
         self.testapp = StopableWSGIServer.create(app, port=8080)
 
         options = Options()
-        options.headless = True
+        # options.headless = True
         try:
             self.driver = webdriver.Chrome(options=options)
         except WebDriverException:
@@ -75,6 +75,12 @@ class PeakLearnerTests(unittest.TestCase):
         wait.until(EC.presence_of_element_located((By.ID, 'search-box')))
 
     def test_LOPART_model(self):
+        self.runAltModelTest('lopart')
+
+    def test_FLOPART_model(self):
+        self.runAltModelTest('flopart')
+
+    def runAltModelTest(self, whichModel):
         self.driver.get(url)
 
         self.driver.find_element(By.ID, 'myHubs').click()
@@ -112,7 +118,7 @@ class PeakLearnerTests(unittest.TestCase):
 
         assert modelMissing
 
-        self.enableLopart()
+        self.enableAltModel(whichModel)
 
         self.addPeak(2257, width=120)
 
@@ -178,19 +184,28 @@ class PeakLearnerTests(unittest.TestCase):
                 start = model['location']['x']
                 end = start + model['size']['width']
 
-                inStart = inEnd = False
-
                 for label in labels:
                     if label['label'] == 'peakStart':
                         if label['start'] < start < label['end']:
-                            inStart = True
+                            label['inStart'] = True
                     elif label['label'] == 'peakEnd':
                         if label['start'] < end < label['end']:
-                            inEnd = True
+                            label['inEnd'] = True
 
-                assert inStart
+            for label in labels:
+                fail = 0
+                try:
+                    assert label['inEnd']
+                except KeyError:
+                    fail += 1
 
-                assert inEnd
+                try:
+                    assert label['inStart']
+                except KeyError:
+                    fail += 1
+
+                if fail == 2:
+                    raise Exception
 
     def test_JobsPage_Working(self):
         self.driver.get(url)
@@ -361,12 +376,13 @@ class PeakLearnerTests(unittest.TestCase):
             if numTracks < 1:
                 break
 
-    def enableLopart(self):
+    def enableAltModel(self, whichModel):
         wait = WebDriverWait(self.driver, waitTime)
 
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "peaklearner")))
 
         self.driver.find_element(By.CLASS_NAME, 'peaklearner').click()
+
 
         popup = self.driver.find_element(By.ID, 'dijit_PopupMenuItem_0_text')
 
@@ -376,7 +392,7 @@ class PeakLearnerTests(unittest.TestCase):
 
         time.sleep(1)
 
-        self.driver.find_element(By.ID, 'LOPART').click()
+        self.driver.find_element(By.ID, whichModel.upper()).click()
 
     def moveToDefinedLocation(self):
         # Move to defined location

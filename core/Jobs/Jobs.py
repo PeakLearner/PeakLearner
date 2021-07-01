@@ -94,16 +94,7 @@ class Job(metaclass=JobType):
             pass
         return self
 
-    def putNewJob(self, checkExists=True):
-        txn = db.getTxn()
-        value = self.putNewJobWithTxn(txn, checkExists=checkExists)
-        if value is None:
-            txn.abort()
-            return value
-        txn.commit()
-        return value
-
-    def putNewJobWithTxn(self, txn, checkExists=True):
+    def putNewJob(self, txn, checkExists=True):
         """puts Job into job list if the job doesn't exist"""
         if checkExists:
             if self.checkIfExists(txn=txn):
@@ -435,7 +426,7 @@ def submitPredictJobForDownload(row, user, hub, txn):
 
     job = PredictJob(user, hub, track, problem)
 
-    job.putNewJobWithTxn(txn)
+    job.putNewJob(txn)
 
 
 def checkForModels(row, user, hub, track):
@@ -743,7 +734,7 @@ try:
         spawnJobs(num)
 
 except ModuleNotFoundError:
-    print('Running in none uwsgi mode, ')
+    print('Running in none uwsgi mode, Jobs wont automatically be spawned')
 
 
 @retry
@@ -798,7 +789,7 @@ def spawnJobs(data, txn=None):
             jobs.extend(resOut)
 
     for job in jobs:
-        job.putNewJobWithTxn(txn=txn)
+        job.putNewJob(txn=txn)
 
 
 def getResolutionJobs(numJobs, txn=None):

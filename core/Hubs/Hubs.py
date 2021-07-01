@@ -407,7 +407,7 @@ def submitPregenWithData(doPregen, user, hub, track, numLabels, coverageUrl, txn
                              numLabels,
                              trackUrl=coverageUrl)
 
-        if job.putNewJobWithTxn(problemTxn) is None:
+        if job.putNewJob(problemTxn) is None:
             problemTxn.abort()
             continue
 
