@@ -1,3 +1,4 @@
+import json
 import os
 import time
 
@@ -56,6 +57,8 @@ def lock_detect(func):
     return wrap
 
 
+
+
 class PeakLearnerJobsTests(unittest.TestCase):
     jobsURL = '/Jobs/'
     queueUrl = '%squeue/' % jobsURL
@@ -74,7 +77,106 @@ class PeakLearnerJobsTests(unittest.TestCase):
     def getJobs(self):
         return self.testapp.get(self.jobsURL, headers={'Accept': 'application/json'})
 
-    def test_zjobSpawner(self):
+    def test_getPotentialJobs(self):
+        import core.Jobs.Jobs as Jobs
+        job = {'user': 'Public',
+                'hub': 'H3K4me3_TDH_ENCODE',
+                'track': 'aorta_ENCFF115HTK',
+                'problem': {'chrom': 'chr3',
+                'chromStart': 93504854}}
+        summary = self.getRelevantData(job, modelSumsDf)
+
+        losses = self.getRelevantData(job, lossDf)
+
+        # Add losses for submit search
+        for loss in losses.to_dict('records'):
+            loss = losses[losses['penalty'] == int(loss['penalty'])].astype(int)
+            assert len(loss.index) == 1
+
+            data = {'lossInfo': job, 'penalty': str(loss['penalty'].iloc[0]), 'lossData': loss.to_json()}
+
+            json.dumps(data)
+
+            lossUrl = '/%s/%s/%s/loss/' % (job['user'], job['hub'], job['track'])
+
+            out = self.testapp.put_json(lossUrl, data)
+
+            assert out.status_code == 200
+
+        summary = summary.to_dict('records')
+
+        # Single Model where penalty is
+        for entry in summary:
+            if entry['errors'] == 0:
+                entry['errors'] += 1.0
+                entry['fp'] += 1.0
+                if entry['numPeaks'] > 1:
+                    penalty = entry['penalty']
+
+        data = {**job, 'sums': summary}
+
+        out = self.testapp.put_json('/modelSumUpload/', data)
+
+        assert out.status_code == 200
+
+        contigJobs = {(job['user'], job['hub'], job['track'], job['problem']['chrom'], str(job['problem']['chromStart'])): []}
+
+        out = Jobs.getPotentialJobs(contigJobs)
+
+        assert len(out) == 1
+        outJob = out[0]
+        assert isinstance(outJob, Jobs.SingleModelJob)
+
+        assert float(outJob.tasks['0']['penalty']) > penalty
+
+
+        # Different case
+        for entry in summary:
+            if entry['errors'] == 1.0:
+                entry['errors'] += 1.0
+                entry['fn'] += 1.0
+                if entry['numPeaks'] > 1:
+                    penalty = entry['penalty']
+
+        data = {**job, 'sums': summary}
+
+        out = self.testapp.put_json('/modelSumUpload/', data)
+
+        assert out.status_code == 200
+
+        out = Jobs.getPotentialJobs(contigJobs)
+
+        assert len(out) == 1
+
+        outJob = out[0]
+
+        assert isinstance(outJob, Jobs.GridSearchJob)
+
+        # Different case
+        for entry in summary:
+            if entry['penalty'] == 100000:
+                entry['errors'] += 1.0
+                entry['fn'] += 1.0
+                if entry['numPeaks'] > 1:
+                    penalty = entry['penalty']
+
+        data = {**job, 'sums': summary}
+
+        out = self.testapp.put_json('/modelSumUpload/', data)
+
+        assert out.status_code == 200
+
+        out = Jobs.getPotentialJobs(contigJobs)
+
+        print('getPotentialOut', out)
+
+        assert len(out) == 1
+
+        outJob = out[0]
+
+        assert isinstance(outJob, Jobs.SingleModelJob)
+
+    def test_jobSpawner(self):
         out = self.getJobs()
 
         assert out.status_code == 200
@@ -138,6 +240,7 @@ class PeakLearnerJobsTests(unittest.TestCase):
 
     def putLoss(self, job, trackUrl):
         loss = self.getRelevantData(job, lossDf)
+        loss = loss[loss['penalty'] == int(job['penalty'])]
 
         if len(loss.index) < 1:
             raise Exception
@@ -145,8 +248,7 @@ class PeakLearnerJobsTests(unittest.TestCase):
         lossInfo = {'user': job['user'],
                     'hub': job['hub'],
                     'track': job['track'],
-                    'problem': job['problem'],
-                    'jobId': job['id']}
+                    'problem': job['problem']}
 
         data = {'lossInfo': lossInfo, 'penalty': job['penalty'], 'lossData': loss.to_json()}
 

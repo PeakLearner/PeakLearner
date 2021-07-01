@@ -783,6 +783,13 @@ def spawnJobs(data, txn=None):
 
     jobs = getPotentialJobs(jobsByContig, txn=txn)
 
+    # If not enough jobs, check for predict jobs
+    jobsLeft = cfg.maxJobsToSpawn - len(jobs)
+    if jobsLeft > 0:
+        predictOut = checkForPredictJobs(jobsLeft, txn=txn)
+        if predictOut is not None and len(predictOut) > 0:
+            jobs.extend(predictOut)
+
     jobsLeft = cfg.maxJobsToSpawn - len(jobs)
 
     if jobsLeft > 0:
@@ -828,13 +835,6 @@ def getPotentialJobs(contigJobs, txn=None):
 
         if len(output) > cfg.maxJobsToSpawn:
             break
-
-    # If not enough jobs, check for predict jobs
-    jobsLeft = cfg.maxJobsToSpawn - len(output)
-    if jobsLeft > 0:
-        predictOut = checkForPredictJobs(jobsLeft, txn=txn)
-        if predictOut is not None and len(predictOut) > 0:
-            output.extend(predictOut)
 
     return output
 
@@ -925,16 +925,17 @@ def jobToRefine(key, modelSums, txn=None):
             try:
                 compare = modelSums.iloc[index + 1]
             except IndexError:
-                return submitOOMJob(problem, data, model['penalty'], '*', regions, txn=txn)
+                return submitOOMJob(problem, data, model['penalty'], '*', regions,)
 
             # If the next model only has 1 more peak, not worth searching
             if model['numPeaks'] <= compare['numPeaks'] + 1:
                 return
         else:
+            print('test')
             try:
                 compare = modelSums.iloc[index - 1]
             except IndexError:
-                return submitOOMJob(problem, data, model['penalty'], '/', regions, txn=txn)
+                return submitOOMJob(problem, data, model['penalty'], '/', regions)
 
             # If the previous model is only 1 peak away, not worth searching
             if compare['numPeaks'] + 1 >= model['numPeaks']:
@@ -952,7 +953,7 @@ def jobToRefine(key, modelSums, txn=None):
     return
 
 
-def submitOOMJob(problem, data, penalty, jobType, regions, txn=None):
+def submitOOMJob(problem, data, penalty, jobType, regions):
     if jobType == '*':
         penalty = float(penalty) * 10
     elif jobType == '/':
@@ -996,22 +997,20 @@ def submitSearch(data, problem, bottom, top, regions, txn=None):
                          data['track'],
                          problem['chrom'],
                          problem['chromStart'],
-                         bottom['penalty']).get()
+                         int(bottom['penalty'])).get()
 
     topLoss = db.Loss(data['user'],
                       data['hub'],
                       data['track'],
                       problem['chrom'],
                       problem['chromStart'],
-                      top['penalty']).get()
+                      int(top['penalty'])).get()
 
     if topLoss is None or bottomLoss is None:
         return
 
     penalty = abs((topLoss['meanLoss'] - bottomLoss['meanLoss'])
                   / (bottomLoss['peaks'] - topLoss['peaks'])).iloc[0].astype(float)
-
-    print('submitSearch', penalty, type(penalty))
 
     return SingleModelJob(data['user'],
                               data['hub'],
