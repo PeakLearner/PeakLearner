@@ -51,7 +51,7 @@ class PeakLearnerTests(unittest.TestCase):
         self.testapp = StopableWSGIServer.create(app, port=8080)
 
         options = Options()
-        # options.headless = True
+        options.headless = True
         try:
             self.driver = webdriver.Chrome(options=options)
         except WebDriverException:
