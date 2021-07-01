@@ -32,6 +32,7 @@ jobs:
       - run: python3 -m pip install -r requirements.txt
       - run: pip install -e ".[dev]"
       - run: python3 -m pytest --cov=core --cov=website --cov=Slurm --cov-report=xml tests/test_PeakLearner.py
+      - run: python3 -m pytest --cov=core --cov=website --cov=Slurm --cov-report=xml --cov-append tests/test_PeakLearner.py
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
@@ -71,7 +72,7 @@ jobs:
       - run: python3 -m pip install numpy==1.20.3
       - run: python3 -m pip install -r requirements.txt
       - run: pip install -e ".[dev]"
-      - run: python3 -m pytest tests/test_withSelenium.py
+      - run: python3 -m pytest seleniumTests/test_withSelenium.py
   deployOpenAPI:
     name: Generates the OpenAPI docs website
     runs-on: ubuntu-latest

@@ -398,7 +398,7 @@ def submitPregenWithData(doPregen, user, hub, track, numLabels, coverageUrl, txn
     recs = doPregen.to_dict('records')
     for problem in recs:
         problemTxn = db.getTxn(parent=txn)
-        penalties = Models.getPrePenalties()
+        penalties = Models.peakSegDiskPrePenalties
         job = Jobs.PregenJob(user,
                              hub,
                              track['track'],
