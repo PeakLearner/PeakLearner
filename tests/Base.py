@@ -51,3 +51,7 @@ class PeakLearnerTestBase(unittest.TestCase):
             db.openDBs()
         else:
             raise Exception
+
+    def tearDown(self):
+        if db.isLoaded():
+            db.closeDBs()
