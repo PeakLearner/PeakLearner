@@ -57,20 +57,22 @@ def lock_detect(func):
     return wrap
 
 
-
-
 class PeakLearnerJobsTests(unittest.TestCase):
     jobsURL = '/Jobs/'
     queueUrl = '%squeue/' % jobsURL
 
     def setUp(self):
+        if not os.path.exists(dbDir):
+            with tarfile.open(dbTar) as tar:
+                tar.extractall(dataDir)
+
         self.config = testing.setUp()
         self.app = get_app('production.ini')
         from webtest import TestApp
 
         self.testapp = TestApp(self.app)
 
-    def tearDown(self):
+    def donttearDown(self):
         if os.path.exists(dbDir):
             shutil.rmtree(dbDir)
 
@@ -168,13 +170,23 @@ class PeakLearnerJobsTests(unittest.TestCase):
 
         out = Jobs.getPotentialJobs(contigJobs)
 
-        print('getPotentialOut', out)
-
         assert len(out) == 1
 
         outJob = out[0]
 
         assert isinstance(outJob, Jobs.SingleModelJob)
+
+    def test_predictionJob(self):
+        self.test_jobSpawner()
+
+        out = self.testapp.get(self.queueUrl)
+
+        assert out.status_code == 200
+
+        predictionJob = out.json
+
+        assert predictionJob['jobStatus'].lower() != 'error'
+
 
     def test_jobSpawner(self):
         out = self.getJobs()
