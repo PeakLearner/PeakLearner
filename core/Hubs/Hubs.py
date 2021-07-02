@@ -35,57 +35,62 @@ def goToRegion(data, txn=None):
     genome = hubInfo['genome']
     problems = db.Problems(genome).get(txn=txn)
     tracks = list(hubInfo['tracks'].keys())
-    toGoTo = problems.apply(checkProblem, axis=1, args=(user, hub, tracks, data['type'].lower(), txn))
+    trackDf = pd.DataFrame(tracks, columns=['track'])
+    trackDf['user'] = user
+    trackDf['hub'] = hub
 
-    possibleRegions = problems[toGoTo]
+    trackProblems = []
+    for key, row in trackDf.iterrows():
+        grouped = problems.groupby(['chrom'], as_index=False)
+        problemLabels = grouped.apply(checkProblemForLabels, row, txn)
+        problemLabels['track'] = row['track']
+        trackProblems.append(problemLabels)
 
-    if possibleRegions.empty:
-        return
+    trackProblems = pd.concat(trackProblems)
+
+    problemGroups = trackProblems.groupby(['chrom', 'chromStart', 'chromEnd'], as_index=False)
+
+    toCheck = data['type'].lower() == 'labeled'
+
+    regions = problemGroups.apply(checkPossibleRegion)
+    regions.columns = ['chrom', 'chromStart', 'chromEnd', 'labeled']
+
+    possibleRegions = regions[regions['labeled'] == toCheck]
 
     regionToGoTo = possibleRegions.sample()
 
-    # Need to convert to something jbrowse will understand
-    regionToGoTo = regionToGoTo.to_dict('records')[0]
-
     region = {
-        'ref': regionToGoTo['chrom'],
-        'start': regionToGoTo['chromStart'],
-        'end': regionToGoTo['chromEnd']
+        'ref': regionToGoTo['chrom'].iloc[0],
+        'start': regionToGoTo['chromStart'].iloc[0].item(),
+        'end': regionToGoTo['chromEnd'].iloc[0].item()
     }
 
     return region
 
 
-def checkProblem(row, user, hub, tracks, toCheck, txn):
+def checkPossibleRegion(row):
+    return row['labeled'].any()
 
-    trackDf = pd.DataFrame(tracks, columns=['track'])
 
-    output = trackDf.apply(checkLabels, axis=1, args=(user, hub, row, toCheck, txn))
+def checkProblemForLabels(chromGroup, track, txn):
+    chrom = chromGroup['chrom'].iloc[0]
 
-    if toCheck == 'labeled':
-        return output.any()
+    key = (track['user'], track['hub'], track['track'], chrom)
+
+    if db.Labels.has_key(key):
+        labels = db.Labels(track['user'], track['hub'], track['track'], chrom).get(txn=txn)
+
+        chromGroup['labeled'] = chromGroup.apply(checkLabelsInBoundsOnChrom, axis=1, args=(labels,))
+
     else:
-        return output.all()
+        chromGroup['labeled'] = False
+
+    return chromGroup
 
 
-def checkLabels(row, user, hub, problem, toCheck, txn):
-    labels = db.Labels(user,
-                       hub,
-                       row['track'],
-                       problem['chrom']).getInBounds(problem['chrom'],
-                                                     problem['chromStart'],
-                                                     problem['chromEnd'], txn=txn)
-
-    if labels.empty:
-        if toCheck == 'unlabeled':
-            return True
-        else:
-            return False
-    else:
-        if toCheck == 'unlabeled':
-            return False
-        else:
-            return True
+def checkLabelsInBoundsOnChrom(row, labels):
+    inBounds = labels.apply(db.checkInBounds, axis=1, args=(row['chrom'], row['chromStart'], row['chromEnd']))
+    return inBounds.any()
 
 
 @retry
