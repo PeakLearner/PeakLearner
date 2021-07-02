@@ -466,8 +466,8 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         action.perform()
 
     def tearDown(self):
-        self.testapp.close()
-
         super().tearDown()
+
+        self.testapp.close()
 
         self.driver.close()
