@@ -794,8 +794,4 @@ def downloadAndUnpackFile(url, path):
 @retry
 @txnAbortOnError
 def getHubInfo(data, txn=None):
-    print(data['user'], data['hub'])
     return db.HubInfo(data['user'], data['hub']).get(txn=txn)
-
-
-

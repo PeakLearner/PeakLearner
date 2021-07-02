@@ -34,7 +34,7 @@ jobs:
       - run: python3 -m pip install -r requirements.txt
       - run: pip install -e ".[dev]"
       - uses: nanasess/setup-chromedriver@master
-      - run: python3 -m pytest --cov=core --cov=website --cov=Slurm --cov-report=xml tests/test_withSelenium.py
+      - run: python3 -m pytest -v --cov=core --cov=website --cov=Slurm --cov-report=xml tests/test_withSelenium.py
       - run: python3 -m pytest --cov=core --cov=website --cov=Slurm --cov-report=xml --cov-append tests/test_PeakLearner.py
       - run: python3 -m pytest --cov=core --cov=website --cov=Slurm --cov-report=xml --cov-append tests/core/test_JobTests.py
       - name: Upload coverage to Codecov
