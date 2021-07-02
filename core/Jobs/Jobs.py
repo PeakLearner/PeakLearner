@@ -586,26 +586,6 @@ def getNextTaskInJob(job):
         if task['status'].lower() == 'new':
             return key
 
-    return None
-
-
-def checkNewTask(data, txn=None):
-    """Checks through all the jobs to see if any of them are new"""
-    cursor = db.Job.getCursor(txn=txn, bulk=True)
-    out = False
-
-    current = cursor.next()
-    while current is not None:
-        key, job = current
-
-        if job.status.lower() == 'new':
-            out = True
-            break
-        current = cursor.next()
-
-    cursor.close()
-    return out
-
 
 @retry
 @txnAbortOnError

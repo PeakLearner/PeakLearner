@@ -4,9 +4,12 @@ import time
 import requests
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
-
-import Tasks as tasks
-import SlurmConfig as cfg
+try:
+    import Tasks as tasks
+    import SlurmConfig as cfg
+except ModuleNotFoundError:
+    import Slurm.Tasks as tasks
+    import Slurm.SlurmConfig as cfg
 
 
 def runTask():
