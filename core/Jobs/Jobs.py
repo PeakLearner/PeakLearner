@@ -409,65 +409,6 @@ def checkRestartJobs(data, txn=None):
         jobTxn.abort()
 
 
-def submitDownloadJobs(problems, txn=None):
-    currentProblems = problems['problems']
-
-    toCreateJobs = currentProblems[~currentProblems['models']]
-
-    toCreateJobs.apply(submitPredictJobForDownload, axis=1, args=(problems['user'], problems['hub'], txn))
-
-
-def submitPredictJobForDownload(row, user, hub, txn):
-    problem = {'chrom': row['chrom'],
-               'chromStart': row['chromStart'],
-               'chromEnd': row['chromEnd']}
-
-    track = row['track']
-
-    job = PredictJob(user, hub, track, problem)
-
-    job.putNewJob(txn)
-
-
-def checkForModels(row, user, hub, track):
-    chrom = row['chrom']
-    start = row['chromStart']
-    end = row['chromEnd']
-
-    ms = db.ModelSummaries(user, hub, track, chrom, start).get()
-
-    row['models'] = not ms.empty
-
-    labels = db.Labels(user, hub, track, chrom).getInBounds(chrom, start, end)
-
-    row['numLabels'] = len(labels.index)
-
-    return row
-
-
-def checkForMoreJobs(task):
-    txn = db.getTxn()
-    problem = task['problem']
-    modelSums = db.ModelSummaries(task['user'],
-                                  task['hub'],
-                                  task['track'],
-                                  problem['chrom'],
-                                  problem['chromStart']).get(txn=txn, write=True)
-    Models.checkGenerateModels(modelSums, problem, task, txn=txn)
-    txn.commit()
-
-
-def checkIfRunDownloadJobs():
-    # This is okay as it never modifies the data afterwards
-    for keys in db.Job.db_key_tuples():
-        jobDb = db.Job(*keys)
-        currentJob = jobDb.get()
-
-        if currentJob.status.lower() != 'done':
-            return False
-    return True
-
-
 @retry
 @txnAbortOnError
 def resetJob(data, txn=None):
@@ -707,10 +648,12 @@ try:
     import uwsgi
     import uwsgidecorators
 
+
     # run Job Spawner every 60 seconds
     @uwsgidecorators.timer(60, target='mule')
     def start_job_spawner(num):
         spawnJobs(num)
+
 
     @uwsgidecorators.timer(3600, target='mule')
     def start_restart_jobCheck(num):
@@ -888,7 +831,17 @@ def jobToRefine(key, modelSums, txn=None):
         if biggerFp or smallerFn:
             minPenalty = first['penalty']
             maxPenalty = last['penalty']
-            return submitGridSearch(problem, data, minPenalty, maxPenalty, regions, txn=txn)
+
+            # Temporary restriction to prevent it from generating too many models
+            # TODO: Remove this if that's okay
+            iteration = db.Iteration(user,
+                                     hub,
+                                     track,
+                                     problem['chrom'],
+                                     problem['chromStart']).get(txn=txn)
+
+            if iteration < 5:
+                return submitGridSearch(problem, data, minPenalty, maxPenalty, regions, txn=txn)
         return
 
     elif numMinErrors == 1:
@@ -899,13 +852,12 @@ def jobToRefine(key, modelSums, txn=None):
             try:
                 compare = modelSums.iloc[index + 1]
             except IndexError:
-                return submitOOMJob(problem, data, model['penalty'], '*', regions,)
+                return submitOOMJob(problem, data, model['penalty'], '*', regions, )
 
             # If the next model only has 1 more peak, not worth searching
             if model['numPeaks'] <= compare['numPeaks'] + 1:
                 return
         else:
-            print('test')
             try:
                 compare = modelSums.iloc[index - 1]
             except IndexError:
@@ -966,32 +918,42 @@ def submitGridSearch(problem, data, minPenalty, maxPenalty, regions, num=cfg.gri
 
 
 def submitSearch(data, problem, bottom, top, regions, txn=None):
+    if isinstance(bottom['penalty'], str):
+        bottomPenalty = bottom['penalty']
+    else:
+        bottomPenalty = bottom['penalty'].astype(str).item().replace('.0', '')
+
+    if isinstance(bottom['penalty'], str):
+        topPenalty = top['penalty']
+    else:
+        topPenalty = top['penalty'].astype(str).item().replace('.0', '')
+
     bottomLoss = db.Loss(data['user'],
                          data['hub'],
                          data['track'],
                          problem['chrom'],
                          problem['chromStart'],
-                         int(bottom['penalty'])).get()
+                         bottomPenalty).get(txn=txn)
 
     topLoss = db.Loss(data['user'],
                       data['hub'],
                       data['track'],
                       problem['chrom'],
                       problem['chromStart'],
-                      int(top['penalty'])).get()
+                      topPenalty).get(txn=txn)
 
     if topLoss is None or bottomLoss is None:
-        return
+        raise Exception
 
     penalty = abs((topLoss['meanLoss'] - bottomLoss['meanLoss'])
                   / (bottomLoss['peaks'] - topLoss['peaks'])).iloc[0].astype(float)
 
     return SingleModelJob(data['user'],
-                              data['hub'],
-                              data['track'],
-                              problem,
-                              penalty,
-                              regions)
+                          data['hub'],
+                          data['track'],
+                          problem,
+                          penalty,
+                          regions)
 
 
 if cfg.testing:
@@ -1005,5 +967,3 @@ if cfg.testing:
         job.status = 'Queued'
 
         jobDb.put(job.__dict__(), txn=txn)
-
-
