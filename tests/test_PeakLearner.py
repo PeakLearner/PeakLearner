@@ -423,6 +423,49 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert len(output.json) != 0
 
+    def test_predictionModel(self):
+        modelsPath = os.path.join(testDataPath, 'Models')
+
+        jobDir = 'PeakLearner-7-1'
+
+        jobDir = os.path.join(modelsPath, jobDir)
+
+        penalty = 1000
+
+        fileBase = os.path.join(jobDir, 'coverage.bedGraph_penalty=%s_' % penalty)
+        segmentsFile = fileBase + 'segments.bed'
+
+        # Upload Model
+
+        modelData = pd.read_csv(segmentsFile, sep='\t', header=None)
+        modelData.columns = ['chrom', 'start', 'end', 'annotation', 'mean']
+        sortedModel = modelData.sort_values('start', ignore_index=True)
+
+        sortedModel['chrom'] = 'chr2'
+
+        problemWithNoLabels = {'chrom': 'chr2', 'chromStart': 149790582, 'chromEnd': 234003741}
+
+        modelInfo = {'user': self.user,
+                     'hub': self.hub,
+                     'track': self.track,
+                     'problem': problemWithNoLabels}
+
+        modelUrl = '%smodels/' % self.trackURL
+
+        query = {'modelInfo': modelInfo, 'penalty': penalty, 'modelData': sortedModel.to_json()}
+        output = self.testapp.put_json(modelUrl, query)
+        assert output.status_code == 200
+
+        params = {'ref': problemWithNoLabels['chrom'],
+                  'start': problemWithNoLabels['chromStart'], 'end': problemWithNoLabels['chromEnd']}
+
+
+        modelOut = self.testapp.get(modelUrl, params=params, headers={'Accept': 'application/json'})
+
+        assert modelOut.status_code == 200
+
+        assert len(modelOut.json) != 0
+
     def test_stats_page(self):
         output = self.testapp.get('/stats/')
 

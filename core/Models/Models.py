@@ -32,23 +32,40 @@ def getModels(data, txn=None):
     output = pd.DataFrame()
 
     for problem in problems:
-        problemTxn = db.getTxn(parent=txn)
 
         modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
-                                           problem['chromStart']).get(txn=problemTxn)
-
-        problemTxn.commit()
+                                           problem['chromStart']).get(txn=txn)
 
         if len(modelSummaries.index) < 1:
-            altout = generateAltModel(data, problem)
+            altout = generateAltModel(data, problem, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
 
+        if len(modelSummaries.index) == 1:
+            sum = modelSummaries.iloc[0]
+
+            # This is probably a predict model then
+            if sum['regions'] == 0:
+                penalty = '%g' % sum['penalty'].item()
+                minErrorModelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
+                                           problem['chromStart'],
+                                           penalty)
+                try:
+                    minErrorModel = minErrorModelDb.get(txn=txn)
+                except KeyError:
+                    log.warning('Missing a model for summary', modelSummaries)
+                    continue
+                minErrorModel = minErrorModel[minErrorModel['annotation'] == 'peak']
+                minErrorModel.columns = jbrowseModelColumns
+
+                output = output.append(minErrorModel, ignore_index=True)
+                continue
+
         nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
 
         if len(nonZeroRegions.index) < 1:
-            altout = generateAltModel(data, problem)
+            altout = generateAltModel(data, problem, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -56,7 +73,7 @@ def getModels(data, txn=None):
         withPeaks = nonZeroRegions[nonZeroRegions['numPeaks'] > 0]
 
         if len(withPeaks.index) < 1:
-            altout = generateAltModel(data, problem)
+            altout = generateAltModel(data, problem, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -64,7 +81,7 @@ def getModels(data, txn=None):
         noError = withPeaks[withPeaks['errors'] < 1]
 
         if len(noError.index) < 1:
-            altout = generateAltModel(data, problem)
+            altout = generateAltModel(data, problem, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -78,10 +95,10 @@ def getModels(data, txn=None):
         minErrorModelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'],
                                    penalty)
         try:
-            minErrorModel = minErrorModelDb.getInBounds(data['ref'], data['start'], data['end'])
+            minErrorModel = minErrorModelDb.getInBounds(data['ref'], data['start'], data['end'], txn=txn)
         except KeyError:
             log.warning('Missing a model for summary', modelSummaries)
-            return
+            continue
         minErrorModel = minErrorModel[minErrorModel['annotation'] == 'peak']
         minErrorModel.columns = jbrowseModelColumns
         output = output.append(minErrorModel, ignore_index=True)
@@ -209,8 +226,9 @@ def putModel(data, txn=None):
     track = modelInfo['track']
 
     db.Model(user, hub, track, problem['chrom'], problem['chromStart'], penalty).put(modelData, txn=txn)
-    labels = db.Labels(user, hub, track, problem['chrom']).get(txn=txn)
-    db.Prediction('changes').increment(txn=txn)
+    labels = db.Labels(user, hub, track, problem['chrom']).getInBounds(problem['chrom'],
+                                                                       problem['chromStart'],
+                                                                       problem['chromEnd'], txn=txn)
     errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
     db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
     return modelInfo
@@ -253,26 +271,6 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
     return singleRow
 
 
-def getModelSummary(data, txn=None):
-    problems = Tracks.getProblems(data, txn=txn)
-
-    output = {}
-
-    for problem in problems:
-        # TODO: Replace 1 with user of hub NOT current user
-        modelSummaries = db.ModelSummaries(data['user'],
-                                           data['hub'],
-                                           data['track'],
-                                           problem['chrom'],
-                                           problem['chromStart']).get(txn=txn)
-
-        if len(modelSummaries.index) < 1:
-            continue
-
-        output[problem['chromStart']] = modelSummaries.to_dict('records')
-    return output
-
-
 def getErrorSeries(penalty, numPeaks, regions=0):
     return pd.Series({'regions': regions, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
                       'errors': 0, 'penalty': penalty, 'numPeaks': numPeaks})
@@ -296,7 +294,7 @@ def getFLOPARTPenalty(data):
         return 5000
 
 
-def generateAltModel(data, problem):
+def generateAltModel(data, problem, txn=None):
     if 'modelType' not in data:
         return []
 
@@ -310,7 +308,7 @@ def generateAltModel(data, problem):
     track = data['track']
     chrom = data['ref']
     scale = data['scale']
-    hubInfo = db.HubInfo(user, hub).get()
+    hubInfo = db.HubInfo(user, hub).get(txn=txn)
     trackUrl = hubInfo['tracks'][data['track']]['url']
 
     start = max(data['visibleStart'], problem['chromStart'], 0)
@@ -327,7 +325,7 @@ def generateAltModel(data, problem):
         return []
 
     dbLabels = db.Labels(user, hub, track, chrom)
-    labels = dbLabels.getInBounds(chrom, start, end)
+    labels = dbLabels.getInBounds(chrom, start, end, txn=txn)
     denom = end - start
 
     # either convert labels to an index value or empty dataframe with cols if not
@@ -491,7 +489,8 @@ def indexToStartEnd(row, start, scale):
     return row
 
 
-def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType):
+# This block of code is ran but coverage doesn't pick it up as
+def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType): # pragma: no cover
     scaledStart = round(((row['chromStart'] - modelStart) * bins) / denom)
     scaledEnd = round(((row['chromEnd'] - modelStart) * bins) / denom)
 
