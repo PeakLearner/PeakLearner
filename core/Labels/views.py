@@ -122,11 +122,25 @@ def getHubLabels(request):
 
     return output
 
+intKeys = ['start', 'end']
 
 def jsonInputWrap(func):
     # Handles loading the query value for hub based commands
     def wrap(request):
-        query = {**request.matchdict, **request.json_body, 'currentUser': request.authenticated_userid}
+
+        try:
+            query = {**request.matchdict, **request.json_body, 'currentUser': request.authenticated_userid}
+        except json.decoder.JSONDecodeError:
+            query = {**request.matchdict, 'currentUser': request.authenticated_userid}
+            for key in ['ref', 'start', 'end', 'label']:
+                if key in request.params:
+                    if key in intKeys:
+                        query[key] = int(request.params[key])
+                    else:
+                        query[key] = request.params[key]
+
+                if 'tracks' in request.params:
+                    query['tracks'] = request.params.getall('tracks')
 
         return func(query)
 
