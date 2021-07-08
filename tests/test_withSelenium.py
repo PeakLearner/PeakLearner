@@ -25,7 +25,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import faulthandler
 
 faulthandler.enable(sys.stderr, all_threads=True)
-waitTime = 600
+waitTime = 60
 
 url = 'http://localhost:8080'
 
