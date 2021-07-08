@@ -25,7 +25,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import faulthandler
 
 faulthandler.enable(sys.stderr, all_threads=True)
-waitTime = 60
+waitTime = 600
 
 url = 'http://localhost:8080'
 
@@ -316,7 +316,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.addLabel('peakEnd', midPoint, midPoint + labelWidth)
 
-        time.sleep(3)
+
 
         labels = self.driver.find_elements(By.CLASS_NAME, 'Label')
 
@@ -324,7 +324,14 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
     def addLabel(self, labelType, start, end):
         wait = WebDriverWait(self.driver, waitTime)
-        wait.until(EC.presence_of_element_located((By.ID, "track_aorta_ENCFF115HTK")))
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "track_peaklearnerbackend_view_track_model")))
+
+        tracks = self.driver.find_elements(By.CLASS_NAME, 'track_peaklearnerbackend_view_track_model')
+
+        trackLabels = {}
+
+        for track in tracks:
+            trackLabels[track.get_attribute('id')] = len(track.find_elements(By.CLASS_NAME, 'Label'))
 
         labelDropdown = self.driver.find_element(By.ID, 'current-label')
 
@@ -352,8 +359,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         track = self.driver.find_element(By.ID, 'track_aorta_ENCFF115HTK')
 
-        numLabels = len(track.find_elements(By.CLASS_NAME, 'Label'))
-
         action = ActionChains(self.driver)
 
         action.move_to_element_with_offset(track, start, 50)
@@ -366,13 +371,12 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         wait.until(EC.presence_of_element_located((By.ID, "track_aorta_ENCFF115HTK")))
 
+        tracks = self.driver.find_elements(By.CLASS_NAME, 'track_peaklearnerbackend_view_track_model')
+
         for i in range(waitTime):
-            track = self.driver.find_element(By.ID, 'track_aorta_ENCFF115HTK')
-
-            if numLabels < len(track.find_elements(By.CLASS_NAME, 'Label')):
-                break
-
-        time.sleep(5)
+            for track in tracks:
+                wait.until(CheckExistsInTrack(track, 'Label'))
+                assert trackLabels[track.get_attribute('id')] < len(track.find_elements(By.CLASS_NAME, 'Label'))
 
     def zoomIn(self):
         wait = WebDriverWait(self.driver, waitTime)
