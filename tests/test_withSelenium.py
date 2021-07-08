@@ -289,9 +289,17 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         time.sleep(3)
 
+        labels = self.driver.find_elements(By.CLASS_NAME, 'Label')
+
+        assert len(labels) != 0
+
         self.addLabel('peakEnd', midPoint, midPoint + labelWidth)
 
         time.sleep(3)
+
+        labels = self.driver.find_elements(By.CLASS_NAME, 'Label')
+
+        assert len(labels) != 0
 
     def addLabel(self, labelType, start, end):
         wait = WebDriverWait(self.driver, waitTime)

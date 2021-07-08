@@ -104,8 +104,8 @@ class Loss(db.Resource):
 class Problems(db.PandasDf):
     keys = ("Genome",)
 
-    def getInBounds(self, chrom, start, end):
-        problems = self.get()
+    def getInBounds(self, chrom, start, end, txn=None):
+        problems = self.get(txn=txn)
 
         if problems is None:
             return None
@@ -236,17 +236,6 @@ def checkInBounds_new(df, chrom, chromStart, chromEnd):
     df = df.loc[bound1:bound2]
 
     return df[df['chrom'] == chrom]
-
-
-def checkLabelExists(row, dfToCheck):
-    duplicate = dfToCheck['chromStart'] == row['chromStart']
-    return duplicate.any()
-
-
-def updateLabelInDf(row, item):
-    if row['chromStart'] == item['chromStart']:
-        return item
-    return row
 
 
 class ModelSummaries(db.PandasDf):

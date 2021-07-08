@@ -18,7 +18,7 @@ def getProblems(data, txn=None):
 
     problems = db.Problems(data['genome'])
 
-    problemsInBounds = problems.getInBounds(data['ref'], data['start'], data['end'])
+    problemsInBounds = problems.getInBounds(data['ref'], data['start'], data['end'], txn=txn)
 
     if problemsInBounds is None:
         problemsPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'genomes', data['genome'], 'problems.bed')
