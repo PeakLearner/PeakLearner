@@ -23,12 +23,32 @@ from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 import faulthandler
+
 faulthandler.enable(sys.stderr, all_threads=True)
 waitTime = 60
 
-
-
 url = 'http://localhost:8080'
+
+
+class CheckExistsInTrack(object):
+    """Checks that the particular class exists in that element
+
+  locator - used to find the element
+  returns the WebElement once it has the particular css class
+  """
+
+    def __init__(self, elementToCheck, classToCheck):
+        self.element = elementToCheck
+        self.classToCheck = classToCheck
+
+    def __call__(self, driver):
+        element = driver.find_element(By.ID, self.element.get_attribute('id'))  # Finding the referenced element
+        classToCheck = element.find_elements(By.CLASS_NAME, self.classToCheck)
+
+        if len(classToCheck):
+            return classToCheck
+        else:
+            return False
 
 
 class PeakLearnerTests(Base.PeakLearnerTestBase):
@@ -76,12 +96,14 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.driver.find_element(By.ID, 'submitButton').click()
 
-        wait = WebDriverWait(self.driver, waitTime*10)
+        wait = WebDriverWait(self.driver, waitTime * 10)
         wait.until(EC.presence_of_element_located((By.ID, 'search-box')))
 
+    @Base.lock_detect
     def test_LOPART_model(self):
         self.runAltModelTest('lopart')
 
+    @Base.lock_detect
     def test_FLOPART_model(self):
         self.runAltModelTest('flopart')
 
@@ -117,7 +139,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
                 for modelDiv in blockModels:
                     models.append({'size': modelDiv.size, 'location': modelDiv.location})
 
-
             if len(models) < 1:
                 modelMissing = True
 
@@ -137,6 +158,12 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
             labels = []
             models = []
             labelNoText = []
+
+            wait = WebDriverWait(self.driver, waitTime)
+
+            wait.until(CheckExistsInTrack(track, 'Label'))
+            wait.until(CheckExistsInTrack(track, 'Model'))
+
             for block in track.find_elements(By.CLASS_NAME, 'block'):
                 # Blocks contain canvas and divs for labels/models
                 for div in block.find_elements(By.CLASS_NAME, 'Label'):
@@ -287,12 +314,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.addLabel('peakStart', midPoint - labelWidth, midPoint - 1)
 
-        time.sleep(3)
-
-        labels = self.driver.find_elements(By.CLASS_NAME, 'Label')
-
-        assert len(labels) != 0
-
         self.addLabel('peakEnd', midPoint, midPoint + labelWidth)
 
         time.sleep(3)
@@ -331,6 +352,8 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         track = self.driver.find_element(By.ID, 'track_aorta_ENCFF115HTK')
 
+        numLabels = len(track.find_elements(By.CLASS_NAME, 'Label'))
+
         action = ActionChains(self.driver)
 
         action.move_to_element_with_offset(track, start, 50)
@@ -342,6 +365,14 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         action.release().perform()
 
         wait.until(EC.presence_of_element_located((By.ID, "track_aorta_ENCFF115HTK")))
+
+        for i in range(waitTime):
+            track = self.driver.find_element(By.ID, 'track_aorta_ENCFF115HTK')
+
+            if numLabels < len(track.find_elements(By.CLASS_NAME, 'Label')):
+                break
+
+        time.sleep(5)
 
     def zoomIn(self):
         wait = WebDriverWait(self.driver, waitTime)
@@ -398,7 +429,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "peaklearner")))
 
         self.driver.find_element(By.CLASS_NAME, 'peaklearner').click()
-
 
         popup = self.driver.find_element(By.ID, 'dijit_PopupMenuItem_0_text')
 

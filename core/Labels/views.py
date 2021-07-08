@@ -122,7 +122,9 @@ def getHubLabels(request):
 
     return output
 
+
 intKeys = ['start', 'end']
+
 
 def jsonInputWrap(func):
     # Handles loading the query value for hub based commands
