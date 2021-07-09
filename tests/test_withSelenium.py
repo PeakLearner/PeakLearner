@@ -20,6 +20,9 @@ waitTime = 60
 
 url = 'http://localhost:8080'
 
+if not os.path.exists('screenshots'):
+    os.makedirs('screenshots')
+
 
 class CheckExistsInTrack(object):
     """Checks that the particular class exists in that element
@@ -37,6 +40,25 @@ class CheckExistsInTrack(object):
         classToCheck = element.find_elements(By.CLASS_NAME, self.classToCheck)
 
         if len(classToCheck):
+            return True
+        else:
+            return False
+
+
+class TitleChanges(object):
+    """Checks that the particular class exists in that element
+
+  locator - used to find the element
+  returns the WebElement once it has the particular css class
+  """
+
+    def __init__(self, title):
+        self.title = title
+
+    def __call__(self, driver):
+        title = driver.title  # Finding the referenced element
+
+        if title != self.title:
             return True
         else:
             return False
@@ -278,7 +300,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         wait = WebDriverWait(self.driver, waitTime)
 
-        wait.until(lambda x: title != self.driver.title)
+        wait.until(TitleChanges(title))
 
     def checkIfError(self):
         # Assert that the page is working to begin with
@@ -357,6 +379,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
                     trackWait.until(CheckExistsInTrack(track, 'Model'))
         except selenium.common.exceptions.TimeoutException:
             self.driver.save_screenshot('screenshots/%s.png' % random.random())
+            raise
 
     def zoomIn(self):
         wait = WebDriverWait(self.driver, waitTime)
@@ -414,15 +437,19 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.driver.find_element(By.CLASS_NAME, 'peaklearner').click()
 
+        wait.until(EC.visibility_of_element_located((By.ID, 'dijit_PopupMenuItem_0_text')))
+
         popup = self.driver.find_element(By.ID, 'dijit_PopupMenuItem_0_text')
 
         action = ActionChains(self.driver)
 
         action.move_to_element(popup).perform()
 
-        time.sleep(1)
+        wait.until(EC.visibility_of_element_located((By.ID, 'modelTypeMenu')))
 
         self.driver.find_element(By.ID, whichModel.upper()).click()
+
+        time.sleep(5)
 
     def moveToDefinedLocation(self):
         # Move to defined location
