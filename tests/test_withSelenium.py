@@ -373,7 +373,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         action.pause(1)
 
-        action.release().perform()
+        action.release().pause(1).perform()
 
         wait.until(EC.presence_of_element_located((By.ID, "track_aorta_ENCFF115HTK")))
 
