@@ -45,9 +45,9 @@ jobs:
           fail_ci_if_error: true
           path_to_write_report: ./codecov_report.txt
           verbose: true
-      - name: Setup upterm session
-        if: failure()
-        uses: lhotari/action-upterm@v1
+      - name: Upload Screenshots
+        run: ./uploadScreenshots.sh
+
   deployOpenAPI:
     name: Generates the OpenAPI docs website
     runs-on: ubuntu-latest
