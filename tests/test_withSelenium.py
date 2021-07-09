@@ -283,7 +283,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         title = self.driver.title
 
-        self.selectTracks(numTracks=6)
+        self.selectTracks(numTracks=3)
 
         wait = WebDriverWait(self.driver, waitTime)
 
@@ -373,7 +373,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         try:
             for track in tracks:
-                trackWait = WebDriverWait(self.driver, 5)
+                trackWait = WebDriverWait(self.driver, waitTime)
                 trackWait.until(CheckExistsInTrack(track, 'Label'))
                 if genModel:
                     trackWait.until(CheckExistsInTrack(track, 'Model'))
