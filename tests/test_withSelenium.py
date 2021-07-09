@@ -144,9 +144,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.enableAltModel(whichModel)
 
-        self.addPeak(2257, width=120)
-
-        time.sleep(5)
+        self.addPeak(2257, width=120, genModel=True)
 
         tracks = self.driver.find_elements(By.CLASS_NAME, 'track_peaklearnerbackend_view_track_model')
 
@@ -156,11 +154,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
             labels = []
             models = []
             labelNoText = []
-
-            wait = WebDriverWait(self.driver, waitTime)
-
-            wait.until(CheckExistsInTrack(track, 'Label'))
-            wait.until(CheckExistsInTrack(track, 'Model'))
 
             for block in track.find_elements(By.CLASS_NAME, 'block'):
                 # Blocks contain canvas and divs for labels/models
@@ -307,20 +300,15 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
             if '404' in self.driver.title:
                 raise Exception('404 Exception')
 
-    def addPeak(self, midPoint, width=40):
+    def addPeak(self, midPoint, width=40, genModel=False):
         labelWidth = width / 2
 
-        self.addLabel('peakStart', midPoint - labelWidth, midPoint - 1)
+        self.addLabel('peakStart', midPoint - labelWidth, midPoint - 1, genModel=genModel)
 
-        self.addLabel('peakEnd', midPoint, midPoint + labelWidth)
+        self.addLabel('peakEnd', midPoint, midPoint + labelWidth, genModel=genModel)
 
 
-
-        labels = self.driver.find_elements(By.CLASS_NAME, 'Label')
-
-        assert len(labels) != 0
-
-    def addLabel(self, labelType, start, end):
+    def addLabel(self, labelType, start, end, genModel=False):
         wait = WebDriverWait(self.driver, waitTime)
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "track_peaklearnerbackend_view_track_model")))
 
@@ -374,7 +362,11 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         wait.until(CheckExistsInTrack(tracks[0], 'Label'))
 
         for track in tracks:
-            assert trackLabels[track.get_attribute('id')] < len(track.find_elements(By.CLASS_NAME, 'Label'))
+            trackWait = WebDriverWait(self.driver, 5)
+            trackWait.until(CheckExistsInTrack(track, 'Label'))
+            if genModel:
+                trackWait.until(CheckExistsInTrack(track, 'Model'))
+
 
     def zoomIn(self):
         wait = WebDriverWait(self.driver, waitTime)
