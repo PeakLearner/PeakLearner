@@ -361,7 +361,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         action.move_to_element_with_offset(track, start, 50)
 
-        action.click_and_hold().perform()
+        action.click_and_hold()
 
         action.move_by_offset(end - start, 50)
 
