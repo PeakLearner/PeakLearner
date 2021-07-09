@@ -46,6 +46,7 @@ jobs:
           path_to_write_report: ./codecov_report.txt
           verbose: true
       - name: Upload Screenshots
+        if: failure()
         run: ./uploadScreenshots.sh
 
   deployOpenAPI:
