@@ -99,11 +99,9 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         wait = WebDriverWait(self.driver, waitTime * 10)
         wait.until(EC.presence_of_element_located((By.ID, 'search-box')))
 
-    @Base.lock_detect
     def test_LOPART_model(self):
         self.runAltModelTest('lopart')
 
-    @Base.lock_detect
     def test_FLOPART_model(self):
         self.runAltModelTest('flopart')
 
@@ -373,10 +371,10 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         tracks = self.driver.find_elements(By.CLASS_NAME, 'track_peaklearnerbackend_view_track_model')
 
-        for i in range(waitTime):
-            for track in tracks:
-                wait.until(CheckExistsInTrack(track, 'Label'))
-                assert trackLabels[track.get_attribute('id')] < len(track.find_elements(By.CLASS_NAME, 'Label'))
+        wait.until(CheckExistsInTrack(tracks[0], 'Label'))
+
+        for track in tracks:
+            assert trackLabels[track.get_attribute('id')] < len(track.find_elements(By.CLASS_NAME, 'Label'))
 
     def zoomIn(self):
         wait = WebDriverWait(self.driver, waitTime)
@@ -508,8 +506,8 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         action.perform()
 
     def tearDown(self):
-        super().tearDown()
-
         self.testapp.close()
+
+        super().tearDown()
 
         self.driver.close()
