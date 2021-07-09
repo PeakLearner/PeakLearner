@@ -359,11 +359,19 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         action = ActionChains(self.driver)
 
+        action.pause(1)
+
         action.move_to_element_with_offset(track, start, 50)
+
+        action.pause(1)
 
         action.click_and_hold()
 
+        action.pause(1)
+
         action.move_by_offset(end - start, 50)
+
+        action.pause(1)
 
         action.release().perform()
 
@@ -443,7 +451,8 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         action = ActionChains(self.driver)
 
-        action.move_to_element(popup).perform()
+        action.move_to_element(popup)
+        action.pause(1).perform()
 
         wait.until(EC.visibility_of_element_located((By.ID, 'modelTypeMenu')))
 
