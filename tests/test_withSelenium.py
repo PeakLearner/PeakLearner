@@ -37,7 +37,7 @@ class CheckExistsInTrack(object):
         classToCheck = element.find_elements(By.CLASS_NAME, self.classToCheck)
 
         if len(classToCheck):
-            return classToCheck
+            return True
         else:
             return False
 
@@ -349,13 +349,14 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         tracks = self.driver.find_elements(By.CLASS_NAME, 'track_peaklearnerbackend_view_track_model')
 
-        wait.until(CheckExistsInTrack(tracks[0], 'Label'))
-
-        for track in tracks:
-            trackWait = WebDriverWait(self.driver, 5)
-            trackWait.until(CheckExistsInTrack(track, 'Label'))
-            if genModel:
-                trackWait.until(CheckExistsInTrack(track, 'Model'))
+        try:
+            for track in tracks:
+                trackWait = WebDriverWait(self.driver, 5)
+                trackWait.until(CheckExistsInTrack(track, 'Label'))
+                if genModel:
+                    trackWait.until(CheckExistsInTrack(track, 'Model'))
+        except selenium.common.exceptions.TimeoutException:
+            self.driver.save_screenshot('screenshots/%s.png' % random.random())
 
     def zoomIn(self):
         wait = WebDriverWait(self.driver, waitTime)
@@ -491,7 +492,5 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         for entry in self.driver.get_log('browser'):
             print(entry)
-
-        self.driver.save_screenshot('screenshots/%s.png' % random.random())
 
         self.driver.close()
