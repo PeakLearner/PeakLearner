@@ -10,7 +10,11 @@ import requests
 import selenium
 import threading
 import subprocess
+from tests import Base
+from pyramid import testing
 from selenium import webdriver
+from core.util import PLdb as db
+from pyramid.paster import get_app
 from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.keys import Keys
@@ -18,39 +22,46 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
+import faulthandler
+faulthandler.enable(sys.stderr, all_threads=True)
 waitTime = 60
 
+
+
 url = 'http://localhost:8080'
-dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
-dbDir = os.path.join(dataDir, 'db')
-dbTar = os.path.join('data', 'db.tar.gz')
 
 
-class PeakLearnerTests(unittest.TestCase):
-    dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
-    dbDir = os.path.join(dataDir, 'db')
-    dbTar = os.path.join('data', 'db.tar.gz')
+class PeakLearnerTests(Base.PeakLearnerTestBase):
     user = 'Public'
     hub = 'H3K4me3_TDH_ENCODE'
 
     def setUp(self):
-        if os.path.exists(self.dbDir):
-            shutil.rmtree(self.dbDir)
+        super().setUp()
 
-        if not os.path.exists(self.dbDir):
-            with tarfile.open(self.dbTar) as tar:
-                tar.extractall(self.dataDir)
+        self.config = testing.setUp()
+        app = get_app('production.ini')
 
-        self.host = subprocess.Popen(['uwsgi', 'wsgi.ini'],
-                                     stdout=subprocess.PIPE)
+        from webtest.http import StopableWSGIServer
+
+        self.testapp = StopableWSGIServer.create(app, port=8080)
 
         options = Options()
-        options.headless = True
         try:
-            self.driver = webdriver.Chrome(options=options)
-        except WebDriverException:
-            self.driver = webdriver.Chrome('chromedriver', options=options)
-        self.driver.set_window_size(1280, 667)
+            try:
+                if os.environ['TESTING'].lower() == 'true':
+                    options.headless = True
+            except KeyError:
+                pass
+            try:
+                self.driver = webdriver.Chrome(options=options)
+            except WebDriverException:
+                try:
+                    self.driver = webdriver.Chrome('chromedriver', options=options)
+                except WebDriverException:
+                    self.driver = webdriver.Chrome('/buildtools/webdriver/chromedriver', options=options)
+            self.driver.set_window_size(1280, 667)
+        except:
+            self.testapp.close()
 
     # This test is mainly here so that when this file is ran on CI, it will have a genomes file for hub.
     def test_AddHub(self):
@@ -69,6 +80,12 @@ class PeakLearnerTests(unittest.TestCase):
         wait.until(EC.presence_of_element_located((By.ID, 'search-box')))
 
     def test_LOPART_model(self):
+        self.runAltModelTest('lopart')
+
+    def test_FLOPART_model(self):
+        self.runAltModelTest('flopart')
+
+    def runAltModelTest(self, whichModel):
         self.driver.get(url)
 
         self.driver.find_element(By.ID, 'myHubs').click()
@@ -106,7 +123,7 @@ class PeakLearnerTests(unittest.TestCase):
 
         assert modelMissing
 
-        self.enableLopart()
+        self.enableAltModel(whichModel)
 
         self.addPeak(2257, width=120)
 
@@ -172,19 +189,28 @@ class PeakLearnerTests(unittest.TestCase):
                 start = model['location']['x']
                 end = start + model['size']['width']
 
-                inStart = inEnd = False
-
                 for label in labels:
                     if label['label'] == 'peakStart':
                         if label['start'] < start < label['end']:
-                            inStart = True
+                            label['inStart'] = True
                     elif label['label'] == 'peakEnd':
                         if label['start'] < end < label['end']:
-                            inEnd = True
+                            label['inEnd'] = True
 
-                assert inStart
+            for label in labels:
+                fail = 0
+                try:
+                    assert label['inEnd']
+                except KeyError:
+                    fail += 1
 
-                assert inEnd
+                try:
+                    assert label['inStart']
+                except KeyError:
+                    fail += 1
+
+                if fail == 2:
+                    raise Exception
 
     def test_JobsPage_Working(self):
         self.driver.get(url)
@@ -220,6 +246,9 @@ class PeakLearnerTests(unittest.TestCase):
         self.driver.find_element(By.ID, 'H3K4me3_TDH_ENCODE_publicHubLink').click()
 
         self.moveToDefinedLocation()
+
+        # Zoom in once so just incase it goes to the defined location region which is labeled already
+        self.zoomIn()
 
         title = self.driver.title
 
@@ -355,12 +384,13 @@ class PeakLearnerTests(unittest.TestCase):
             if numTracks < 1:
                 break
 
-    def enableLopart(self):
+    def enableAltModel(self, whichModel):
         wait = WebDriverWait(self.driver, waitTime)
 
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "peaklearner")))
 
         self.driver.find_element(By.CLASS_NAME, 'peaklearner').click()
+
 
         popup = self.driver.find_element(By.ID, 'dijit_PopupMenuItem_0_text')
 
@@ -370,7 +400,7 @@ class PeakLearnerTests(unittest.TestCase):
 
         time.sleep(1)
 
-        self.driver.find_element(By.ID, 'LOPART').click()
+        self.driver.find_element(By.ID, whichModel.upper()).click()
 
     def moveToDefinedLocation(self):
         # Move to defined location
@@ -436,8 +466,8 @@ class PeakLearnerTests(unittest.TestCase):
         action.perform()
 
     def tearDown(self):
-        os.kill(self.host.pid, signal.SIGTERM)
+        super().tearDown()
 
-        time.sleep(5)
+        self.testapp.close()
 
         self.driver.close()

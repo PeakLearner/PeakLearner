@@ -4,8 +4,8 @@
 #SBATCH --chdir=/home/tem83/PeakLearner/
 #SBATCH --open-mode=append
 #SBATCH --ntasks=1
-#SBATCH --mem=2048
-#SBATCH --time=15:00
+#SBATCH --mem=4096
+#SBATCH --time=1:00:00
 #SBATCH --export=ALL
 
 module load R

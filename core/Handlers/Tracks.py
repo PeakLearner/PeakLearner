@@ -1,29 +1,9 @@
 import os
 import pandas as pd
 from core.Hubs import Hubs
-from core.Handlers import Handler
 from core.util import PLdb as db, PLConfig as cfg
 
 problemColumns = ['chrom', 'chromStart', 'chromEnd']
-
-
-class TrackInfoHandler(Handler.TrackHandler):
-    """Handles Label Commands"""
-    key = 'info'
-
-    def do_GET(self, data, txn=None):
-        return getTrackInfo(data['args'], txn=txn)
-
-    def do_POST(self, data, txn=None):
-        try:
-            return self.getCommands()[data['command']](data['args'], txn=txn)
-        except KeyError:
-            print(data['command'], 'not yet implemented\n', data)
-
-    @classmethod
-    def getCommands(cls):
-        return {'getGenome': getGenome,
-                'getProblems': getProblems}
 
 
 def getProblemsForChrom(genome, chrom, txn=None):

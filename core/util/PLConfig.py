@@ -35,6 +35,8 @@ if 'learning' not in configSections:
     config['learning']['timeBetween'] = '600'
     config['learning']['numChanges'] = '10'
     config['learning']['minLabeledRegions'] = '20'
+    config['learning']['maxJobsToSpawn'] = '100'
+
 
     save = True
 
@@ -51,6 +53,7 @@ timeBetween = int(config['learning']['timeBetween'])
 numChanges = int(config['learning']['numChanges'])
 minLabeledRegions = int(config['learning']['minLabeledRegions'])
 doIdlePredictions = config['learning']['doIdlePredictions'].lower() == 'true'
+maxJobsToSpawn = int(config['learning']['maxJobsToSpawn'])
 
 
 def testing():

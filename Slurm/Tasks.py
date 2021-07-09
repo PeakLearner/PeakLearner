@@ -6,7 +6,10 @@ import requests
 import subprocess
 import PeakSegDisk
 import pandas as pd
-import SlurmConfig as cfg
+try:
+    import SlurmConfig as cfg
+except ModuleNotFoundError:
+    import Slurm.SlurmConfig as cfg
 
 genFeaturesPath = os.path.join('Slurm', 'GenerateFeatures.R')
 

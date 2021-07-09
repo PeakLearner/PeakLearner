@@ -8,13 +8,14 @@ from simpleBDB import retry, txnAbortOnError
 
 log = logging.getLogger(__name__)
 from glmnet_python import cvglmnetPredict
-from core.util import PLConfig as pl, PLdb as db, bigWigUtil as bw
+from core.util import PLConfig as cfg, PLdb as db, bigWigUtil as bw
 from core.Handlers import Tracks
 from core.Jobs import Jobs
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
 jbrowseModelColumns = ["ref", "start", "end", "type", "score"]
+peakSegDiskPrePenalties = [1000, 10000, 100000, 1000000]
 flopartLabels = {'noPeak': 0,
                  'peakStart': 1,
                  'peakEnd': -1,
@@ -31,23 +32,40 @@ def getModels(data, txn=None):
     output = pd.DataFrame()
 
     for problem in problems:
-        problemTxn = db.getTxn(parent=txn)
 
         modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
-                                           problem['chromStart']).get(txn=problemTxn)
-
-        problemTxn.commit()
+                                           problem['chromStart']).get(txn=txn)
 
         if len(modelSummaries.index) < 1:
-            altout = generateAltModel(data, problem)
+            altout = generateAltModel(data, problem, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
 
+        if len(modelSummaries.index) == 1:
+            sum = modelSummaries.iloc[0]
+
+            # This is probably a predict model then
+            if sum['regions'] == 0:
+                penalty = '%g' % sum['penalty'].item()
+                minErrorModelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
+                                           problem['chromStart'],
+                                           penalty)
+                try:
+                    minErrorModel = minErrorModelDb.get(txn=txn)
+                except KeyError:
+                    log.warning('Missing a model for summary', modelSummaries)
+                    continue
+                minErrorModel = minErrorModel[minErrorModel['annotation'] == 'peak']
+                minErrorModel.columns = jbrowseModelColumns
+
+                output = output.append(minErrorModel, ignore_index=True)
+                continue
+
         nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
 
         if len(nonZeroRegions.index) < 1:
-            altout = generateAltModel(data, problem)
+            altout = generateAltModel(data, problem, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -55,7 +73,7 @@ def getModels(data, txn=None):
         withPeaks = nonZeroRegions[nonZeroRegions['numPeaks'] > 0]
 
         if len(withPeaks.index) < 1:
-            altout = generateAltModel(data, problem)
+            altout = generateAltModel(data, problem, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -63,7 +81,7 @@ def getModels(data, txn=None):
         noError = withPeaks[withPeaks['errors'] < 1]
 
         if len(noError.index) < 1:
-            altout = generateAltModel(data, problem)
+            altout = generateAltModel(data, problem, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -76,7 +94,11 @@ def getModels(data, txn=None):
 
         minErrorModelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'],
                                    penalty)
-        minErrorModel = minErrorModelDb.getInBounds(data['ref'], data['start'], data['end'])
+        try:
+            minErrorModel = minErrorModelDb.getInBounds(data['ref'], data['start'], data['end'], txn=txn)
+        except KeyError:
+            log.warning('Missing a model for summary', modelSummaries)
+            continue
         minErrorModel = minErrorModel[minErrorModel['annotation'] == 'peak']
         minErrorModel.columns = jbrowseModelColumns
         output = output.append(minErrorModel, ignore_index=True)
@@ -163,8 +185,15 @@ def updateAllModelLabels(data, labels, txn):
         modelsums = modelSummaries.get(txn=modelTxn, write=True)
 
         if len(modelsums.index) < 1:
-            out = submitPregenJob(problem, data, len(labels.index), txn=modelTxn)
+
+            out = Jobs.PregenJob(data['user'],
+                                 data['hub'],
+                                 data['track'],
+                                 problem,
+                                 peakSegDiskPrePenalties,
+                                 len(labels.index))
             if out is not None:
+                out.putNewJob(txn=modelTxn)
                 modelTxn.commit()
             else:
                 modelTxn.abort()
@@ -174,8 +203,6 @@ def updateAllModelLabels(data, labels, txn):
 
         modelSummaries.put(newSum, txn=modelTxn)
 
-        checkGenerateModels(newSum, problem, data, txn=modelTxn)
-
         modelTxn.commit()
 
 
@@ -184,173 +211,6 @@ def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
                      problem['chromStart'], modelSum['penalty']).get(txn=txn)
 
     return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
-
-
-def checkGenerateModels(modelSums, problem, data, txn=None):
-    nonZeroLabels = modelSums[modelSums['regions'] > 0]
-
-    if len(nonZeroLabels.index) == 0:
-        return False
-
-    nonZeroRegions = nonZeroLabels[nonZeroLabels['numPeaks'] > 0]
-
-    if len(nonZeroRegions.index) == 0:
-        return False
-
-    minError = nonZeroRegions[nonZeroRegions['errors'] == nonZeroRegions['errors'].min()]
-
-    numMinErrors = len(minError.index)
-
-    regions = minError['regions'].max()
-
-    if numMinErrors == 0:
-        return False
-
-    if minError.iloc[0]['errors'] == 0:
-        return False
-
-    if numMinErrors > 1:
-        # no need to generate new models if error is 0
-        first = minError.iloc[0]
-        last = minError.iloc[-1]
-
-        biggerFp = first['fp'] > last['fp']
-        smallerFn = first['fn'] < last['fn']
-
-        # Sanity check for bad labels, if the minimum is still the same values
-        # With little labels this could not generate new models
-        if biggerFp or smallerFn:
-            minPenalty = first['penalty']
-            maxPenalty = last['penalty']
-            submitGridSearch(problem, data, minPenalty, maxPenalty, regions, txn=txn)
-            return True
-        return False
-
-    elif numMinErrors == 1:
-        index = minError.index[0]
-
-        model = minError.iloc[0]
-        if model['fp'] > model['fn']:
-            try:
-                compare = modelSums.iloc[index + 1]
-            except IndexError:
-                submitOOMJob(problem, data, model['penalty'], '*', regions, txn=txn)
-                return True
-
-            # If the next model only has 1 more peak, not worth searching
-            if model['numPeaks'] <= compare['numPeaks'] + 1:
-                return False
-        else:
-
-            try:
-                compare = modelSums.iloc[index - 1]
-            except IndexError:
-                submitOOMJob(problem, data, model['penalty'], '/', regions, txn=txn)
-                return True
-
-            # If the previous model is only 1 peak away, not worth searching
-            if compare['numPeaks'] + 1 >= model['numPeaks']:
-                return False
-
-        if compare['penalty'] > model['penalty']:
-            top = compare
-            bottom = model
-        else:
-            top = model
-            bottom = compare
-        submitSearch(data, problem, bottom, top, regions, txn=txn)
-
-        return True
-
-    return True
-
-
-def submitOOMJob(problem, data, penalty, jobType, regions, txn=None):
-    if jobType == '*':
-        penalty = float(penalty) * 10
-    elif jobType == '/':
-        penalty = float(penalty) / 10
-    else:
-        print("Invalid OOM Job")
-        return
-
-    job = Jobs.SingleModelJob(data['user'],
-                              data['hub'],
-                              data['track'],
-                              problem,
-                              penalty,
-                              regions)
-
-    job.putNewJobWithTxn(txn=txn)
-
-
-def submitPregenJob(problem, data, regions, txn=None):
-    penalties = getPrePenalties()
-
-    job = Jobs.PregenJob(data['user'],
-                         data['hub'],
-                         data['track'],
-                         problem,
-                         penalties,
-                         regions)
-
-    return job.putNewJobWithTxn(txn=txn)
-
-
-def submitGridSearch(problem, data, minPenalty, maxPenalty, regions, num=pl.gridSearchSize, txn=None):
-    minPenalty = float(minPenalty)
-    maxPenalty = float(maxPenalty)
-    penalties = np.linspace(minPenalty, maxPenalty, num + 2).tolist()[1:-1]
-    if 'trackUrl' in data:
-        job = Jobs.GridSearchJob(data['user'],
-                                 data['hub'],
-                                 data['track'],
-                                 problem,
-                                 penalties,
-                                 regions,
-                                 trackUrl=data['trackUrl'])
-    else:
-        job = Jobs.GridSearchJob(data['user'],
-                                 data['hub'],
-                                 data['track'],
-                                 problem,
-                                 penalties,
-                                 regions)
-
-    job.putNewJobWithTxn(txn=txn)
-
-
-def submitSearch(data, problem, bottom, top, regions, txn=None):
-    bottomLoss = db.Loss(data['user'],
-                         data['hub'],
-                         data['track'],
-                         problem['chrom'],
-                         problem['chromStart'],
-                         bottom['penalty']).get()
-
-    topLoss = db.Loss(data['user'],
-                      data['hub'],
-                      data['track'],
-                      problem['chrom'],
-                      problem['chromStart'],
-                      top['penalty']).get()
-
-    if topLoss is None or bottomLoss is None:
-        return
-
-    penalty = abs((topLoss['meanLoss'] - bottomLoss['meanLoss'])
-                  / (bottomLoss['peaks'] - topLoss['peaks'])).iloc[0].astype(float)
-
-    print('submitSearch', penalty, type(penalty))
-
-    job = Jobs.SingleModelJob(data['user'],
-                              data['hub'],
-                              data['track'],
-                              problem,
-                              penalty,
-                              regions)
-
-    job.putNewJobWithTxn(txn=txn)
 
 
 @retry
@@ -366,8 +226,9 @@ def putModel(data, txn=None):
     track = modelInfo['track']
 
     db.Model(user, hub, track, problem['chrom'], problem['chromStart'], penalty).put(modelData, txn=txn)
-    labels = db.Labels(user, hub, track, problem['chrom']).get(txn=txn)
-    db.Prediction('changes').increment(txn=txn)
+    labels = db.Labels(user, hub, track, problem['chrom']).getInBounds(problem['chrom'],
+                                                                       problem['chromStart'],
+                                                                       problem['chromEnd'], txn=txn)
     errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
     db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
     return modelInfo
@@ -410,33 +271,9 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
     return singleRow
 
 
-def getModelSummary(data, txn=None):
-    problems = Tracks.getProblems(data, txn=txn)
-
-    output = {}
-
-    for problem in problems:
-        # TODO: Replace 1 with user of hub NOT current user
-        modelSummaries = db.ModelSummaries(data['user'],
-                                           data['hub'],
-                                           data['track'],
-                                           problem['chrom'],
-                                           problem['chromStart']).get(txn=txn)
-
-        if len(modelSummaries.index) < 1:
-            continue
-
-        output[problem['chromStart']] = modelSummaries.to_dict('records')
-    return output
-
-
 def getErrorSeries(penalty, numPeaks, regions=0):
     return pd.Series({'regions': regions, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
                       'errors': 0, 'penalty': penalty, 'numPeaks': numPeaks})
-
-
-def getPrePenalties():
-    return [1000, 10000, 100000, 1000000]
 
 
 # TODO: This could be better (learning a penalty based on PeakSegDisk Models?)
@@ -457,7 +294,7 @@ def getFLOPARTPenalty(data):
         return 5000
 
 
-def generateAltModel(data, problem):
+def generateAltModel(data, problem, txn=None):
     if 'modelType' not in data:
         return []
 
@@ -471,7 +308,7 @@ def generateAltModel(data, problem):
     track = data['track']
     chrom = data['ref']
     scale = data['scale']
-    hubInfo = db.HubInfo(user, hub).get()
+    hubInfo = db.HubInfo(user, hub).get(txn=txn)
     trackUrl = hubInfo['tracks'][data['track']]['url']
 
     start = max(data['visibleStart'], problem['chromStart'], 0)
@@ -488,7 +325,7 @@ def generateAltModel(data, problem):
         return []
 
     dbLabels = db.Labels(user, hub, track, chrom)
-    labels = dbLabels.getInBounds(chrom, start, end)
+    labels = dbLabels.getInBounds(chrom, start, end, txn=txn)
     denom = end - start
 
     # either convert labels to an index value or empty dataframe with cols if not
@@ -652,7 +489,8 @@ def indexToStartEnd(row, start, scale):
     return row
 
 
-def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType):
+# This block of code is ran but coverage doesn't pick it up as
+def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType): # pragma: no cover
     scaledStart = round(((row['chromStart'] - modelStart) * bins) / denom)
     scaledEnd = round(((row['chromEnd'] - modelStart) * bins) / denom)
 
@@ -683,23 +521,23 @@ def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType):
     return output
 
 
-def doPrediction(data, problem):
-    features = db.Features(data['user'],
-                           data['hub'],
-                           data['track'],
-                           problem['chrom'],
-                           problem['chromStart']).get()
+def doPrediction(job, txn=None):
+    features = db.Features(job.user,
+                           job.hub,
+                           job.track,
+                           job.problem['chrom'],
+                           job.problem['chromStart']).get(txn=txn)
 
     if not isinstance(features, pd.Series):
         if not features:
             return False
 
-    model = db.Prediction('model').get()
+    model = db.Prediction('model').get(txn=txn)
 
     if not isinstance(model, dict):
         return False
 
-    colsToDrop = db.Prediction('badCols').get()
+    colsToDrop = db.Prediction('badCols').get(txn=txn)
 
     featuresDropped = features.drop(labels=colsToDrop)
 
@@ -707,7 +545,8 @@ def doPrediction(data, problem):
 
     if prediction is None:
         return False
-    return prediction
+
+    return float(10**prediction)
 
 
 def predictWithFeatures(features, model):
@@ -773,7 +612,6 @@ def getTrackModelSummaries(data, txn=None):
 @retry
 @txnAbortOnError
 def getTrackModelSummary(data, txn=None):
-
     hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
 
     problems = db.Problems(hubInfo['genome']).get(txn=txn)
@@ -793,3 +631,17 @@ def getTrackModelSummary(data, txn=None):
     return modelSummaries
 
 
+if cfg.testing:
+    @retry
+    @txnAbortOnError
+    def modelSumUpload(data, txn=None):
+        user = data['user']
+        hub = data['hub']
+        track = data['track']
+        problem = data['problem']
+
+        sums = pd.DataFrame(data['sums'])
+
+        sumsDb = db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart'])
+
+        sumsDb.put(sums, txn=txn)

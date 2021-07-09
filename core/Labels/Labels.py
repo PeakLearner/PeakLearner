@@ -240,11 +240,13 @@ def hubInfoLabels(query, txn=None):
     return {'numLabels': numLabels, 'labels': labels}
 
 
-def stats():
+@retry
+@txnAbortOnError
+def labelsStats(data, txn=None):
     chroms = labels = 0
 
     for key in db.Labels.db_key_tuples():
-        labelsDf = db.Labels(*key).get()
+        labelsDf = db.Labels(*key).get(txn=txn)
 
         if labelsDf.empty:
             continue
