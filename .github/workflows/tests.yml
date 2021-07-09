@@ -14,8 +14,6 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.8
-      - name: Setup upterm session
-        uses: lhotari/action-upterm@v1
       - run: python3 -m pip install -U pip
       - run: sudo apt-get update
       - run: sudo apt-get -y install libdb-dev libdb++-dev samtools r-base
@@ -47,6 +45,9 @@ jobs:
           fail_ci_if_error: true
           path_to_write_report: ./codecov_report.txt
           verbose: true
+      - name: Setup upterm session
+        if: failure()
+        uses: lhotari/action-upterm@v1
   deployOpenAPI:
     name: Generates the OpenAPI docs website
     runs-on: ubuntu-latest
