@@ -127,7 +127,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.moveToDefinedLocation()
 
-        self.selectTracks(numTracks=6)
+        self.selectTracks(numTracks=3)
 
         for i in range(4):
             self.zoomIn()
@@ -161,7 +161,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         tracks = self.driver.find_elements(By.CLASS_NAME, 'track_peaklearnerbackend_view_track_model')
 
-        assert len(tracks) == 6
+        assert len(tracks) == 3
 
         for track in tracks:
             labels = []
