@@ -307,7 +307,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.addLabel('peakEnd', midPoint, midPoint + labelWidth, genModel=genModel)
 
-
     def addLabel(self, labelType, start, end, genModel=False):
         wait = WebDriverWait(self.driver, waitTime)
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "track_peaklearnerbackend_view_track_model")))
@@ -366,7 +365,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
             trackWait.until(CheckExistsInTrack(track, 'Label'))
             if genModel:
                 trackWait.until(CheckExistsInTrack(track, 'Model'))
-
 
     def zoomIn(self):
         wait = WebDriverWait(self.driver, waitTime)
@@ -500,6 +498,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
     def tearDown(self):
         self.testapp.close()
 
-        super().tearDown()
+        for entry in self.driver.get_log('browser'):
+            print(entry)
 
         self.driver.close()
