@@ -1,26 +1,17 @@
 import os
 import sys
 import time
-import pytest
-import signal
-import shutil
-import tarfile
-import unittest
-import requests
+import random
 import selenium
-import threading
-import subprocess
 from tests import Base
 from pyramid import testing
 from selenium import webdriver
-from core.util import PLdb as db
 from pyramid.paster import get_app
 from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
-from selenium.webdriver.support.ui import WebDriverWait, Select
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import faulthandler
 
@@ -500,5 +491,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         for entry in self.driver.get_log('browser'):
             print(entry)
+
+        self.driver.save_screenshot('screenshots/%s.png' % random.random())
 
         self.driver.close()
