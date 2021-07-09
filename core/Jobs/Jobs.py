@@ -340,6 +340,25 @@ class SingleModelJob(Job):
         log.debug('Single Model Job created', penalty, type(penalty))
         self.tasks[taskId] = createModelTask(taskId, penalty)
 
+    def equals(self, jobToCheck):
+        """Check if current job is equal to the job to check"""
+
+        # If other paramaters say doesn't exist, then continue
+        if not super().equals(jobToCheck):
+            return False
+
+        if len(self.tasks) != 1:
+            raise Exception
+
+        task = self.tasks['0']
+
+        taskToCompare = jobToCheck.tasks['0']
+
+        if task['penalty'] != taskToCompare['penalty']:
+            return False
+
+        return True
+
 
 class GridSearchJob(Job):
     """"Job type for performing a gridSearch on a region"""
@@ -354,7 +373,7 @@ class GridSearchJob(Job):
         super().__init__(user, hub, track, problem, priority, trackUrl=trackUrl, tasks=tasks)
 
     def equals(self, jobToCheck):
-        if not Job.equals(self, jobToCheck):
+        if not super().equals(jobToCheck):
             return False
 
         # The penalties are the keys
@@ -535,14 +554,18 @@ def getAllJobs(data, txn=None):
 
     cursor = db.Job.getCursor(txn, bulk=True)
 
-    current = cursor.next()
-
-    while current is not None:
-        key, job = current
-
-        jobs.append(job.__dict__())
-
+    try:
         current = cursor.next()
+
+        while current is not None:
+            key, job = current
+
+            jobs.append(job.__dict__())
+
+            current = cursor.next()
+    except berkeleydb.db.DBLockDeadlockError:
+        cursor.close()
+        raise
 
     cursor.close()
 
@@ -700,8 +723,11 @@ def spawnJobs(data, txn=None):
 
     jobs = getPotentialJobs(jobsByContig, txn=txn)
 
+    print('jobsLen', len(jobs))
+
     # If not enough jobs, check for predict jobs
     jobsLeft = cfg.maxJobsToSpawn - len(jobs)
+
     if jobsLeft > 0:
         predictOut = checkForPredictJobs(jobsLeft, txn=txn)
         if predictOut is not None and len(predictOut) > 0:
@@ -715,6 +741,7 @@ def spawnJobs(data, txn=None):
             jobs.extend(resOut)
 
     for job in jobs:
+        print(job)
         job.putNewJob(txn=txn)
 
 
