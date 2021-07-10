@@ -75,6 +75,8 @@ def deleteLabel(request, query):
 
 # ---- HUB LABELS ---- #
 
+keysToInt = ['start', 'end']
+
 
 def generateHubQuery(func):
     # Handles loading the query value for hub based commands
@@ -121,8 +123,33 @@ def getHubLabels(request):
     return output
 
 
+intKeys = ['start', 'end']
+
+
+def jsonInputWrap(func):
+    # Handles loading the query value for hub based commands
+    def wrap(request):
+
+        try:
+            query = {**request.matchdict, **request.json_body, 'currentUser': request.authenticated_userid}
+        except json.decoder.JSONDecodeError:
+            query = {**request.matchdict, 'currentUser': request.authenticated_userid}
+            for key in ['ref', 'start', 'end', 'label']:
+                if key in request.params:
+                    if key in intKeys:
+                        query[key] = int(request.params[key])
+                    else:
+                        query[key] = request.params[key]
+
+                if 'tracks' in request.params:
+                    query['tracks'] = request.params.getall('tracks')
+
+        return func(query)
+
+    return wrap
+
 @view_config(route_name='hubLabels', request_method='PUT')
-@generateHubQuery
+@jsonInputWrap
 def putHubLabel(query):
     output = Labels.addHubLabels(query)
 
@@ -130,7 +157,7 @@ def putHubLabel(query):
 
 
 @view_config(route_name='hubLabels', request_method='POST')
-@generateHubQuery
+@jsonInputWrap
 def postHubLabel(query):
     output = Labels.updateHubLabels(query)
 
@@ -138,7 +165,7 @@ def postHubLabel(query):
 
 
 @view_config(route_name='hubLabels', request_method='DELETE')
-@generateHubQuery
+@jsonInputWrap
 def deleteHubLabel(query):
     output = Labels.deleteHubLabels(query)
 

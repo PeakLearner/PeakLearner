@@ -1,0 +1,32 @@
+coverage:
+  status:
+    patch:
+      default:
+        # basic
+        target: auto
+        threshold: 10%
+        base: auto
+        # advanced
+        branches:
+          - main
+        if_ci_failed: error #success, failure, error, ignore
+        only_pulls: false
+        flags:
+          - "unit"
+        paths:
+          - "src"
+    project:
+      default:
+        # basic
+        target: auto
+        threshold: 5%
+        base: auto
+        paths:
+          - "core"
+          - "website"
+          - "slurm"
+        # advanced
+        if_not_found: success
+        if_ci_failed: error
+        informational: False
+        only_pulls: false

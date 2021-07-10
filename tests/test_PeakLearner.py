@@ -171,7 +171,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         updateAnother = self.endLabel.copy()
         updateAnother['label'] = 'peakEnd'
 
-        request = self.testapp.put_json(self.labelURL, updateAnother)
+        request = self.testapp.post_json(self.labelURL, updateAnother)
 
         assert request.status_code == 200
 

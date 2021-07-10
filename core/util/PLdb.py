@@ -21,7 +21,7 @@ def isLoaded():
 
 # Remove locks if they are left over
 if not loaded:
-    if os.path.exists(dbPath):
+    if os.path.exists(dbPath):  # pragma: no cover
         for file in os.listdir(dbPath):
             if '__db.0' not in file:
                 continue
@@ -52,7 +52,7 @@ def deadlock_detect():
 
 
 loadLater = False
-try:
+try:  # pragma: no cover
     import uwsgi
     import uwsgidecorators
 
@@ -91,29 +91,6 @@ class Model(db.PandasDf):
 
         return checkInBounds_new(model, chrom, start, end)
 
-
-    def getInBoundsDict(self, chrom, chromStart, chromEnd, txn=None):
-        model = self.get(txn=txn)
-        jbrowseModel = model[Models.modelColumns]
-        jbrowseModel.columns = Models.jbrowseModelColumns
-
-        output = []
-
-        for datapoint in jbrowseModel.to_dict('records'):
-            if datapoint['type'] != 'peak':
-                continue
-            if chromStart <= datapoint['start'] <= chromEnd:
-                output.append(datapoint)
-                continue
-            elif chromStart <= datapoint['end'] <= chromEnd:
-                output.append(datapoint)
-                continue
-            elif (datapoint['start'] < chromEnd) and (datapoint['end'] > chromEnd):
-                output.append(datapoint)
-                continue
-
-        return output
-
     pass
 
 
@@ -127,8 +104,8 @@ class Loss(db.Resource):
 class Problems(db.PandasDf):
     keys = ("Genome",)
 
-    def getInBounds(self, chrom, start, end):
-        problems = self.get()
+    def getInBounds(self, chrom, start, end, txn=None):
+        problems = self.get(txn=txn)
 
         if problems is None:
             return None
@@ -261,17 +238,6 @@ def checkInBounds_new(df, chrom, chromStart, chromEnd):
     return df[df['chrom'] == chrom]
 
 
-def checkLabelExists(row, dfToCheck):
-    duplicate = dfToCheck['chromStart'] == row['chromStart']
-    return duplicate.any()
-
-
-def updateLabelInDf(row, item):
-    if row['chromStart'] == item['chromStart']:
-        return item
-    return row
-
-
 class ModelSummaries(db.PandasDf):
     keys = ("user", "hub", "track", "chrom", "problemstart")
 
@@ -300,41 +266,8 @@ class Features(db.Resource):
 
     def convert(self, value, *args):
         return db.Resource.convert(self, value[0])
-    
-    def saveToFile(self, filePath, *args):
-        value = self.get()
-        if isinstance(value, pd.Series):
-            valueToWrite = value
-        elif isinstance(value, dict):
-            if len(value) < 1:
-                return True
-            else:
-                print(value)
-                raise Exception
-        elif isinstance(value, list):
-            if not len(value) == 1:
-                print(value)
-                raise Exception
-
-            valueToWrite = pd.Series(value[0])
-        else:
-            print(value)
-            raise Exception
-
-        # Load the series value into a df so pandas knows how to write it right
-        pd.DataFrame().append(valueToWrite, ignore_index=True).to_csv(filePath, sep='\t')
-        return True
-
-    def fileToStorable(self, filePath):
-        return pd.read_csv(filePath, sep='\t', squeeze=True).loc[0]
 
     pass
-
-
-def updateSummaryInDf(row, item):
-    if row['penalty'] == item['penalty']:
-        return item
-    return row
 
 
 class HubInfo(db.Resource):
@@ -342,27 +275,6 @@ class HubInfo(db.Resource):
 
     def make_details(self):
         return None
-
-    def keysWhichMatch(cls, *args):
-        """Get all keys matching the passed values"""
-        if len(cls.keys) < len(args) > 0:
-            raise ValueError('Number of keys provided is too long.\n'
-                             'Len Class Keys: %s\n'
-                             'Len Provided Keys: %s\n' % (len(cls.keys), len(args)))
-
-        index = 0
-        output = cls.db_key_tuples()
-
-        for keyToCheck in args:
-            temp = []
-            for key in output:
-                if key[index] == keyToCheck:
-                    temp.append(key)
-
-            index += 1
-            output = temp
-
-        return output
 
     pass
 

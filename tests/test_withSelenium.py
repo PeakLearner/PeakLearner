@@ -1,34 +1,67 @@
 import os
 import sys
 import time
-import pytest
-import signal
-import shutil
-import tarfile
-import unittest
-import requests
+import random
 import selenium
-import threading
-import subprocess
 from tests import Base
 from pyramid import testing
 from selenium import webdriver
-from core.util import PLdb as db
 from pyramid.paster import get_app
 from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
-from selenium.webdriver.support.ui import WebDriverWait, Select
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import faulthandler
+
 faulthandler.enable(sys.stderr, all_threads=True)
 waitTime = 60
 
-
-
 url = 'http://localhost:8080'
+
+if not os.path.exists('screenshots'):
+    os.makedirs('screenshots')
+
+
+class CheckExistsInTrack(object):
+    """Checks that the particular class exists in that element
+
+  locator - used to find the element
+  returns the WebElement once it has the particular css class
+  """
+
+    def __init__(self, elementToCheck, classToCheck):
+        self.element = elementToCheck
+        self.classToCheck = classToCheck
+
+    def __call__(self, driver):
+        element = driver.find_element(By.ID, self.element.get_attribute('id'))  # Finding the referenced element
+        classToCheck = element.find_elements(By.CLASS_NAME, self.classToCheck)
+
+        if len(classToCheck):
+            return True
+        else:
+            return False
+
+
+class TitleChanges(object):
+    """Checks that the particular class exists in that element
+
+  locator - used to find the element
+  returns the WebElement once it has the particular css class
+  """
+
+    def __init__(self, title):
+        self.title = title
+
+    def __call__(self, driver):
+        title = driver.title  # Finding the referenced element
+
+        if title != self.title:
+            return True
+        else:
+            return False
 
 
 class PeakLearnerTests(Base.PeakLearnerTestBase):
@@ -76,7 +109,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.driver.find_element(By.ID, 'submitButton').click()
 
-        wait = WebDriverWait(self.driver, waitTime*10)
+        wait = WebDriverWait(self.driver, waitTime * 10)
         wait.until(EC.presence_of_element_located((By.ID, 'search-box')))
 
     def test_LOPART_model(self):
@@ -94,14 +127,14 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.moveToDefinedLocation()
 
-        self.selectTracks(numTracks=6)
+        self.selectTracks(numTracks=3)
 
         for i in range(4):
             self.zoomIn()
 
         tracks = self.driver.find_elements(By.CLASS_NAME, 'track_peaklearnerbackend_view_track_model')
 
-        assert len(tracks) == 6
+        assert len(tracks) == 3
 
         # Check that there is a model missing somewhere which can be filled in via LOPART
         modelMissing = False
@@ -117,7 +150,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
                 for modelDiv in blockModels:
                     models.append({'size': modelDiv.size, 'location': modelDiv.location})
 
-
             if len(models) < 1:
                 modelMissing = True
 
@@ -125,18 +157,17 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.enableAltModel(whichModel)
 
-        self.addPeak(2257, width=120)
-
-        time.sleep(5)
+        self.addPeak(2257, width=120, genModel=True)
 
         tracks = self.driver.find_elements(By.CLASS_NAME, 'track_peaklearnerbackend_view_track_model')
 
-        assert len(tracks) == 6
+        assert len(tracks) == 3
 
         for track in tracks:
             labels = []
             models = []
             labelNoText = []
+
             for block in track.find_elements(By.CLASS_NAME, 'block'):
                 # Blocks contain canvas and divs for labels/models
                 for div in block.find_elements(By.CLASS_NAME, 'Label'):
@@ -252,7 +283,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         title = self.driver.title
 
-        self.selectTracks(numTracks=6)
+        self.selectTracks(numTracks=3)
 
         wait = WebDriverWait(self.driver, waitTime)
 
@@ -269,7 +300,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         wait = WebDriverWait(self.driver, waitTime)
 
-        wait.until(lambda x: title != self.driver.title)
+        wait.until(TitleChanges(title))
 
     def checkIfError(self):
         # Assert that the page is working to begin with
@@ -282,20 +313,23 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
             if '404' in self.driver.title:
                 raise Exception('404 Exception')
 
-    def addPeak(self, midPoint, width=40):
+    def addPeak(self, midPoint, width=40, genModel=False):
         labelWidth = width / 2
 
-        self.addLabel('peakStart', midPoint - labelWidth, midPoint - 1)
+        self.addLabel('peakStart', midPoint - labelWidth, midPoint - 1, genModel=genModel)
 
-        time.sleep(3)
+        self.addLabel('peakEnd', midPoint, midPoint + labelWidth, genModel=genModel)
 
-        self.addLabel('peakEnd', midPoint, midPoint + labelWidth)
-
-        time.sleep(3)
-
-    def addLabel(self, labelType, start, end):
+    def addLabel(self, labelType, start, end, genModel=False):
         wait = WebDriverWait(self.driver, waitTime)
-        wait.until(EC.presence_of_element_located((By.ID, "track_aorta_ENCFF115HTK")))
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "track_peaklearnerbackend_view_track_model")))
+
+        tracks = self.driver.find_elements(By.CLASS_NAME, 'track_peaklearnerbackend_view_track_model')
+
+        trackLabels = {}
+
+        for track in tracks:
+            trackLabels[track.get_attribute('id')] = len(track.find_elements(By.CLASS_NAME, 'Label'))
 
         labelDropdown = self.driver.find_element(By.ID, 'current-label')
 
@@ -325,15 +359,35 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         action = ActionChains(self.driver)
 
+        action.pause(1)
+
         action.move_to_element_with_offset(track, start, 50)
 
-        action.click_and_hold().perform()
+        action.pause(1)
+
+        action.click_and_hold()
+
+        action.pause(1)
 
         action.move_by_offset(end - start, 50)
 
-        action.release().perform()
+        action.pause(1)
+
+        action.release().pause(1).perform()
 
         wait.until(EC.presence_of_element_located((By.ID, "track_aorta_ENCFF115HTK")))
+
+        tracks = self.driver.find_elements(By.CLASS_NAME, 'track_peaklearnerbackend_view_track_model')
+
+        try:
+            for track in tracks:
+                trackWait = WebDriverWait(self.driver, waitTime)
+                trackWait.until(CheckExistsInTrack(track, 'Label'))
+                if genModel:
+                    trackWait.until(CheckExistsInTrack(track, 'Model'))
+        except selenium.common.exceptions.TimeoutException:
+            self.driver.save_screenshot('screenshots/%s.png' % random.random())
+            raise
 
     def zoomIn(self):
         wait = WebDriverWait(self.driver, waitTime)
@@ -391,16 +445,20 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.driver.find_element(By.CLASS_NAME, 'peaklearner').click()
 
+        wait.until(EC.visibility_of_element_located((By.ID, 'dijit_PopupMenuItem_0_text')))
 
         popup = self.driver.find_element(By.ID, 'dijit_PopupMenuItem_0_text')
 
         action = ActionChains(self.driver)
 
-        action.move_to_element(popup).perform()
+        action.move_to_element(popup)
+        action.pause(1).perform()
 
-        time.sleep(1)
+        wait.until(EC.visibility_of_element_located((By.ID, 'modelTypeMenu')))
 
         self.driver.find_element(By.ID, whichModel.upper()).click()
+
+        time.sleep(5)
 
     def moveToDefinedLocation(self):
         # Move to defined location
@@ -466,8 +524,9 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         action.perform()
 
     def tearDown(self):
-        super().tearDown()
-
         self.testapp.close()
+
+        for entry in self.driver.get_log('browser'):
+            print(entry)
 
         self.driver.close()

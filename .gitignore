@@ -20,4 +20,5 @@ chromedriver
 /.coverage
 /coverage.*
 log.txt
+screenshots
 !tests/*

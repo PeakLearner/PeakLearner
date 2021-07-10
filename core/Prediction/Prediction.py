@@ -103,7 +103,7 @@ def learn(X, Y, txn=None):
 
 # Taken from the glmnet_python library, added a return to it so it can be saved
 # Not too important for functionality, just info about the system
-def cvglmnetPlotReturn(cvobject, sign_lambda=1.0, **options):
+def cvglmnetPlotReturn(cvobject, sign_lambda=1.0, **options): # pragma: no cover
     import matplotlib.pyplot as plt
 
     sloglam = sign_lambda * scipy.log(cvobject['lambdau'])

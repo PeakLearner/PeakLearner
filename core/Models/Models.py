@@ -144,7 +144,8 @@ def getHubModels(data, txn=None):
     return output
 
 
-def whichModelToDisplay(data, problem, summary):
+# Called but using pandas.apply, coverage this isn't picked up in coverage
+def whichModelToDisplay(data, problem, summary):  # pragma: no cover
     try:
         prediction = doPrediction(data, problem)
 
