@@ -635,7 +635,6 @@ def jobsStats(data, txn=None):
     jobs = []
     for job in db.Job.all(txn=txn):
         numJobs = numJobs + 1
-        jobs.append(job.__dict__())
         status = job.status.lower()
 
         if status == 'new':
@@ -650,6 +649,9 @@ def jobsStats(data, txn=None):
             for task in job.tasks.values():
                 if task['status'].lower() == 'done':
                     times.append(float(task['totalTime']))
+
+        if status != 'done':
+            jobs.append(job.__dict__())
 
     if len(times) == 0:
         avgTime = 0
@@ -698,6 +700,9 @@ def spawnJobs(data, txn=None):
 
     while current is not None:
         key, job = current
+
+        if job.status.lower() == 'error':
+            continue
 
         contigKey = job.user, job.hub, job.track, job.problem['chrom'], str(job.problem['chromStart'])
 
