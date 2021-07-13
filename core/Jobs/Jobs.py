@@ -121,6 +121,7 @@ class Job(metaclass=JobType):
         while current is not None:
             key, job = current
             if self.equals(job):
+                print(job.debugDict())
                 cursor.close()
                 return True
             current = cursor.next()
@@ -239,6 +240,30 @@ class Job(metaclass=JobType):
                   'status': self.status,
                   'id': self.id,
                   'iteration': self.iteration,
+                  'tasks': self.tasks,
+                  'trackUrl': self.trackUrl,
+                  'priority': int(self.priority)}
+
+        try:
+            output['lastModified'] = self.lastModified
+        except AttributeError:
+            pass
+
+        if self.status.lower() == 'done':
+            try:
+                output['time'] = self.time
+            except AttributeError:
+                pass
+
+        return output
+
+    def debugDict(self):
+        output = {'user': self.user,
+                  'hub': self.hub,
+                  'track': self.track,
+                  'problem': self.problem,
+                  'jobType': self.jobType,
+                  'status': self.status,
                   'tasks': self.tasks,
                   'trackUrl': self.trackUrl,
                   'priority': int(self.priority)}
@@ -689,6 +714,7 @@ except ModuleNotFoundError:
 @retry
 @txnAbortOnError
 def spawnJobs(data, txn=None):
+    print('spawn jobs')
     jobCursor = db.Job.getCursor(txn, bulk=True)
 
     current = jobCursor.next()
@@ -733,13 +759,17 @@ def spawnJobs(data, txn=None):
 
     jobsLeft = cfg.maxJobsToSpawn - len(jobs)
 
+    print('jobsLeft', jobsLeft)
+
     if jobsLeft > 0:
         resOut = getResolutionJobs(jobsLeft, txn=None)
         if resOut is not None and len(resOut) > 0:
             jobs.extend(resOut)
 
+    print('numJobs', len(jobs))
+
     for job in jobs:
-        job.putNewJob(txn=txn)
+        job.putNewJob(txn=txn, checkExists=False)
 
 
 def getResolutionJobs(numJobs, txn=None):
@@ -771,7 +801,10 @@ def getPotentialJobs(contigJobs, txn=None):
 
             if jobToAppend is None:
                 continue
-            output.append(jobToAppend)
+
+            if not jobToAppend.checkIfExists(txn=txn):
+                print(jobToAppend.debugDict())
+                output.append(jobToAppend)
             continue
 
         if len(output) > cfg.maxJobsToSpawn:
@@ -796,12 +829,12 @@ def checkForPredictJobs(numJobs, txn=None):
 
         for track in hubInfo['tracks']:
             for problemRowKey, row in problems.iterrows():
-                problemKey = *key, track, row.chrom, row.chromStart
-                if db.Problems.has_key(problemKey):
-                    continue
-                output.append(PredictJob(user, hub, track, row.to_dict()))
+                outputJob = PredictJob(user, hub, track, row.to_dict())
 
-                numJobs -= 1
+                if not outputJob.checkIfExists(txn=txn):
+                    output.append(outputJob)
+
+                    numJobs -= 1
 
                 if numJobs < 1:
                     break

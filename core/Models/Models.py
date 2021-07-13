@@ -238,14 +238,13 @@ def putModel(data, txn=None):
 def calculateModelLabelError(modelDf, labels, problem, penalty):
     labels = labels[labels['annotation'] != 'unknown']
     peaks = modelDf[modelDf['annotation'] == 'peak']
+    labelsIsInProblem = labels.apply(db.checkInBounds, axis=1,
+                                     args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
     numPeaks = len(peaks.index)
-    numLabels = len(labels.index)
+    numLabels = len(labelsIsInProblem.index)
 
     if numLabels < 1:
         return getErrorSeries(penalty, numPeaks, numLabels)
-
-    labelsIsInProblem = labels.apply(db.checkInBounds, axis=1,
-                                     args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
 
     if numPeaks < 1:
         return getErrorSeries(penalty, numPeaks, numLabels)
