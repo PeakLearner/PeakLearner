@@ -723,8 +723,6 @@ def spawnJobs(data, txn=None):
 
     jobs = getPotentialJobs(jobsByContig, txn=txn)
 
-    print('jobsLen', len(jobs))
-
     # If not enough jobs, check for predict jobs
     jobsLeft = cfg.maxJobsToSpawn - len(jobs)
 
@@ -741,7 +739,6 @@ def spawnJobs(data, txn=None):
             jobs.extend(resOut)
 
     for job in jobs:
-        print(job)
         job.putNewJob(txn=txn)
 
 
