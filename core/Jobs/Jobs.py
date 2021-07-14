@@ -701,10 +701,6 @@ def spawnJobs(data, txn=None):
     while current is not None:
         key, job = current
 
-        if job.status.lower() == 'error':
-            current = jobCursor.next()
-            continue
-
         contigKey = job.user, job.hub, job.track, job.problem['chrom'], str(job.problem['chromStart'])
 
         if contigKey in jobsByContig:
@@ -760,6 +756,9 @@ def getPotentialJobs(contigJobs, txn=None):
     # Checks all regions where models have already potentially been computed
     for key in contigJobs:
         modelSums = db.ModelSummaries(*key).get(txn=txn)
+
+        if len(modelSums.index) < 1:
+            continue
 
         nonZeroRegions = modelSums[modelSums['regions'] > 0]
 
