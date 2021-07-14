@@ -702,6 +702,7 @@ def spawnJobs(data, txn=None):
         key, job = current
 
         if job.status.lower() == 'error':
+            current = jobCursor.next()
             continue
 
         contigKey = job.user, job.hub, job.track, job.problem['chrom'], str(job.problem['chromStart'])
