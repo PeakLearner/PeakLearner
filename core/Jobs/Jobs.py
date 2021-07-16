@@ -625,22 +625,29 @@ try: # pragma: no cover
     # run Job Spawner every 60 seconds
     @uwsgidecorators.timer(60, target='mule')
     def start_job_spawner(num):
+        cleanJobs(num)
         spawnJobs(num)
 
 
     @uwsgidecorators.timer(3600, target='mule')
     def start_restart_jobCheck(num):
-        cleanJobs(num)
         checkRestartJobs(num)
 
 except ModuleNotFoundError: # pragma: no cover
     print('Running in none uwsgi mode, Jobs wont automatically be spawned or restarted')
 
 
+cleaned = False
+
+
 # TODO: Remove this, remove done jobs when they are done in updateTask, only here for migration purposes
 @retry
 @txnAbortOnError
 def cleanJobs(data, txn=None):
+    global cleaned
+    if cleaned:
+        return
+    print('cleanJobs')
     cursor = db.Job.getCursor(txn=txn, bulk=True)
     current = cursor.next()
 
@@ -650,8 +657,8 @@ def cleanJobs(data, txn=None):
         if job.status.lower() == 'done':
             jobTxn = db.getTxn(txn)
             db.DoneJob(*key).put(job, txn=jobTxn)
-            cursor.delete()
             jobTxn.commit()
+            cursor.delete()
 
         # Delete the predict jobs, predict jobs were removed
         elif job.jobType.lower() == 'predict':
@@ -660,6 +667,8 @@ def cleanJobs(data, txn=None):
         current = cursor.next()
 
     cursor.close()
+
+    cleaned = True
 
 
 @retry
@@ -698,7 +707,7 @@ def getNoCorrectModelsJobs(txn=None):
 
             modelSumCursor.put(key, addModelSummaries(modelSum, placeHolder))
 
-            job.putNewJob(txn=txn, checkExists=False)
+            job.putNewJob(txn=txn)
 
             numJobs += 1
 
