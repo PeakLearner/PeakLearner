@@ -459,7 +459,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         params = {'ref': problemWithNoLabels['chrom'],
                   'start': problemWithNoLabels['chromStart'], 'end': problemWithNoLabels['chromEnd']}
 
-
         modelOut = self.testapp.get(modelUrl, params=params, headers={'Accept': 'application/json'})
 
         assert modelOut.status_code == 200
