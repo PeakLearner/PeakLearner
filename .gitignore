@@ -22,3 +22,4 @@ chromedriver
 log.txt
 screenshots
 !tests/*
+tools

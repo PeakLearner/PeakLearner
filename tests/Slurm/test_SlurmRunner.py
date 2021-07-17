@@ -41,15 +41,11 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
             job = db.Job('2').get(txn=txn, write=True)
             txn.commit()
 
-            if job.status != 'New':
+            # Empty dict default return for get when the job doesn't actually exist
+            if isinstance(job, dict):
                 break
             runTask()
 
-        txn = db.getTxn()
-        job = db.Job('2').get(txn=txn)
-        txn.commit()
-
-        assert job.status == 'Done'
 
     def tearDown(self):
         super().tearDown()

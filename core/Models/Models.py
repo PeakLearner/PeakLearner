@@ -62,6 +62,15 @@ def getModels(data, txn=None):
                 output = output.append(minErrorModel, ignore_index=True)
                 continue
 
+        # Remove processing models from ones which can be displayed
+        modelSummaries = modelSummaries[modelSummaries['errors'] >= 0]
+
+        if len(modelSummaries.index) < 1:
+            altout = generateAltModel(data, problem, txn=txn)
+            if isinstance(altout, pd.DataFrame):
+                output = output.append(altout, ignore_index=True)
+            continue
+
         nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
 
         if len(nonZeroRegions.index) < 1:
@@ -193,11 +202,18 @@ def updateAllModelLabels(data, labels, txn):
                                  problem,
                                  peakSegDiskPrePenalties,
                                  len(labels.index))
-            if out is not None:
-                out.putNewJob(txn=modelTxn)
-                modelTxn.commit()
-            else:
-                modelTxn.abort()
+
+            out.putNewJob(txn=modelTxn)
+            placeHolders = out.getJobModelSumPlaceholder()
+            modelSummaries.put(placeHolders, txn=modelTxn)
+            modelTxn.commit()
+            continue
+
+        processedSums = modelsums[modelsums['errors'] >= 0]
+
+        # Models being processed but not yet available
+        if len(processedSums.index) < 1:
+            modelTxn.commit()
             continue
 
         newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem, modelTxn))
@@ -238,16 +254,12 @@ def putModel(data, txn=None):
 def calculateModelLabelError(modelDf, labels, problem, penalty):
     labels = labels[labels['annotation'] != 'unknown']
     peaks = modelDf[modelDf['annotation'] == 'peak']
-    numPeaks = len(peaks.index)
-    numLabels = len(labels.index)
-
-    if numLabels < 1:
-        return getErrorSeries(penalty, numPeaks, numLabels)
-
     labelsIsInProblem = labels.apply(db.checkInBounds, axis=1,
                                      args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
+    numPeaks = len(peaks.index)
+    numLabels = len(labelsIsInProblem.index)
 
-    if numPeaks < 1:
+    if numPeaks < 1 > numLabels:
         return getErrorSeries(penalty, numPeaks, numLabels)
 
     labelsInProblem = labels[labelsIsInProblem]
@@ -274,7 +286,7 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
 
 def getErrorSeries(penalty, numPeaks, regions=0):
     return pd.Series({'regions': regions, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
-                      'errors': 0, 'penalty': penalty, 'numPeaks': numPeaks})
+                      'errors': -1, 'penalty': penalty, 'numPeaks': numPeaks})
 
 
 # TODO: This could be better (learning a penalty based on PeakSegDisk Models?)

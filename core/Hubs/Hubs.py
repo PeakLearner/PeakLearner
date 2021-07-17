@@ -416,6 +416,13 @@ def submitPregenWithData(doPregen, user, hub, track, numLabels, coverageUrl, txn
             problemTxn.abort()
             continue
 
+        placeHolders = job.getJobModelSumPlaceholder()
+
+        modelSummaries = db.ModelSummaries(user, hub, track['track'], problem['chrom'],
+                                           problem['chromStart'])
+
+        modelSummaries.put(placeHolders, txn=problemTxn)
+
         problemTxn.commit()
 
 

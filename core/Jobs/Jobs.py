@@ -94,11 +94,8 @@ class Job(metaclass=JobType):
             pass
         return self
 
-    def putNewJob(self, txn, checkExists=True):
+    def putNewJob(self, txn):
         """puts Job into job list if the job doesn't exist"""
-        if checkExists:
-            if self.checkIfExists(txn=txn):
-                return None
 
         self.id = str(db.JobInfo('Id').incrementId(txn=txn))
         self.iteration = str(db.Iteration(self.user,
@@ -112,21 +109,6 @@ class Job(metaclass=JobType):
         db.Job(self.id).put(self.__dict__(), txn=txn)
 
         return self.id
-
-    def checkIfExists(self, txn=None):
-        """Check if the current job exists in the DB"""
-        cursor = db.Job.getCursor(txn=txn, bulk=True)
-        current = cursor.next()
-
-        while current is not None:
-            key, job = current
-            if self.equals(job):
-                cursor.close()
-                return True
-            current = cursor.next()
-
-        cursor.close()
-        return False
 
     def equals(self, jobToCheck):
         """Check if current job is equal to the job to check"""
@@ -227,6 +209,16 @@ class Job(metaclass=JobType):
         self.lastModified = time.time()
         return restarted
 
+    def getJobModelSumPlaceholder(self):
+        out = pd.DataFrame()
+        for key in self.tasks.keys():
+            task = self.tasks[key]
+
+            if task['type'].lower() == 'model':
+                out = out.append(Models.getErrorSeries(task['penalty'], -1, -1), ignore_index=True)
+
+        return out
+
     def numTasks(self):
         return len(self.tasks.keys())
 
@@ -294,41 +286,11 @@ def createFeatureTask(taskId):
     return output
 
 
-class PredictJob(Job):
+class FeatureJob(Job):
     jobType = 'predict'
 
     def __init__(self, user, hub, track, problem):
         super().__init__(user, hub, track, problem, 0, tasks={'0': createFeatureTask(0)})
-
-    def updateJobStatus(self, txn=None):
-        keys = list(self.tasks.keys())
-
-        # When initially created, these only have the predict job
-        if len(keys) == 1:
-            currentTask = self.tasks[keys[0]]
-            if currentTask['status'].lower() == 'done':
-                prediction = Models.doPrediction(self, txn=txn)
-
-                taskId = '1'
-
-                newTask = {'type': 'model', 'taskId': taskId}
-
-                # If no prediction, Set job as error
-                if prediction is None or prediction is False:
-                    newTask['status'] = 'Error'
-                    newTask['penalty'] = 'Unknown'
-                else:
-                    newTask['status'] = 'New'
-                    newTask['penalty'] = str(prediction)
-
-                self.tasks[taskId] = newTask
-
-        Job.updateJobStatus(self, txn=txn)
-
-    def resetJob(self):
-        Job.resetJob(self)
-        if '1' in self.tasks:
-            del self.tasks['1']
 
 
 class SingleModelJob(Job):
@@ -339,25 +301,6 @@ class SingleModelJob(Job):
         taskId = str(len(self.tasks.keys()))
         log.debug('Single Model Job created', penalty, type(penalty))
         self.tasks[taskId] = createModelTask(taskId, penalty)
-
-    def equals(self, jobToCheck):
-        """Check if current job is equal to the job to check"""
-
-        # If other paramaters say doesn't exist, then continue
-        if not super().equals(jobToCheck):
-            return False
-
-        if len(self.tasks) != 1:
-            raise Exception
-
-        task = self.tasks['0']
-
-        taskToCompare = jobToCheck.tasks['0']
-
-        if task['penalty'] != taskToCompare['penalty']:
-            return False
-
-        return True
 
 
 class GridSearchJob(Job):
@@ -372,16 +315,6 @@ class GridSearchJob(Job):
             tasks[taskId] = createModelTask(taskId, penalty)
         super().__init__(user, hub, track, problem, priority, trackUrl=trackUrl, tasks=tasks)
 
-    def equals(self, jobToCheck):
-        if not super().equals(jobToCheck):
-            return False
-
-        # The penalties are the keys
-        if jobToCheck.tasks == self.tasks:
-            return True
-
-        return False
-
 
 class PregenJob(GridSearchJob):
     """Grid Search but generate a feature vec"""
@@ -394,6 +327,17 @@ class PregenJob(GridSearchJob):
         tasks['0'] = createFeatureTask(0)
 
         super().__init__(user, hub, track, problem, penalties, priority, trackUrl=trackUrl, tasks=tasks)
+
+    def putNewJob(self, txn):
+        # Put placeholder features
+        featureKey = (self.user,
+                    self.hub,
+                    self.track,
+                    self.problem['chrom'],
+                    self.problem['chromStart'])
+        db.Features(*featureKey).put(pd.Series(), txn)
+
+        return super().putNewJob(txn)
 
 
 timeUntilRestart = 3600
@@ -466,7 +410,11 @@ def updateTask(data, txn=None):
     jobDb = db.Job(jobId)
     jobToUpdate = jobDb.get(txn=txn, write=True)
     task = jobToUpdate.updateTask(task, txn=txn)
-    jobDb.put(jobToUpdate, txn=txn)
+    if jobToUpdate.status.lower() == 'done':
+        jobDb.put(None, txn=txn)
+        db.DoneJob(jobId).put(jobToUpdate, txn=txn)
+    else:
+        jobDb.put(jobToUpdate, txn=txn)
 
     task = jobToUpdate.addJobInfoOnTask(task)
 
@@ -635,7 +583,6 @@ def jobsStats(data, txn=None):
     jobs = []
     for job in db.Job.all(txn=txn):
         numJobs = numJobs + 1
-        jobs.append(job.__dict__())
         status = job.status.lower()
 
         if status == 'new':
@@ -650,6 +597,9 @@ def jobsStats(data, txn=None):
             for task in job.tasks.values():
                 if task['status'].lower() == 'done':
                     times.append(float(task['totalTime']))
+
+        if status != 'done':
+            jobs.append(job.__dict__())
 
     if len(times) == 0:
         avgTime = 0
@@ -667,7 +617,7 @@ def jobsStats(data, txn=None):
     return output
 
 
-try:
+try: # pragma: no cover
     import uwsgi
     import uwsgidecorators
 
@@ -675,6 +625,7 @@ try:
     # run Job Spawner every 60 seconds
     @uwsgidecorators.timer(60, target='mule')
     def start_job_spawner(num):
+        cleanJobs(num)
         spawnJobs(num)
 
 
@@ -682,110 +633,95 @@ try:
     def start_restart_jobCheck(num):
         checkRestartJobs(num)
 
-except ModuleNotFoundError:
+except ModuleNotFoundError: # pragma: no cover
     print('Running in none uwsgi mode, Jobs wont automatically be spawned or restarted')
+
+
+cleaned = False
+
+
+# TODO: Remove this, remove done jobs when they are done in updateTask, only here for migration purposes
+@retry
+@txnAbortOnError
+def cleanJobs(data, txn=None):
+    global cleaned
+    if cleaned:
+        return
+    print('cleanJobs')
+    cursor = db.Job.getCursor(txn=txn, bulk=True)
+    current = cursor.next()
+
+    while current is not None:
+        key, job = current
+
+        if job.status.lower() == 'done':
+            jobTxn = db.getTxn(txn)
+            db.DoneJob(*key).put(job, txn=jobTxn)
+            jobTxn.commit()
+            cursor.delete()
+
+        # Delete the predict jobs, predict jobs were removed
+        elif job.jobType.lower() == 'predict':
+            cursor.delete()
+
+        current = cursor.next()
+
+    cursor.close()
+
+    cleaned = True
 
 
 @retry
 @txnAbortOnError
 def spawnJobs(data, txn=None):
-    jobCursor = db.Job.getCursor(txn, bulk=True)
+    for job in db.Job.all(txn=txn):
+        if job.status.lower() == 'new':
+            return
+    numJobs = getNoCorrectModelsJobs(txn=txn)
 
-    current = jobCursor.next()
-
-    jobsByContig = {}
-
-    while current is not None:
-        key, job = current
-
-        contigKey = job.user, job.hub, job.track, job.problem['chrom'], str(job.problem['chromStart'])
-
-        if contigKey in jobsByContig:
-            jobsByContig[contigKey].append(job)
-        else:
-            jobsByContig[contigKey] = [job]
-
-        current = jobCursor.next()
-
-    jobCursor.close()
-
-    if len(jobsByContig.keys()) < 1:
-        return
-
-    # Only spawn jobs when all jobs are no longer new
-    for key in jobsByContig:
-        contigJobs = jobsByContig[key]
-
-        for job in contigJobs:
-            if statuses.index(job.status) < statuses.index('Queued'):
-                # If there are jobs which are not at least queued yet
-                return
-
-    jobs = getPotentialJobs(jobsByContig, txn=txn)
-
-    print('jobsLen', len(jobs))
-
-    # If not enough jobs, check for predict jobs
-    jobsLeft = cfg.maxJobsToSpawn - len(jobs)
-
-    if jobsLeft > 0:
-        predictOut = checkForPredictJobs(jobsLeft, txn=txn)
-        if predictOut is not None and len(predictOut) > 0:
-            jobs.extend(predictOut)
-
-    jobsLeft = cfg.maxJobsToSpawn - len(jobs)
-
-    if jobsLeft > 0:
-        resOut = getResolutionJobs(jobsLeft, txn=None)
-        if resOut is not None and len(resOut) > 0:
-            jobs.extend(resOut)
-
-    for job in jobs:
-        print(job)
-        job.putNewJob(txn=txn)
+    numJobs = checkForPredictJobs(numJobs, txn=txn)
 
 
-def getResolutionJobs(numJobs, txn=None):
-    log.warning('Not Yet Implemented')
-    return []
+def getNoCorrectModelsJobs(txn=None):
+    modelSumCursor = db.ModelSummaries.getCursor(txn, bulk=True)
 
+    numJobs = 0
 
-def getPotentialJobs(contigJobs, txn=None):
-    output = []
+    currentSum = modelSumCursor.next()
 
-    # Checks all regions where models have already potentially been computed
-    for key in contigJobs:
-        modelSums = db.ModelSummaries(*key).get(txn=txn)
+    while currentSum is not None:
+        key, modelSum = currentSum
 
-        nonZeroRegions = modelSums[modelSums['regions'] > 0]
+        # These values are checked due to how Models::getErrorSeries works
+        errorModels = modelSum[modelSum['numPeaks'] == -1]
+        processingModels = errorModels[errorModels['errors'] == -1]
 
-        if len(nonZeroRegions.index) < 1:
-            # if there are no labels in that region, but a prediction model has been generated
+        if len(processingModels.index) > 0:
+            currentSum = modelSumCursor.next()
             continue
 
-        withPeaks = nonZeroRegions[nonZeroRegions['numPeaks'] > 0]
+        job = jobToRefine(key, modelSum, txn=txn)
 
-        zeroError = withPeaks[withPeaks['errors'] < 1]
+        if job is not None:
+            placeHolder = job.getJobModelSumPlaceholder()
 
-        if len(zeroError.index) < 1:
-            # Nothing with zero Error, try and refine
+            modelSumCursor.put(key, addModelSummaries(modelSum, placeHolder))
 
-            jobToAppend = jobToRefine(key, withPeaks, txn=txn)
+            job.putNewJob(txn=txn)
 
-            if jobToAppend is None:
-                continue
-            output.append(jobToAppend)
-            continue
+            numJobs += 1
 
-        if len(output) > cfg.maxJobsToSpawn:
+        if numJobs >= cfg.maxJobsToSpawn:
             break
 
-    return output
+        currentSum = modelSumCursor.next()
+
+    modelSumCursor.close()
+
+    return numJobs
 
 
 def checkForPredictJobs(numJobs, txn=None):
-    output = []
-
     hubInfoCursor = db.HubInfo.getCursor(txn=txn, bulk=True)
 
     current = hubInfoCursor.next()
@@ -799,24 +735,76 @@ def checkForPredictJobs(numJobs, txn=None):
 
         for track in hubInfo['tracks']:
             for problemRowKey, row in problems.iterrows():
-                problemKey = *key, track, row.chrom, row.chromStart
-                if db.Problems.has_key(problemKey):
-                    continue
-                output.append(PredictJob(user, hub, track, row.to_dict()))
+                featureKey = (user, hub, track, row['chrom'], str(row['chromStart']))
 
-                numJobs -= 1
+                # If the feature already exists, then make a single model job
+                if db.Features.has_key(featureKey, txn=txn):
+                    feature = db.Features(*featureKey).get(txn=txn)
+                    if len(feature.keys()) < 1:
+                        # The feature vec is currently being processed
+                        continue
 
-                if numJobs < 1:
+                    predictionModel = db.Prediction('model').get(txn=txn)
+
+                    if not isinstance(predictionModel, dict):
+                        continue
+
+                    colsToDrop = db.Prediction('badCols').get(txn=txn)
+
+                    featuresDropped = feature.drop(labels=colsToDrop)
+
+                    prediction = Models.predictWithFeatures(featuresDropped, predictionModel)
+
+                    if prediction is None:
+                        continue
+
+                    penaltyToUse = float(10**prediction)
+
+                    job = SingleModelJob(user, hub, track, row.to_dict(), penaltyToUse, 0)
+
+                    job.putNewJob(txn=txn)
+
+                    placeHolder = job.getJobModelSumPlaceholder()
+
+                    db.ModelSummaries(user, hub, track, row['chrom'], row['chromStart']).add(placeHolder, txn=txn)
+
+                    numJobs += 1
+                else:
+                    outputJob = FeatureJob(user, hub, track, row.to_dict())
+
+                    outputJob.putNewJob(txn=txn)
+
+                    featureTxn = db.getTxn(parent=txn)
+
+                    db.Features(*featureKey).put(pd.Series(), txn=featureTxn)
+
+                    featureTxn.commit()
+
+                    numJobs += 1
+
+                if numJobs >= cfg.maxJobsToSpawn:
                     break
-            if numJobs < 1:
+            if numJobs >= cfg.maxJobsToSpawn:
                 break
-        if numJobs < 1:
+        if numJobs >= cfg.maxJobsToSpawn:
             break
         current = hubInfoCursor.next()
 
     hubInfoCursor.close()
 
-    return output
+    return numJobs
+
+
+def addModelSummaries(main, toAdd):
+    main['inAdd'] = main.apply(checkForSum, axis=1, args=(toAdd,))
+
+    notInAdd = main[~main['inAdd']].drop(columns='inAdd')
+
+    return notInAdd.append(toAdd, ignore_index=True)
+
+
+def checkForSum(row, df):
+    return row['penalty'] in df['penalty']
 
 
 def jobToRefine(key, modelSums, txn=None):
@@ -868,7 +856,7 @@ def jobToRefine(key, modelSums, txn=None):
                                      problem['chromStart']).get(txn=txn)
 
             if iteration < 5:
-                return submitGridSearch(problem, data, minPenalty, maxPenalty, regions, txn=txn)
+                return submitGridSearch(problem, data, minPenalty, maxPenalty, regions)
         return
 
     elif numMinErrors == 1:
@@ -923,7 +911,7 @@ def submitOOMJob(problem, data, penalty, jobType, regions):
                           regions)
 
 
-def submitGridSearch(problem, data, minPenalty, maxPenalty, regions, num=cfg.gridSearchSize, txn=None):
+def submitGridSearch(problem, data, minPenalty, maxPenalty, regions, num=cfg.gridSearchSize):
     minPenalty = float(minPenalty)
     maxPenalty = float(maxPenalty)
     penalties = np.linspace(minPenalty, maxPenalty, num + 2).tolist()[1:-1]

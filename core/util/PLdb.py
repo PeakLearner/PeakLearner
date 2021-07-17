@@ -163,6 +163,10 @@ class Job(db.Resource):
     pass
 
 
+class DoneJob(Job):
+    pass
+
+
 class JobCursor(db.Cursor):
     def __init__(self, cursor, parent):
         super().__init__(cursor.cursor, parent)
@@ -263,9 +267,6 @@ class Features(db.Resource):
 
     def make_details(self):
         return {}
-
-    def convert(self, value, *args):
-        return db.Resource.convert(self, value[0])
 
     pass
 
