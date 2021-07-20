@@ -148,7 +148,6 @@ def main(global_config, **settings):
     config.scan('core.Hubs.views')
     config.add_static_view(name='/{user}/{hub}', path='jbrowse:jbrowse')
 
-
     if cfg.testing:
         config.add_route('modelSumUpload', '/modelSumUpload/')
         config.add_route('runJobSpawn', '/runJobSpawn/')

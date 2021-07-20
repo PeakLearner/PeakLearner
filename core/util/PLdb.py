@@ -271,6 +271,10 @@ class Features(db.Resource):
     pass
 
 
+class NoPrediction(Features):
+    pass
+
+
 class HubInfo(db.Resource):
     keys = ("User", "Hub")
 

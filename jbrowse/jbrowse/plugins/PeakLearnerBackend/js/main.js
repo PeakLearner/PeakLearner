@@ -74,14 +74,14 @@ define([
                         myBrowser.addGlobalMenuItem('peaklearner', labeledButton);
 
 
-                        let modelTypes = ['PEAK', 'LOPART', 'FLOPART'];
+                        let modelTypes = ['FLOPART', 'LOPART'];
                         let colors = {PEAK: '#ff0000', LOPART: '#ff00a0', FLOPART: '#ff6f00'};
 
                         let modelTypeMenu = new Menu({id: 'modelTypeMenu'});
                         modelTypes.forEach(type => {
                             modelTypeMenu.addChild(new RadioMenuItem({
                                 label: type,
-                                checked: (type === 'PEAK'),
+                                checked: (type === 'FLOPART'),
                                 class: 'modelMenuItem',
                                 id: type,
                                 style: {
@@ -106,7 +106,7 @@ define([
 
                         myBrowser.addGlobalMenuItem('peaklearner',
                             new PopupMenuItem({
-                                label: 'Model Display Type',
+                                label: 'Secondary Model Display Type',
                                 popup: modelTypeMenu
                             }));
 
