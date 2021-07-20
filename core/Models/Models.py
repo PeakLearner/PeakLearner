@@ -189,8 +189,9 @@ def updateAllModelLabels(data, labels, txn):
     for problem in problems:
         modelTxn = db.getTxn(parent=txn)
 
-        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
-                                           problem['chromStart'])
+        problemKey = (data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'])
+
+        modelSummaries = db.ModelSummaries(*problemKey)
 
         modelsums = modelSummaries.get(txn=modelTxn, write=True)
 
@@ -327,7 +328,15 @@ def generateAltModel(data, problem, txn=None):
     start = max(data['visibleStart'], problem['chromStart'], 0)
     end = min(data['visibleEnd'], problem['chromEnd'])
 
+    print(scale)
+    if scale < 0.002:
+        return pd.DataFrame([{'start': data['start'], 'end': data['end'], 'type': 'zoomIn'}])
+
     scaledBins = int(scale * (end - start))
+
+    if scaledBins <= 0:
+        return []
+
     lenBin = (end - start) / scaledBins
 
     # TODO: Cache this
@@ -352,6 +361,29 @@ def generateAltModel(data, problem, txn=None):
         else:
             labelsToUse = noUnknowns.apply(convertLabelsToIndexBased, axis=1,
                                            args=(start, denom, scaledBins, modelType))
+
+    if len(labelsToUse.index) > 1:
+        prevEnd = None
+
+        newLabels = pd.DataFrame()
+
+        for index, row in labelsToUse.iterrows():
+
+            if prevEnd is None:
+                pass
+            elif prevEnd == row['start']:
+                row['start'] += 1
+
+            prevEnd = row['end']
+
+            newLabels = newLabels.append(row, ignore_index=True)
+
+        labelsToUse = newLabels
+
+        sameStartEnd = (labelsToUse['end'] - labelsToUse['start']) <= 1
+
+        if sameStartEnd.any():
+            return pd.DataFrame([{'start': data['start'], 'end': data['end'], 'type': 'zoomIn'}])
 
     if modelType == 'lopart':
         out = generateLopartModel(data, sumData, labelsToUse)

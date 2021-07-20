@@ -523,17 +523,43 @@ def getAllJobs(data, txn=None):
 @retry
 @txnAbortOnError
 def getJobWithId(data, txn=None):
-    return db.Job(data['jobId']).get(txn=txn).__dict__()
+    job = db.Job(data['jobId']).get(txn=txn)
+
+    if isinstance(job, dict):
+        job = db.DoneJob(data['jobId']).get(txn=txn)
+
+    if isinstance(job, dict):
+        return job
+
+    output = job.__dict__()
+
+    output['jobUser'] = output['user']
+
+    return output
 
 
 @retry
 @txnAbortOnError
 def getTrackJobs(data, txn=None):
-    jobs = []
-
     problems = Tracks.getProblems(data, txn=txn)
 
     cursor = db.Job.getCursor(txn, bulk=True)
+
+    jobs = jobsWithCursor(cursor, data, problems)
+
+    cursor.close()
+
+    doneJobCursor = db.DoneJob.getCursor(txn, bulk=True)
+
+    jobs.extend(jobsWithCursor(doneJobCursor, data, problems))
+
+    doneJobCursor.close()
+
+    return jobs
+
+
+def jobsWithCursor(cursor, data, problems):
+    jobs = []
 
     current = cursor.next()
 
@@ -625,7 +651,6 @@ try: # pragma: no cover
     # run Job Spawner every 60 seconds
     @uwsgidecorators.timer(60, target='mule')
     def start_job_spawner(num):
-        cleanJobs(num)
         spawnJobs(num)
 
 
@@ -635,40 +660,6 @@ try: # pragma: no cover
 
 except ModuleNotFoundError: # pragma: no cover
     print('Running in none uwsgi mode, Jobs wont automatically be spawned or restarted')
-
-
-cleaned = False
-
-
-# TODO: Remove this, remove done jobs when they are done in updateTask, only here for migration purposes
-@retry
-@txnAbortOnError
-def cleanJobs(data, txn=None):
-    global cleaned
-    if cleaned:
-        return
-    print('cleanJobs')
-    cursor = db.Job.getCursor(txn=txn, bulk=True)
-    current = cursor.next()
-
-    while current is not None:
-        key, job = current
-
-        if job.status.lower() == 'done':
-            jobTxn = db.getTxn(txn)
-            db.DoneJob(*key).put(job, txn=jobTxn)
-            jobTxn.commit()
-            cursor.delete()
-
-        # Delete the predict jobs, predict jobs were removed
-        elif job.jobType.lower() == 'predict':
-            cursor.delete()
-
-        current = cursor.next()
-
-    cursor.close()
-
-    cleaned = True
 
 
 @retry
@@ -739,6 +730,8 @@ def checkForPredictJobs(numJobs, txn=None):
 
                 # If the feature already exists, then make a single model job
                 if db.Features.has_key(featureKey, txn=txn):
+                    if db.ModelSummaries.has_key(featureKey, txn=txn):
+                        continue
                     feature = db.Features(*featureKey).get(txn=txn)
                     if len(feature.keys()) < 1:
                         # The feature vec is currently being processed
@@ -746,6 +739,7 @@ def checkForPredictJobs(numJobs, txn=None):
 
                     predictionModel = db.Prediction('model').get(txn=txn)
 
+                    # Prediction not yet available
                     if not isinstance(predictionModel, dict):
                         continue
 

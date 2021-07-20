@@ -136,25 +136,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert len(tracks) == 3
 
-        # Check that there is a model missing somewhere which can be filled in via LOPART
-        modelMissing = False
-
-        for track in tracks:
-            models = []
-            for block in track.find_elements(By.CLASS_NAME, 'block'):
-                blockModels = block.find_elements(By.CLASS_NAME, 'Model')
-
-                if len(blockModels) == 0:
-                    continue
-
-                for modelDiv in blockModels:
-                    models.append({'size': modelDiv.size, 'location': modelDiv.location})
-
-            if len(models) < 1:
-                modelMissing = True
-
-        assert modelMissing
-
         self.enableAltModel(whichModel)
 
         self.addPeak(2257, width=120, genModel=True)
