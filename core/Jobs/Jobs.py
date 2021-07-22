@@ -934,19 +934,9 @@ def submitGridSearch(problem, data, minPenalty, maxPenalty, regions, num=cfg.gri
 
 
 def submitSearch(data, problem, bottom, top, regions, txn=None):
-    if isinstance(bottom['penalty'], str):
-        bottomPenalty = bottom['penalty']
-    else:
-        bottomPenalty = bottom['penalty'].astype(str).item().replace('.0', '')
+    topLogPen = np.log10(float(top['penalty']))
 
-    if isinstance(bottom['penalty'], str):
-        topPenalty = top['penalty']
-    else:
-        topPenalty = top['penalty'].astype(str).item().replace('.0', '')
-
-    topLogPen = np.log10(topPenalty)
-
-    bottomLogPen = np.log10(bottomPenalty)
+    bottomLogPen = np.log10(float(bottom['penalty']))
 
     logPen = (topLogPen + bottomLogPen) / 2
 
