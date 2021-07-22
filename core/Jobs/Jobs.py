@@ -267,10 +267,6 @@ class Job(metaclass=JobType):
 
 
 def createModelTask(taskId, penalty):
-
-    if abs(penalty - 27419.3564119538) <= 0.00001:
-        raise Exception
-
     output = {
         'status': 'New',
         'type': 'model',
@@ -305,7 +301,6 @@ class SingleModelJob(Job):
         super().__init__(user, hub, track, problem, priority)
         penalty = round(penalty, 6)
         taskId = str(len(self.tasks.keys()))
-        log.debug('Single Model Job created', penalty, type(penalty))
         self.tasks[taskId] = createModelTask(taskId, penalty)
 
 
@@ -668,9 +663,6 @@ try:  # pragma: no cover
 except ModuleNotFoundError:  # pragma: no cover
     print('Running in none uwsgi mode, Jobs wont automatically be spawned or restarted')
 
-setupRan = False
-
-
 @retry
 @txnAbortOnError
 def spawnJobs(data, txn=None):
@@ -942,8 +934,19 @@ def submitGridSearch(problem, data, minPenalty, maxPenalty, regions, num=cfg.gri
 
 
 def submitSearch(data, problem, bottom, top, regions, txn=None):
-    topLogPen = np.log10(top['penalty'])
-    bottomLogPen = np.log10(bottom['penalty'])
+    if isinstance(bottom['penalty'], str):
+        bottomPenalty = bottom['penalty']
+    else:
+        bottomPenalty = bottom['penalty'].astype(str).item().replace('.0', '')
+
+    if isinstance(bottom['penalty'], str):
+        topPenalty = top['penalty']
+    else:
+        topPenalty = top['penalty'].astype(str).item().replace('.0', '')
+
+    topLogPen = np.log10(topPenalty)
+
+    bottomLogPen = np.log10(bottomPenalty)
 
     logPen = (topLogPen + bottomLogPen) / 2
 
