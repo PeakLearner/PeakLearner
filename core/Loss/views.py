@@ -21,6 +21,17 @@ def getLoss(request):
     # Unpacks the data into 1 dict
     data = {**request.matchdict, **request.params}
 
-
-
     return Loss.getLoss(data)
+
+
+@view_config(route_name='AllLosses', request_method='GET')
+@dfDataOutShrink
+def getAllLosses(request):
+    data = {**request.matchdict, **request.params}
+
+    output = Loss.getAllLosses(data)
+
+    if output is None:
+        return Response(status=204)
+
+    return output

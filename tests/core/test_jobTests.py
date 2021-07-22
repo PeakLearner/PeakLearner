@@ -1,8 +1,6 @@
 import json
 import os
 import time
-
-import pandas as pd
 import pytest
 import tarfile
 import shutil
@@ -10,6 +8,8 @@ import webtest
 import pyramid
 import unittest
 import threading
+import numpy as np
+import pandas as pd
 import pyramid.paster
 import pyramid.testing
 from tests import Base
@@ -42,109 +42,6 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     def getJobs(self):
         return self.testapp.get(self.jobsURL, headers={'Accept': 'application/json'})
 
-    def donttest_getPotentialJobs(self):
-        import core.Jobs.Jobs as Jobs
-        job = {'user': 'Public',
-                'hub': 'H3K4me3_TDH_ENCODE',
-                'track': 'aorta_ENCFF115HTK',
-                'problem': {'chrom': 'chr3',
-                'chromStart': 93504854}}
-        summary = self.getRelevantData(job, modelSumsDf)
-
-        losses = self.getRelevantData(job, lossDf)
-
-        # Add losses for submit search
-        for loss in losses.to_dict('records'):
-            loss = losses[losses['penalty'] == int(loss['penalty'])].astype(int)
-            assert len(loss.index) == 1
-
-            data = {'lossInfo': job, 'penalty': str(loss['penalty'].iloc[0]), 'lossData': loss.to_json()}
-
-            json.dumps(data)
-
-            lossUrl = '/%s/%s/%s/loss/' % (job['user'], job['hub'], job['track'])
-
-            out = self.testapp.put_json(lossUrl, data)
-
-            assert out.status_code == 200
-
-        summary = summary.to_dict('records')
-
-        print(summary)
-
-        # Single Model where penalty is
-        for entry in summary:
-            if entry['errors'] == 0:
-                if entry['numPeaks'] < 1:
-                    continue
-                entry['errors'] += 1.0
-                entry['fp'] += 1.0
-                if entry['numPeaks'] > 1:
-                    penalty = entry['penalty']
-
-        data = {**job, 'sums': summary}
-
-        out = self.testapp.put_json('/modelSumUpload/', data)
-
-        assert out.status_code == 200
-
-        numJobs = len(self.getJobs().json)
-
-        out = Jobs.getNoCorrectModelsJobs()
-
-        print(out)
-
-        assert out == 1
-        outJob = out[0]
-        assert isinstance(outJob, Jobs.SingleModelJob)
-
-        assert float(outJob.tasks['0']['penalty']) > penalty
-
-
-        # Different case
-        for entry in summary:
-            if entry['errors'] == 1.0:
-                entry['errors'] += 1.0
-                entry['fn'] += 1.0
-                if entry['numPeaks'] > 1:
-                    penalty = entry['penalty']
-
-        data = {**job, 'sums': summary}
-
-        out = self.testapp.put_json('/modelSumUpload/', data)
-
-        assert out.status_code == 200
-
-        out = Jobs.getPotentialJobs(contigJobs)
-
-        assert len(out) == 1
-
-        outJob = out[0]
-
-        assert isinstance(outJob, Jobs.GridSearchJob)
-
-        # Different case
-        for entry in summary:
-            if entry['penalty'] == 100000:
-                entry['errors'] += 1.0
-                entry['fn'] += 1.0
-                if entry['numPeaks'] > 1:
-                    penalty = entry['penalty']
-
-        data = {**job, 'sums': summary}
-
-        out = self.testapp.put_json('/modelSumUpload/', data)
-
-        assert out.status_code == 200
-
-        out = Jobs.getPotentialJobs(contigJobs)
-
-        assert len(out) == 1
-
-        outJob = out[0]
-
-        assert isinstance(outJob, Jobs.SingleModelJob)
-
     def test_featureJob(self):
 
         job = self.doPredictionFeatureStep()
@@ -160,6 +57,36 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
         job = out.json
 
         assert job['jobStatus'].lower() == 'done'
+
+    def test_predictJobs(self):
+        self.test_JobSpawner()
+
+        out = self.testapp.get('/prediction/')
+
+        assert out.status_code == 204
+
+        predictJobs = []
+
+        for i in range(4):
+            jobs = self.getJobs()
+
+            assert len(jobs.json) != 0
+
+            predictJobs.extend(jobs.json)
+
+            self.doJobsAsTheyCome()
+
+            jobs = self.getJobs()
+
+            assert len(jobs.json) == 0
+
+            self.testapp.get('/runJobSpawn/')
+
+        # This should check for duplicates in the list, if the lens are different then there is a duplicate
+        set_of_jsons = {json.dumps(d, sort_keys=True) for d in predictJobs}
+        X = [json.loads(t) for t in set_of_jsons]
+
+        assert len(predictJobs) == len(X)
 
     def test_jobRestart(self):
         from core.Jobs import Jobs
@@ -261,6 +188,33 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
         # all jobs are done, more jobs should be spawned here because the job spawner was called
         assert len(jobs) != 0
 
+    def test_getAllFeatures(self):
+        self.test_featureJob()
+
+        out = self.testapp.get('/features/')
+
+        assert out.status_code == 200
+
+        assert len(out.json) == 76
+
+    def test_getAllModelSums(self):
+        self.test_featureJob()
+
+        out = self.testapp.get('/modelSums/')
+
+        assert out.status_code == 200
+
+        assert len(out.json) == 302
+
+    def test_getAllLosses(self):
+        self.test_featureJob()
+
+        out = self.testapp.get('/losses/')
+
+        assert out.status_code == 200
+
+        assert len(out.json) == 300
+
     def getRelevantData(self, job, data):
         user = data[data['user'] == job['user']]
         hub = user[user['hub'] == job['hub']]
@@ -273,10 +227,12 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     def putModelSum(self, job):
         sums = self.getRelevantData(job, modelSumsDf)
 
-        if len(sums.index) < 1:
+        sum = sums[abs(sums['penalty'] - float(job['penalty'])) <= 0.00001]
+
+        if len(sum.index) < 1:
             raise Exception
 
-        data = {**job, 'sums': sums.to_dict('records')}
+        data = {**job, 'sum': sum.to_dict('records')}
 
         out = self.testapp.put_json('/modelSumUpload/', data)
 
@@ -284,7 +240,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
     def putLoss(self, job, trackUrl):
         loss = self.getRelevantData(job, lossDf)
-        loss = loss[loss['penalty'] == int(job['penalty'])]
+        loss = loss[abs(loss['penalty'] - float(job['penalty'])) <= 0.00001]
 
         if len(loss.index) < 1:
             raise Exception
@@ -328,12 +284,11 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         trackUrl = '/%s/%s/%s/' % (user, hub, track)
 
-        if int(taskId) == 0:
-            self.putModelSum(job)
 
         if job['type'] == 'feature':
             self.putFeature(job, trackUrl)
         elif job['type'] == 'model':
+            self.putModelSum(job)
             self.putLoss(job, trackUrl)
 
         jobUrl = '%s%s/' % (self.jobsURL, job['id'])

@@ -328,7 +328,6 @@ def generateAltModel(data, problem, txn=None):
     start = max(data['visibleStart'], problem['chromStart'], 0)
     end = min(data['visibleEnd'], problem['chromEnd'])
 
-    print(scale)
     if scale < 0.002:
         return pd.DataFrame([{'start': data['start'], 'end': data['end'], 'type': 'zoomIn'}])
 
@@ -676,6 +675,35 @@ def getTrackModelSummary(data, txn=None):
     return modelSummaries
 
 
+@retry
+@txnAbortOnError
+def getAllModelSummaries(data, txn=None):
+    output = []
+
+    modelSumCursor = db.ModelSummaries.getCursor(txn=txn, bulk=True)
+
+    current = modelSumCursor.next()
+
+    while current is not None:
+        key, modelSum = current
+
+        user, hub, track, ref, start = key
+
+        modelSum['user'] = user
+        modelSum['hub'] = hub
+        modelSum['track'] = track
+        modelSum['ref'] = ref
+        modelSum['start'] = start
+
+        output.append(modelSum)
+
+        current = modelSumCursor.next()
+
+    modelSumCursor.close()
+
+    return pd.concat(output)
+
+
 if cfg.testing:
     @retry
     @txnAbortOnError
@@ -685,8 +713,8 @@ if cfg.testing:
         track = data['track']
         problem = data['problem']
 
-        sums = pd.DataFrame(data['sums'])
+        sum = pd.DataFrame(data['sum'])
 
         sumsDb = db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart'])
 
-        sumsDb.put(sums, txn=txn)
+        sumsDb.add(sum, txn=txn)

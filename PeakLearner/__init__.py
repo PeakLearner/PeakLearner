@@ -124,6 +124,7 @@ def main(global_config, **settings):
     config.add_route('trackLabels', '/{user}/{hub}/{track}/labels/')
     config.scan('core.Labels.views')
 
+    config.add_route('AllModelSum', '/modelSums/')
     config.add_route('hubModels', '/{user}/{hub}/models/')
     config.add_route('trackModels', '/{user}/{hub}/{track}/models/')
     # This one is for retrieving a single model summary
@@ -133,9 +134,11 @@ def main(global_config, **settings):
     config.add_route('trackModelSums', '/{user}/{hub}/{track}/modelSums/')
     config.scan('core.Models.views')
 
+    config.add_route('allFeatures', '/features/')
     config.add_route('features', '/{user}/{hub}/{track}/features/')
     config.scan('core.Features.views')
 
+    config.add_route('AllLosses', '/losses/')
     config.add_route('loss', '/{user}/{hub}/{track}/loss/')
     config.scan('core.Loss.views')
 
@@ -151,6 +154,8 @@ def main(global_config, **settings):
     if cfg.testing:
         config.add_route('modelSumUpload', '/modelSumUpload/')
         config.add_route('runJobSpawn', '/runJobSpawn/')
+        config.add_route('runPrediction', '/prediction/')
+        config.scan('core.Prediction.views')
 
 
     from wsgicors import CORS
