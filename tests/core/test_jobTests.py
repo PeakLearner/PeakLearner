@@ -58,36 +58,6 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         assert job['jobStatus'].lower() == 'done'
 
-    def test_predictJobs(self):
-        self.test_JobSpawner()
-
-        out = self.testapp.get('/prediction/')
-
-        assert out.status_code == 204
-
-        predictJobs = []
-
-        for i in range(4):
-            jobs = self.getJobs()
-
-            assert len(jobs.json) != 0
-
-            predictJobs.extend(jobs.json)
-
-            self.doJobsAsTheyCome()
-
-            jobs = self.getJobs()
-
-            assert len(jobs.json) == 0
-
-            self.testapp.get('/runJobSpawn/')
-
-        # This should check for duplicates in the list, if the lens are different then there is a duplicate
-        set_of_jsons = {json.dumps(d, sort_keys=True) for d in predictJobs}
-        X = [json.loads(t) for t in set_of_jsons]
-
-        assert len(predictJobs) == len(X)
-
     def test_jobRestart(self):
         from core.Jobs import Jobs
 

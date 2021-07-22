@@ -267,6 +267,10 @@ class Job(metaclass=JobType):
 
 
 def createModelTask(taskId, penalty):
+
+    if abs(penalty - 27419.3564119538) <= 0.00001:
+        raise Exception
+
     output = {
         'status': 'New',
         'type': 'model',
@@ -664,6 +668,8 @@ try:  # pragma: no cover
 except ModuleNotFoundError:  # pragma: no cover
     print('Running in none uwsgi mode, Jobs wont automatically be spawned or restarted')
 
+setupRan = False
+
 
 @retry
 @txnAbortOnError
@@ -860,6 +866,7 @@ def jobToRefine(key, modelSums, txn=None):
         index = minError.index[0]
 
         model = minError.iloc[0]
+
         if model['fp'] > model['fn']:
             try:
                 compare = modelSums.iloc[index + 1]
@@ -878,6 +885,9 @@ def jobToRefine(key, modelSums, txn=None):
             # If the previous model is only 1 peak away, not worth searching
             if compare['numPeaks'] + 1 >= model['numPeaks']:
                 return
+
+        if abs(compare['numPeaks'] - model['numPeaks']) <= 1:
+            return
 
         if compare['penalty'] > model['penalty']:
             top = compare
@@ -932,45 +942,12 @@ def submitGridSearch(problem, data, minPenalty, maxPenalty, regions, num=cfg.gri
 
 
 def submitSearch(data, problem, bottom, top, regions, txn=None):
-    if isinstance(bottom['penalty'], str):
-        bottomPenalty = bottom['penalty']
-    else:
-        bottomPenalty = bottom['penalty'].astype(str).item().replace('.0', '')
+    topLogPen = np.log10(top['penalty'])
+    bottomLogPen = np.log10(bottom['penalty'])
 
-    if isinstance(bottom['penalty'], str):
-        topPenalty = top['penalty']
-    else:
-        topPenalty = top['penalty'].astype(str).item().replace('.0', '')
+    logPen = (topLogPen + bottomLogPen) / 2
 
-    bottomLoss = db.Loss(data['user'],
-                         data['hub'],
-                         data['track'],
-                         problem['chrom'],
-                         problem['chromStart'],
-                         bottomPenalty).get(txn=txn)
-
-    topLoss = db.Loss(data['user'],
-                      data['hub'],
-                      data['track'],
-                      problem['chrom'],
-                      problem['chromStart'],
-                      topPenalty).get(txn=txn)
-
-    if bottomLoss is None:
-        raise Exception
-
-    if topLoss is None:
-        raise Exception
-
-    penalty = abs((topLoss['meanLoss'] - bottomLoss['meanLoss'])
-                  / (bottomLoss['peaks'] - topLoss['peaks'])).iloc[0].astype(float)
-
-    if np.isnan(penalty):
-        num = topLoss['meanLoss'].iloc[0] - bottomLoss['meanLoss'].iloc[0]
-
-        denom = bottomLoss['peaks'].iloc[0] - topLoss['peaks'].iloc[0]
-
-        penalty = round(abs(num / denom), 6)
+    penalty = float(10 ** logPen)
 
     return SingleModelJob(data['user'],
                           data['hub'],
