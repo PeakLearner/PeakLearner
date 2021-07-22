@@ -73,8 +73,6 @@ def uploadHubUrl(request):
 
     output = Hubs.parseHub(data)
 
-    print('uhu out')
-
     return output
 
 

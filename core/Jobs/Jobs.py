@@ -98,6 +98,7 @@ class Job(metaclass=JobType):
         """puts Job into job list if the job doesn't exist"""
 
         self.id = str(db.JobInfo('Id').incrementId(txn=txn))
+
         self.iteration = str(db.Iteration(self.user,
                                           self.hub,
                                           self.track,
@@ -298,8 +299,8 @@ class SingleModelJob(Job):
 
     def __init__(self, user, hub, track, problem, penalty, priority):
         super().__init__(user, hub, track, problem, priority)
+        penalty = round(penalty, 6)
         taskId = str(len(self.tasks.keys()))
-        log.debug('Single Model Job created', penalty, type(penalty))
         self.tasks[taskId] = createModelTask(taskId, penalty)
 
 
@@ -312,6 +313,7 @@ class GridSearchJob(Job):
             tasks = {}
         for penalty in penalties:
             taskId = str(len(tasks.keys()))
+            penalty = round(penalty, 6)
             tasks[taskId] = createModelTask(taskId, penalty)
         super().__init__(user, hub, track, problem, priority, trackUrl=trackUrl, tasks=tasks)
 
@@ -331,10 +333,10 @@ class PregenJob(GridSearchJob):
     def putNewJob(self, txn):
         # Put placeholder features
         featureKey = (self.user,
-                    self.hub,
-                    self.track,
-                    self.problem['chrom'],
-                    self.problem['chromStart'])
+                      self.hub,
+                      self.track,
+                      self.problem['chrom'],
+                      self.problem['chromStart'])
         db.Features(*featureKey).put(pd.Series(), txn)
 
         return super().putNewJob(txn)
@@ -643,7 +645,7 @@ def jobsStats(data, txn=None):
     return output
 
 
-try: # pragma: no cover
+try:  # pragma: no cover
     import uwsgi
     import uwsgidecorators
 
@@ -658,9 +660,8 @@ try: # pragma: no cover
     def start_restart_jobCheck(num):
         checkRestartJobs(num)
 
-except ModuleNotFoundError: # pragma: no cover
+except ModuleNotFoundError:  # pragma: no cover
     print('Running in none uwsgi mode, Jobs wont automatically be spawned or restarted')
-
 
 @retry
 @txnAbortOnError
@@ -752,7 +753,7 @@ def checkForPredictJobs(numJobs, txn=None):
                     if prediction is None:
                         continue
 
-                    penaltyToUse = float(10**prediction)
+                    penaltyToUse = round(float(10 ** prediction), 6)
 
                     job = SingleModelJob(user, hub, track, row.to_dict(), penaltyToUse, 0)
 
@@ -857,6 +858,7 @@ def jobToRefine(key, modelSums, txn=None):
         index = minError.index[0]
 
         model = minError.iloc[0]
+
         if model['fp'] > model['fn']:
             try:
                 compare = modelSums.iloc[index + 1]
@@ -875,6 +877,9 @@ def jobToRefine(key, modelSums, txn=None):
             # If the previous model is only 1 peak away, not worth searching
             if compare['numPeaks'] + 1 >= model['numPeaks']:
                 return
+
+        if abs(compare['numPeaks'] - model['numPeaks']) <= 1:
+            return
 
         if compare['penalty'] > model['penalty']:
             top = compare
@@ -896,6 +901,8 @@ def submitOOMJob(problem, data, penalty, jobType, regions):
     else:
         print("Invalid OOM Job")
         return
+
+    penalty = round(penalty, 6)
 
     return SingleModelJob(data['user'],
                           data['hub'],
@@ -927,35 +934,13 @@ def submitGridSearch(problem, data, minPenalty, maxPenalty, regions, num=cfg.gri
 
 
 def submitSearch(data, problem, bottom, top, regions, txn=None):
-    if isinstance(bottom['penalty'], str):
-        bottomPenalty = bottom['penalty']
-    else:
-        bottomPenalty = bottom['penalty'].astype(str).item().replace('.0', '')
+    topLogPen = np.log10(float(top['penalty']))
 
-    if isinstance(bottom['penalty'], str):
-        topPenalty = top['penalty']
-    else:
-        topPenalty = top['penalty'].astype(str).item().replace('.0', '')
+    bottomLogPen = np.log10(float(bottom['penalty']))
 
-    bottomLoss = db.Loss(data['user'],
-                         data['hub'],
-                         data['track'],
-                         problem['chrom'],
-                         problem['chromStart'],
-                         bottomPenalty).get(txn=txn)
+    logPen = (topLogPen + bottomLogPen) / 2
 
-    topLoss = db.Loss(data['user'],
-                      data['hub'],
-                      data['track'],
-                      problem['chrom'],
-                      problem['chromStart'],
-                      topPenalty).get(txn=txn)
-
-    if topLoss is None or bottomLoss is None:
-        raise Exception
-
-    penalty = abs((topLoss['meanLoss'] - bottomLoss['meanLoss'])
-                  / (bottomLoss['peaks'] - topLoss['peaks'])).iloc[0].astype(float)
+    penalty = float(10 ** logPen)
 
     return SingleModelJob(data['user'],
                           data['hub'],

@@ -26,3 +26,32 @@ def getFeatures(data, txn=None):
         return
 
     return features.to_dict()
+
+
+@retry
+@txnAbortOnError
+def getAllFeatures(data, txn=None):
+    output = []
+
+    featureCursor = db.Features.getCursor(txn=txn, bulk=True)
+
+    current = featureCursor.next()
+
+    while current is not None:
+        key, feature = current
+
+        user, hub, track, ref, start = key
+
+        feature['user'] = user
+        feature['hub'] = hub
+        feature['track'] = track
+        feature['ref'] = ref
+        feature['start'] = start
+
+        output.append(feature)
+
+        current = featureCursor.next()
+
+    featureCursor.close()
+
+    return pd.concat(output, axis=1).T

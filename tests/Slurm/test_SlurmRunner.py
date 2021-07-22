@@ -4,7 +4,6 @@ from pyramid.paster import get_app
 waitTime = 60
 
 
-
 url = 'http://localhost:8080'
 
 

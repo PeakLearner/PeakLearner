@@ -57,6 +57,7 @@ maxJobsToSpawn = int(config['learning']['maxJobsToSpawn'])
 
 
 def testing():
-    global test, geneUrl
+    global test, geneUrl, maxJobsToSpawn
     test = True
     geneUrl = 'https://rcdata.nau.edu/genomic-ml/PeakLearner/files/'
+    maxJobsToSpawn = 2

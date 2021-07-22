@@ -57,6 +57,81 @@ paths:
                 $ref: '#/components/schemas/taskOutput'
         404:
           description: There is no job to be queued
+  '/features/':
+    get:
+      summary: Get all features
+      description: >-
+        Provides a list of all the features
+      responses:
+        '200':
+          description: features retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                    type: string
+            text/csv:
+              schema:
+                type: array
+                items:
+                  type: string
+        '204':
+          description: No features
+          content: { }
+        '404':
+          description: An error occurred
+          content: { }
+  '/modelSums/':
+    get:
+      summary: Get all modelSums
+      description: >-
+        Provides a list of all the modelSums
+      responses:
+        '200':
+          description: modelSums retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+            text/csv:
+              schema:
+                type: array
+                items:
+                  type: string
+        '204':
+          description: No modelSums
+          content: { }
+        '404':
+          description: An error occurred
+          content: { }
+  '/losses/':
+    get:
+      summary: Get all losses
+      description: >-
+        Provides a list of all the losses
+      responses:
+        '200':
+          description: losses retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+            text/csv:
+              schema:
+                type: array
+                items:
+                  type: string
+        '204':
+          description: No losses
+          content: { }
+        '404':
+          description: An error occurred
+          content: { }
   '/Jobs/{jobId}/':
     x-pyramid-route-name: jobsWithId
     get:

@@ -108,6 +108,22 @@ def getTrackModelSum(request):
     return output
 
 
+@view_config(route_name='AllModelSum', request_method='GET')
+@dfDataOut
+def getAllModelSums(request):
+    data = {**request.matchdict, **request.params}
+
+    output = Models.getAllModelSummaries(data)
+
+    if output is None:
+        return Response(status=204)
+
+    return output
+
+
+
+
+
 if cfg.testing:
     @view_config(route_name='modelSumUpload', request_method='PUT')
     def modelSumUploadView(request):
