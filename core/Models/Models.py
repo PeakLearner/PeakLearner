@@ -56,9 +56,6 @@ def getModels(data, txn=None):
                     else:
                         penalty = str(sum['penalty'])
 
-
-
-
                 minErrorModelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart'],
                                            penalty)
@@ -67,7 +64,6 @@ def getModels(data, txn=None):
                 except KeyError:
                     log.warning('Missing a model for summary', modelSummaries)
                     continue
-                print(minErrorModel)
                 minErrorModel = minErrorModel[minErrorModel['annotation'] == 'peak']
                 minErrorModel.columns = jbrowseModelColumns
 
