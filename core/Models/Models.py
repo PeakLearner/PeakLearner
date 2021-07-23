@@ -327,10 +327,10 @@ def getFLOPARTPenalty(data):
         return 5000
 
 
-def getZoomIn(data):
-    return {'start': data['start'],
-            'end': data['end'],
-            'ref': data['ref'],
+def getZoomIn(problem):
+    return {'start': problem['chromStart'],
+            'end': problem['chromEnd'],
+            'ref': problem['chrom'],
             'score': 0,
             'type': 'zoomIn'}
 
@@ -356,7 +356,7 @@ def generateAltModel(data, problem, txn=None):
     end = min(data['visibleEnd'], problem['chromEnd'])
 
     if scale < 0.002:
-        return pd.DataFrame([getZoomIn(data)])
+        return pd.DataFrame([getZoomIn(problem)])
 
     scaledBins = int(scale * (end - start))
 
@@ -409,7 +409,7 @@ def generateAltModel(data, problem, txn=None):
         sameStartEnd = (labelsToUse['end'] - labelsToUse['start']) <= 1
 
         if sameStartEnd.any():
-            return pd.DataFrame([getZoomIn(data)])
+            return pd.DataFrame([getZoomIn(problem)])
 
     if modelType == 'lopart':
         out = generateLopartModel(data, sumData, labelsToUse)
