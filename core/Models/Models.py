@@ -50,8 +50,15 @@ def getModels(data, txn=None):
             if sum['regions'] == 0:
                 if isinstance(sum['penalty'], str):
                     penalty = sum['penalty']
-                elif isinstance(sum['penalty'], np.float64):
-                    penalty = '%g' % sum['penalty'].item()
+                else:
+                    if str(sum['penalty']).split('.')[1] == '0':
+                        penalty = '%g' % sum['penalty'].item()
+                    else:
+                        penalty = str(sum['penalty'])
+
+
+
+
                 minErrorModelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart'],
                                            penalty)
@@ -60,6 +67,7 @@ def getModels(data, txn=None):
                 except KeyError:
                     log.warning('Missing a model for summary', modelSummaries)
                     continue
+                print(minErrorModel)
                 minErrorModel = minErrorModel[minErrorModel['annotation'] == 'peak']
                 minErrorModel.columns = jbrowseModelColumns
 
