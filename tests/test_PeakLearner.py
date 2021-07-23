@@ -319,7 +319,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
     def test_getPredictionModel(self):
         # Put test model
-        testProblem = {'chrom': 'chr17', 'chromStart': 62460761, 'chromEnd': 77546461}
+        testProblem = {'chrom': 'chr17', 'chromStart': 62460760, 'chromEnd': 77546461}
         modelData = pd.DataFrame([{'chrom': 'chr17',
                                    'start': 62500000,
                                    'end': 62550000,

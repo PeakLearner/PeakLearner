@@ -40,6 +40,7 @@ def getModels(data, txn=None):
             altout = generateAltModel(data, problem, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
+
             continue
 
         if len(modelSummaries.index) == 1:
@@ -200,7 +201,6 @@ def updateAllModelLabels(data, labels, txn):
         modelsums = modelSummaries.get(txn=modelTxn, write=True)
 
         if len(modelsums.index) < 1:
-
             out = Jobs.PregenJob(data['user'],
                                  data['hub'],
                                  data['track'],
@@ -252,13 +252,18 @@ def putModel(data, txn=None):
                                                                        problem['chromStart'],
                                                                        problem['chromEnd'], txn=txn)
 
+    modelSumsDb = db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart'])
+
+    modelSums = modelSumsDb.get(txn=txn, write=True)
+
     if len(labels.index) > 0:
         errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
-        db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
+        modelSumsDb.put(modelSums.append(errorSum, ignore_index=True), txn=txn)
     else:
         peaks = modelData[modelData['annotation'] == 'peak']
         errorSum = getErrorSeries(penalty, len(peaks.index), errors=0)
-        db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
+        modelSumsDb.put(modelSums.append(errorSum, ignore_index=True), txn=txn)
+
     return modelInfo
 
 
@@ -318,6 +323,14 @@ def getFLOPARTPenalty(data):
         return 5000
 
 
+def getZoomIn(data):
+    return {'start': data['start'],
+            'end': data['end'],
+            'ref': data['ref'],
+            'score': 0,
+            'type': 'zoomIn'}
+
+
 def generateAltModel(data, problem, txn=None):
     if 'modelType' not in data:
         return []
@@ -339,7 +352,7 @@ def generateAltModel(data, problem, txn=None):
     end = min(data['visibleEnd'], problem['chromEnd'])
 
     if scale < 0.002:
-        return pd.DataFrame([{'start': data['start'], 'end': data['end'], 'type': 'zoomIn'}])
+        return pd.DataFrame([getZoomIn(data)])
 
     scaledBins = int(scale * (end - start))
 
@@ -392,7 +405,7 @@ def generateAltModel(data, problem, txn=None):
         sameStartEnd = (labelsToUse['end'] - labelsToUse['start']) <= 1
 
         if sameStartEnd.any():
-            return pd.DataFrame([{'start': data['start'], 'end': data['end'], 'type': 'zoomIn'}])
+            return pd.DataFrame([getZoomIn(data)])
 
     if modelType == 'lopart':
         out = generateLopartModel(data, sumData, labelsToUse)
@@ -544,7 +557,7 @@ def indexToStartEnd(row, start, scale):
 
 
 # This block of code is ran but coverage doesn't pick it up as
-def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType): # pragma: no cover
+def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType):  # pragma: no cover
     scaledStart = round(((row['chromStart'] - modelStart) * bins) / denom)
     scaledEnd = round(((row['chromEnd'] - modelStart) * bins) / denom)
 
@@ -569,7 +582,7 @@ def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType): # pragma
         try:
             output['change'] = flopartLabels[output['annotation']]
         except KeyError:
-            print('unknownAnnotation', output['annotation'])
+            log.warning('unknownAnnotation', output['annotation'])
             output['change'] = -2
 
     return output
@@ -600,7 +613,7 @@ def doPrediction(job, txn=None):
     if prediction is None:
         return False
 
-    return float(10**prediction)
+    return float(10 ** prediction)
 
 
 def predictWithFeatures(features, model):
