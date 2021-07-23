@@ -317,6 +317,47 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert out.status_code == 204
 
+    def test_getPredictionModel(self):
+        # Put test model
+        testProblem = {'chrom': 'chr17', 'chromStart': 62460761, 'chromEnd': 77546461}
+        modelData = pd.DataFrame([{'chrom': 'chr17',
+                                   'start': 62500000,
+                                   'end': 62550000,
+                                   'annotation': 'background',
+                                   'mean': 0.1},
+                                  {'chrom': 'chr17',
+                                   'start': 62550001,
+                                   'end': 62600000,
+                                   'annotation': 'peak',
+                                   'mean': 15},
+                                  {'chrom': 'chr17',
+                                   'start': 62600001,
+                                   'end': 62650000,
+                                   'annotation': 'background',
+                                   'mean': 0.1}
+                                  ])
+
+        modelData.columns = ['chrom', 'start', 'end', 'annotation', 'mean']
+        sortedModel = modelData.sort_values('start', ignore_index=True)
+
+        modelInfo = {'user': self.user,
+                     'hub': self.hub,
+                     'track': self.track,
+                     'problem': testProblem}
+
+        query = {'modelInfo': modelInfo, 'penalty': 57094.997295, 'modelData': sortedModel.to_json()}
+        output = self.testapp.put_json(self.modelsUrl, query)
+        assert output.status_code == 200
+
+        # Get test model
+
+        getQuery = {'ref': testProblem['chrom'], 'start': testProblem['chromStart'], 'end': testProblem['chromEnd']}
+        output = self.testapp.get(self.modelsUrl, params=getQuery)
+
+        print(output)
+
+        assert output == 200
+
     def test_get_loss(self):
         self.test_doSampleJob()
         params = {'ref': 'chr3', 'start': 93504854, 'penalty': '10000'}

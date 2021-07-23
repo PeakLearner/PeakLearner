@@ -512,9 +512,9 @@ paths:
                 description: The place to go
   '/{user}/{hub}/labeled/':
     get:
-      summary: Gets an labeled region for the hub
+      summary: Gets a labeled region for the hub
       description: >-
-        Gets an labeled region for the hub, and returns what is needed to navigate to that
+        Gets a labeled region for the hub, and returns what is needed to navigate to that
       parameters:
         - $ref: '#/components/parameters/user'
         - $ref: '#/components/parameters/hub'
