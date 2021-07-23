@@ -48,9 +48,13 @@ def getModels(data, txn=None):
 
             # This is probably a predict model then
             if sum['regions'] == 0:
+                if isinstance(sum['penalty'], str):
+                    penalty = sum['penalty']
+                elif isinstance(sum['penalty'], np.float64):
+                    penalty = '%g' % sum['penalty'].item()
                 minErrorModelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart'],
-                                           sum['penalty'])
+                                           penalty)
                 try:
                     minErrorModel = minErrorModelDb.get(txn=txn)
                 except KeyError:
