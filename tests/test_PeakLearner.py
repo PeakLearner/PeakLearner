@@ -358,7 +358,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert len(output.json) > 0
 
-
     def test_get_loss(self):
         self.test_doSampleJob()
         params = {'ref': 'chr3', 'start': 93504854, 'penalty': '10000'}
