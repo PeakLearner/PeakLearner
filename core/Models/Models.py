@@ -247,8 +247,14 @@ def putModel(data, txn=None):
     labels = db.Labels(user, hub, track, problem['chrom']).getInBounds(problem['chrom'],
                                                                        problem['chromStart'],
                                                                        problem['chromEnd'], txn=txn)
-    errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
-    db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
+
+    if len(labels.index) > 0:
+        errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
+        db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
+    else:
+        peaks = modelData[modelData['annotation'] == 'peak']
+        errorSum = getErrorSeries(penalty, len(peaks.index), errors=0)
+        db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
     return modelInfo
 
 
@@ -285,9 +291,9 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
     return singleRow
 
 
-def getErrorSeries(penalty, numPeaks, regions=0):
+def getErrorSeries(penalty, numPeaks, regions=0, errors=-1):
     return pd.Series({'regions': regions, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
-                      'errors': -1, 'penalty': penalty, 'numPeaks': numPeaks})
+                      'errors': errors, 'penalty': penalty, 'numPeaks': numPeaks})
 
 
 # TODO: This could be better (learning a penalty based on PeakSegDisk Models?)
