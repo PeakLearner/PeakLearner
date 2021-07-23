@@ -354,9 +354,10 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         getQuery = {'ref': testProblem['chrom'], 'start': testProblem['chromStart'], 'end': testProblem['chromEnd']}
         output = self.testapp.get(self.modelsUrl, params=getQuery)
 
-        print(output)
+        assert output.status_code == 200
 
-        assert output == 200
+        assert len(output.json) > 0
+
 
     def test_get_loss(self):
         self.test_doSampleJob()
