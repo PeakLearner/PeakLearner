@@ -47,10 +47,9 @@ def getModels(data, txn=None):
 
             # This is probably a predict model then
             if sum['regions'] == 0:
-                penalty = '%g' % sum['penalty'].item()
                 minErrorModelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart'],
-                                           penalty)
+                                           sum['penalty'])
                 try:
                     minErrorModel = minErrorModelDb.get(txn=txn)
                 except KeyError:
@@ -60,6 +59,11 @@ def getModels(data, txn=None):
                 minErrorModel.columns = jbrowseModelColumns
 
                 output = output.append(minErrorModel, ignore_index=True)
+                continue
+            else:
+                altout = generateAltModel(data, problem, txn=txn)
+                if isinstance(altout, pd.DataFrame):
+                    output = output.append(altout, ignore_index=True)
                 continue
 
         # Remove processing models from ones which can be displayed
