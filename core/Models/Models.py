@@ -353,14 +353,15 @@ def generateAltModel(data, problem, txn=None):
     track = data['track']
     chrom = data['ref']
     scale = data['scale']
+
+    if scale < 0.002:
+        return pd.DataFrame([getZoomIn(problem)])
+
     hubInfo = db.HubInfo(user, hub).get(txn=txn)
     trackUrl = hubInfo['tracks'][data['track']]['url']
 
     start = max(data['visibleStart'], problem['chromStart'], 0)
     end = min(data['visibleEnd'], problem['chromEnd'])
-
-    if scale < 0.002:
-        return pd.DataFrame([getZoomIn(problem)])
 
     scaledBins = int(scale * (end - start))
 
