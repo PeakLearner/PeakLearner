@@ -1,6 +1,8 @@
 import os
 import json
 import datetime
+import shutil
+
 import berkeleydb
 import pandas as pd
 import simpleBDB as db
@@ -69,9 +71,29 @@ try:  # pragma: no cover
         deadlock_detect()
 
 
+    @uwsgidecorators.timer(10, target='mule')
+    def logClean(num):
+        cleanLogs()
+
 except ModuleNotFoundError:
     loadLater = True
     print('Running in non uwsgi mode, deadlocks won\'t be detected automatically')
+
+
+def cleanLogs():
+    filesToBackup = db.getLogArchive()
+
+    logBackupDir = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'db_log_backup')
+
+    if not os.path.exists(logBackupDir):
+        os.makedirs(logBackupDir)
+
+    if len(filesToBackup) != 0:
+        for logFile in filesToBackup:
+            logFilePath = os.path.join(dbPath, logFile)
+            movePath = os.path.join(logBackupDir, logFile)
+
+            shutil.move(logFilePath, movePath)
 
 
 def getTxn(parent=None):

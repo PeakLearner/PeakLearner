@@ -511,6 +511,18 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert output.status_code == 200
 
+    def test_log_file_clean(self):
+
+        assert not os.path.exists(Base.dbLogBackupDir)
+
+        from core.util import PLdb as db
+
+        db.cleanLogs()
+
+        assert os.path.exists(Base.dbLogBackupDir)
+
+
+
     def test_model_stats_page(self):
         output = self.testapp.get('/stats/model/')
 

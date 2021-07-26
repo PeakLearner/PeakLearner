@@ -7,6 +7,7 @@ import threading
 
 dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
 dbDir = os.path.join(dataDir, 'db')
+dbLogBackupDir = os.path.join(dataDir, 'db_log_backup')
 dbTar = os.path.join('data', 'db.tar.gz')
 testDataPath = os.path.join('tests', 'data')
 
@@ -44,6 +45,8 @@ class PeakLearnerTestBase(unittest.TestCase):
 
         if os.path.exists(dbDir):
             shutil.rmtree(dbDir)
+        if os.path.exists(dbLogBackupDir):
+            shutil.rmtree(dbLogBackupDir)
         with tarfile.open(dbTar) as tar:
             tar.extractall(dataDir)
 
