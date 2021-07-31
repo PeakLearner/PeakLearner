@@ -1,3 +1,4 @@
+import os
 import configparser
 
 configFile = 'PeakLearnerSlurm.cfg'
@@ -36,11 +37,11 @@ if save:
 port = int(config['remoteServer']['port'])
 
 if port == 80:
-    remoteServer = "%s/" % config['remoteServer']['url']
+    remoteServer = "%s" % config['remoteServer']['url']
 else:
-    remoteServer = "%s:%s/" % (config['remoteServer']['url'], config['remoteServer']['port'])
+    remoteServer = "%s:%s" % (config['remoteServer']['url'], config['remoteServer']['port'])
 
 verify = config['remoteServer']['verify'].lower() == 'true'
 debug = config['general']['debug'].lower() == 'true'
 dataPath = config['slurm']['dataPath']
-jobUrl = '%sJobs/' % remoteServer
+jobUrl = os.path.join(remoteServer, 'Jobs')

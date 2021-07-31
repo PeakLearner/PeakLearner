@@ -1,4 +1,4 @@
-{% extends "../templates/base.jinja2" %}
+{% extends "base.jinja2" %}
 
 {% block inner_head %}
     <title>Job Stats</title>
@@ -52,7 +52,7 @@
             {% for job in jobs %}
             <div class="col-md-auto" id="{{job['id']}}">
                 {# the |string converts job['id'] to a string from an int#}
-                <h3>Job: <a href="{{job['id']|string + '/'}}">{{job['id']}}</a></h3>
+                <h3>Job: <a href="{{job['id']|string }}">{{job['id']}}</a></h3>
                 <p>Hub Link: <a href="/{{job['user']}}/{{job['hub']}}/">{{job['user'] + '/' + job['hub']}}</a></p>
                 <p>Job Track: {{job['track']}}</p>
                 <p>Job Type: {{job['jobType']}}</p>

@@ -71,18 +71,9 @@ def main(global_config, **settings):
     config.set_root_factory(RootFactory)
 
     # Front end page
-    config.add_route('home', '')
-    config.add_route('about', '/about/')
-    config.add_route('newHub', '/newHub/')
-    config.add_route('tutorial', '/tutorial/')
-    config.add_route('stats', '/stats/')
-    config.add_route('modelStats', '/stats/model/')
-    config.add_route('labelStats', '/stats/label/')
-    config.add_static_view(name='assets', path='website:static/assets')
     config.add_route('public', '/public/{user}/{hub}/')
     config.add_route('myHubs', '/myHubs/')
     config.add_route('moreHubInfo', '/myHubs/{owner}/{hub}/moreInfo/')
-    config.add_route('uploadHubUrl', '/uploadHubUrl/')
     config.add_route('jobInfo', '/jobs/info/')
     config.add_route('help', '/help/')
     config.add_route('login', '/login/')
@@ -110,14 +101,6 @@ def main(global_config, **settings):
     config.add_route('removeUser', '/{user}/{hub}/removeUser/')
     config.scan('core.Permissions.views')
 
-    config.add_route('jobs', '/Jobs/')
-    config.add_route('jobQueue', '/Jobs/queue/')
-    config.add_route('jobsWithId', '/Jobs/{jobId}/')
-    config.add_route('resetJob', '/Jobs/{jobId}/reset/')
-    config.add_route('restartJob', '/Jobs/{jobId}/restart/')
-    config.add_route('trackJobs', '/{user}/{hub}/{track}/jobs/')
-    config.scan('core.Jobs.views')
-
     config.add_route('hubInfo', '/{user}/{hub}/info/')
 
     config.add_route('hubLabels', '/{user}/{hub}/labels/')
@@ -142,14 +125,6 @@ def main(global_config, **settings):
     config.add_route('loss', '/{user}/{hub}/{track}/loss/')
     config.scan('core.Loss.views')
 
-    config.add_route('addTrack', '/{user}/{hub}/addTrack/')
-    config.add_route('removeTrack', '/{user}/{hub}/removeTrack/')
-    config.add_route('deleteHub', '/{user}/{hub}/delete/')
-    config.add_route('unlabeledHub', '/{user}/{hub}/unlabeled/')
-    config.add_route('labeledHub', '/{user}/{hub}/labeled/')
-    config.add_route('jbrowseJson', '/{user}/{hub}/data/{handler}')
-    config.scan('core.Hubs.views')
-    config.add_static_view(name='/{user}/{hub}', path='jbrowse:jbrowse')
 
     if cfg.testing:
         config.add_route('modelSumUpload', '/modelSumUpload/')

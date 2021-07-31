@@ -14,16 +14,17 @@ jbrowseLabelColumns = ['ref', 'start', 'end', 'label']
 def addLabel(data, txn=None):
     # Duplicated because calls from updateLabel are causing freezing
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
-    if perms.hasPermission(data['currentUser'], 'Label'):
+    if perms.hasPermission(data['authUser'], 'Label'):
         newLabel = pd.Series({'chrom': data['ref'],
                               'chromStart': data['start'],
                               'chromEnd': data['end'],
                               'annotation': data['label'],
-                              'createdBy': data['currentUser'],
-                              'lastModifiedBy': data['currentUser'],
+                              'createdBy': data['authUser'],
+                              'lastModifiedBy': data['authUser'],
                               'lastModified': time.time()})
         labelsDb = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
         labels = labelsDb.get(txn=txn, write=True)
+
         if not labels.empty:
             inBounds = labels.apply(db.checkInBounds, axis=1, args=(data['ref'], data['start'], data['end']))
             # If there are any labels currently stored within the region which the new label is being added
@@ -43,16 +44,16 @@ def addLabel(data, txn=None):
 def addHubLabels(data, txn=None):
     # Duplicated because calls from updateLabel are causing freezing
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
-    if perms.hasPermission(data['currentUser'], 'Label'):
+    if perms.hasPermission(data['authUser'], 'Label'):
         newLabel = pd.Series({'chrom': data['ref'],
                               'chromStart': data['start'],
                               'chromEnd': data['end'],
                               'annotation': data['label'],
-                              'createdBy': data['currentUser'],
-                              'lastModifiedBy': data['currentUser'],
+                              'createdBy': data['authUser'],
+                              'lastModifiedBy': data['authUser'],
                               'lastModified': time.time()})
 
-        if 'tracks' in data:
+        if 'tracks' in data and data['tracks'] is not None:
             tracks = data['tracks']
         else:
             hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
@@ -83,7 +84,7 @@ def addHubLabels(data, txn=None):
 @txnAbortOnError
 def deleteLabel(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
-    if perms.hasPermission(data['currentUser'], 'Label'):
+    if perms.hasPermission(data['authUser'], 'Label'):
         toRemove = pd.Series({'chrom': data['ref'],
                               'chromStart': data['start'],
                               'chromEnd': data['end']})
@@ -92,14 +93,15 @@ def deleteLabel(data, txn=None):
         removed, after = labels.remove(toRemove, txn=txn)
         db.Prediction('changes').increment(txn=txn)
         Models.updateAllModelLabels(data, after, txn)
-    return removed.to_dict()
+        return True
+    return False
 
 
 @retry
 @txnAbortOnError
 def deleteHubLabels(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
-    if perms.hasPermission(data['currentUser'], 'Label'):
+    if perms.hasPermission(data['authUser'], 'Label'):
         labelToRemove = pd.Series({'chrom': data['ref'],
                                    'chromStart': data['start'],
                                    'chromEnd': data['end']})
@@ -107,7 +109,7 @@ def deleteHubLabels(data, txn=None):
         user = data['user']
         hub = data['hub']
 
-        if 'tracks' in data:
+        if 'tracks' in data and data['tracks'] is not None:
             tracks = data['tracks']
         else:
             hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
@@ -127,14 +129,14 @@ def deleteHubLabels(data, txn=None):
 @txnAbortOnError
 def updateLabel(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
-    if perms.hasPermission(data['currentUser'], 'Label'):
+    if perms.hasPermission(data['authUser'], 'Label'):
         label = data['label']
 
         labelToUpdate = pd.Series({'chrom': data['ref'],
                                    'chromStart': data['start'],
                                    'chromEnd': data['end'],
                                    'annotation': label,
-                                   'lastModifiedBy': data['currentUser'],
+                                   'lastModifiedBy': data['authUser'],
                                    'lastModified': time.time()})
         labelDb = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
         db.Prediction('changes').increment(txn=txn)
@@ -146,18 +148,18 @@ def updateLabel(data, txn=None):
 @txnAbortOnError
 def updateHubLabels(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
-    if perms.hasPermission(data['currentUser'], 'Label'):
+    if perms.hasPermission(data['authUser'], 'Label'):
         labelToUpdate = pd.Series({'chrom': data['ref'],
                                    'chromStart': data['start'],
                                    'chromEnd': data['end'],
                                    'annotation': data['label'],
-                                   'lastModifiedBy': data['currentUser'],
+                                   'lastModifiedBy': data['authUser'],
                                    'lastModified': time.time()})
 
         user = data['user']
         hub = data['hub']
 
-        if 'tracks' in data:
+        if 'tracks' in data and data['tracks'] is not None:
             tracks = data['tracks']
         else:
             hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
@@ -192,32 +194,35 @@ def getLabels(data, txn=None):
 @retry
 @txnAbortOnError
 def getHubLabels(data, txn=None):
-    if 'tracks' in data:
-        tracks = data['tracks']
-    else:
-        hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
-        tracks = list(hubInfo['tracks'].keys())
-
     output = pd.DataFrame()
 
-    for track in tracks:
-        if 'ref' in data:
-            labelsDb = db.Labels(data['user'], data['hub'], track, data['ref'])
-            if 'start' in data and 'end' in data:
-                labels = labelsDb.getInBounds(data['ref'], data['start'], data['end'], txn=txn)
-            else:
-                labels = labelsDb.get(txn=txn)
+    perms = db.Permission(data['user'], data['hub']).get(txn=txn)
+
+    if perms.hasPermission(data['authUser'], 'Label'):
+        if 'tracks' in data and data['tracks'] is not None:
+            tracks = data['tracks']
         else:
-            availableRefs = db.Labels.keysWhichMatch(data['user'], data['hub'], track)
+            hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
+            tracks = list(hubInfo['tracks'].keys())
 
-            labels = pd.DataFrame()
+        for track in tracks:
+            if 'ref' in data:
+                labelsDb = db.Labels(data['user'], data['hub'], track, data['ref'])
+                if 'start' in data and 'end' in data:
+                    labels = labelsDb.getInBounds(data['ref'], data['start'], data['end'], txn=txn)
+                else:
+                    labels = labelsDb.get(txn=txn)
+            else:
+                availableRefs = db.Labels.keysWhichMatch(data['user'], data['hub'], track)
 
-            for refKey in availableRefs:
-                labels = labels.append(db.Labels(*refKey).get(txn=txn))
+                labels = pd.DataFrame()
 
-        labels['track'] = track
+                for refKey in availableRefs:
+                    labels = labels.append(db.Labels(*refKey).get(txn=txn))
 
-        output = output.append(labels)
+            labels['track'] = track
+
+            output = output.append(labels)
     return output
 
 

@@ -745,7 +745,7 @@ if cfg.testing:
         track = data['track']
         problem = data['problem']
 
-        sum = pd.DataFrame(data['sum'])
+        sum = pd.read_json(data['sum'])
 
         sumsDb = db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart'])
 

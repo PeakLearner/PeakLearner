@@ -18,7 +18,7 @@
               integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l"
               crossorigin="anonymous">
 
-        <link href="../assets/css/style.css" rel="stylesheet">
+        <link href="/static/assets/css/style.css" rel="stylesheet">
 
         <script type="text/javascript">
             function sendAjax(url, query, successCallback, type, timeout) {
@@ -26,7 +26,10 @@
                 $.ajax(url, {
                     data: JSON.stringify(query),
                     type: typeToUse,
+                    dataType: 'json',
+                    contentType: 'application/json',
                     timeout: timeout || 60000,
+                    error: (e) => {console.log(e)},
                     success: successCallback,
                 });
             }
@@ -58,17 +61,17 @@
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
                     <ul class="navbar-nav">
                         <li>
-                            <a href="/myHubs/" class="nav-link my-sm-0" id="myHubs">
+                            <a href="/myHubs" class="nav-link my-sm-0" id="myHubs">
                                 Hubs
                             </a>
                         </li>
                         <li>
-                            <a href="/about/" class="nav-link my-sm-0" id="aboutNav">
+                            <a href="/about" class="nav-link my-sm-0" id="aboutNav">
                                 About
                             </a>
                         </li>
                         <li>
-                            <a href="/stats/" class="nav-link my-sm-0" id="statsNav">
+                            <a href="/stats" class="nav-link my-sm-0" id="statsNav">
                                 Stats
                             </a>
                         </li>
@@ -80,11 +83,11 @@
                     <li>
                         {% if user is not none and user != 'Public' %}
                             <div class="col text-center">
-                                <a class="nav-link my-sm-0 text-center" href="/logout/" id="logoutButton">Sign Out</a>
+                                <a class="nav-link my-sm-0 text-center" href="/logout" id="logoutButton">Sign Out</a>
                             </div>
                         {% else %}
                             <div class="col text-center">
-                                <a class="nav-link my-sm-0 text-center" href="/login/" role="button"
+                                <a class="nav-link my-sm-0 text-center" href="/login" role="button"
                                    style="text-transform:none" id="loginButton">
                                     <img width="15px"
                                          alt="Google sign-in"
@@ -100,8 +103,8 @@
                             Help
                         </a>
                         <div class="dropdown-menu dropdown-menu-right" aria-labelledby="helpDropdown">
-                            <a class="dropdown-item" href="/tutorial/" id="tutorialButton">Tutorial</a>
-                            <a class="dropdown-item" href="https://peaklearner.github.io/PeakLearner/">Api</a>
+                            <a class="dropdown-item" href="/tutorial" id="tutorialButton">Tutorial</a>
+                            <a class="dropdown-item" href="/docs">Api</a>
 
                         </div>
                     </li>

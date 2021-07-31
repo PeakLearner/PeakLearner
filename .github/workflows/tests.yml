@@ -49,21 +49,3 @@ jobs:
       - name: Upload Screenshots
         if: failure()
         run: ./uploadScreenshots.sh
-
-  deployOpenAPI:
-    name: Generates the OpenAPI docs website
-    runs-on: ubuntu-latest
-    needs: unitTests
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v2
-      - name: Generate Swagger UI
-        uses: Legion2/swagger-ui-action@v1
-        with:
-          output: swagger-ui
-          spec-file: ./PeakLearner/spec/openapi.yaml
-      - name: Deploy OpenAPI Spec Document to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: swagger-ui

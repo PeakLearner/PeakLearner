@@ -1,27 +1,39 @@
+import requests
 from tests import Base
-from pyramid import testing
-from pyramid.paster import get_app
+from multiprocessing import Process
+
+import asyncio
+
+import uvicorn
 waitTime = 60
 
 
-url = 'http://localhost:8080'
+host = 'localhost'
+port = 8080
+url = 'http://%s:%s' % (host, port)
 
 
-class PeakLearnerTests(Base.PeakLearnerTestBase):
+class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
     user = 'Public'
     hub = 'H3K4me3_TDH_ENCODE'
 
-    def setUp(self):
-        super().setUp()
+    async def setUp(self):
+        """ Bring server up. """
+        await super().setUp()
 
-        self.config = testing.setUp()
-        app = get_app('production.ini')
+        import main
 
-        from webtest.http import StopableWSGIServer
+        self.proc = Process(target=uvicorn.run,
+                            args=(main.app,),
+                            kwargs={
+                                "host": host,
+                                "port": port,
+                                "log_level": "info"},
+                            daemon=True)
+        self.proc.start()
+        await asyncio.sleep(1)
 
-        self.testapp = StopableWSGIServer.create(app, port=8080)
-
-    def test_slurmRunner(self):
+    async def test_slurmRunner(self):
 
         from core.util import PLdb as db
 
@@ -45,8 +57,8 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
                 break
             runTask()
 
-
-    def tearDown(self):
+    async def tearDown(self):
+        """ Shutdown the app. """
         super().tearDown()
 
-        self.testapp.close()
+        self.proc.terminate()

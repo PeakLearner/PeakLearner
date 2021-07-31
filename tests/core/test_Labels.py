@@ -3,16 +3,8 @@ import os
 import time
 
 import pandas as pd
-import pytest
-import tarfile
-import shutil
-import webtest
-import pyramid
-import unittest
-import threading
-import pyramid.paster
-import pyramid.testing
 from tests import Base
+from fastapi.testclient import TestClient
 
 dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
 dbDir = os.path.join(dataDir, 'db')
@@ -31,20 +23,22 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     user = 'Public'
     hub = 'H3K4me3_TDH_ENCODE'
     track = 'aorta_ENCFF115HTK'
-    hubURL = '/%s/%s/' % (user, hub)
-    labelURL = '%slabels/' % hubURL
+    hubURL = os.path.join(user, hub)
+    labelURL = os.path.join(hubURL, 'labels')
+    rangeArgs = {'ref': 'chr1', 'start': 0, 'end': 120000000}
 
     def setUp(self):
         super().setUp()
 
-        self.config = pyramid.testing.setUp()
-        self.app = pyramid.paster.get_app('production.ini')
+        import main
 
-        self.testapp = webtest.TestApp(self.app)
+        self.app = main.app
+
+        self.testapp = TestClient(self.app)
 
     def test_addHubLabel(self):
         label = {'ref': 'chr1', 'start': 15250059, 'end': 15251519, 'label': 'peakStart'}
-        out = self.testapp.put_json(self.labelURL, label)
+        out = self.testapp.put(self.labelURL, json=label)
 
         assert out.status_code == 200
 
@@ -53,28 +47,34 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     def test_removeHubLabel(self):
         label = self.test_addHubLabel()
 
-        out = self.testapp.delete_json(self.labelURL, label)
+        labels = self.testapp.get(self.labelURL, params=self.rangeArgs, headers={'Accept': 'application/json'})
+
+        labelsBefore = len(labels.json())
+
+        out = self.testapp.delete(self.labelURL, json=label)
 
         assert out.status_code == 200
+
+        labels = self.testapp.get(self.labelURL, params=self.rangeArgs, headers={'Accept': 'application/json'})
+
+        assert len(labels.json()) < labelsBefore
 
     def test_updateHubLabel(self):
         label = self.test_addHubLabel()
         label['label'] = 'peakEnd'
 
-        out = self.testapp.post_json(self.labelURL, label)
+        out = self.testapp.post(self.labelURL, json=label)
 
         assert out.status_code == 200
 
     def test_getHubLabels(self):
         self.test_addHubLabel()
 
-        range = {'ref': 'chr1', 'start': 0, 'end': 120000000}
-
-        out = self.testapp.get(self.labelURL, params=range, headers={'Accept': 'application/json'})
+        out = self.testapp.get(self.labelURL, params=self.rangeArgs, headers={'Accept': 'application/json'})
 
         assert out.status_code == 200
 
-        assert len(out.json) != 0
+        assert len(out.json()) != 0
 
 
 

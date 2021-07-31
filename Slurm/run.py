@@ -13,7 +13,7 @@ except ModuleNotFoundError:
 
 
 def runTask():
-    queueUrl = '%squeue/' % cfg.jobUrl
+    queueUrl = os.path.join(cfg.jobUrl, 'queue')
     try:
         r = requests.get(queueUrl, timeout=10, verify=cfg.verify)
     except requests.exceptions.ReadTimeout:

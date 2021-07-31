@@ -1,5 +1,6 @@
 from simpleBDB import retry, txnAbortOnError, AbortTXNException
 from core.util import PLdb as db
+from fastapi.security import OAuth2PasswordBearer
 
 
 defaultPerms = {'Label': True, 'Track': False, 'Hub': False, 'Moderator': False}
@@ -124,3 +125,6 @@ def addUserToHub(request, owner, hubName, newUser, txn=None):
     permDb.put(perms, txn=txn)
 
     # TODO: Perhaps send an email to the user which was added?
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='test')

@@ -1,4 +1,4 @@
-{% extends "templates/base.jinja2" %}
+{% extends "base.jinja2" %}
 
 {% block inner_head %}
     <title>Upload New Hub</title>
@@ -12,7 +12,7 @@
 
         function uploadHub() {
             let hubUrl = document.getElementById('hubUrl').value;
-            sendAjax('/uploadHubUrl/', {'url': hubUrl}, newHubCallback, 'PUT', 600000)
+            sendAjax('/uploadHubUrl', {url: hubUrl}, newHubCallback, 'PUT', 600000)
         }
     </script>
 {% endblock %}

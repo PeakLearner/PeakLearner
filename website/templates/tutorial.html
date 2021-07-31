@@ -1,4 +1,4 @@
-{% extends "templates/base.jinja2" %}
+{% extends "base.jinja2" %}
 
 {% block inner_head %}
 <title>PeakLearner Tutorial</title>
@@ -78,12 +78,12 @@
                     <p>PeakLearner is an interactive genome annotation tool which uses machine learning to analyze
                         peaks in genomic data.<br>
                         Below is an example of a data track.</p>
-                    <img src="static/TrackExample.png" alt="An example of a genomic data track">
+                    <img src="/static/tutorial/TrackExample.png" alt="An example of a genomic data track">
                     <p>The X axis is each data point, or genomic region, and the Y axis is the number of reads for
                         that data point.</p>
                     <br>
                     <p>Here is an example with labels Added.</p>
-                    <img src="static/LabelsExample.png" alt="An example of what the labels look like">
+                    <img src="/static/tutorial/LabelsExample.png" alt="An example of what the labels look like">
                     <p>These are the current labels which can be used with PeakLearner.
                         <br>Peak Start is for when there is a single peak start inside the annotation.
                         <br>Peak End is for when there is a single peak end inside the annotation.
@@ -92,12 +92,12 @@
                     <br>
                     <p>Once a label has been added, the system will generate a model to display. Below is the
                         generated model given the above labels.</p>
-                    <img src="static/InitialModel.png"
+                    <img src="/static/tutorial/InitialModel.png"
                          alt="An example of what the initial model would look like given the above labels">
                     <p>On the right of the noPeak Label, there is a peak that hasn't been identified by the model.
                         After Adding a peak label, the system now sees that as a peak, as well as adjusting the rest
                         of the model to indentify similar peaks. Below is what that would look like.</p>
-                    <img src="static/AdditionalLabel.png"
+                    <img src="/static/tutorial/AdditionalLabel.png"
                          alt="An example of what the model would look like after correcting it">
                     <p>In the above image, the peak on the left is now also being identified.</p>
                 </div>
@@ -105,18 +105,18 @@
                 <div class="carousel-item">
                     <div class="tutorial-title">Login</div>
                     <p>After open PeakLearner, You will see the welcome information</p>
-                    <img src="static/index.png" height="150px" alt="the index welcome text">
+                    <img src="/static/tutorial/index.png" height="150px" alt="the index welcome text">
                     <p>If you want to have access to your hub or store you hub in your account</p>
                     <p>that can be used next time you open the webpage</p>
                     <p>You should login in with google account</p>
                     <p>Then move to the account section on the right up side</p>
-                    <img src="static/accountsection.png" height="150px" alt="the screenshot of account section">
+                    <img src="/static/tutorial/accountsection.png" height="150px" alt="the screenshot of account section">
                     <p>click login and login with the google account</p>
                     <p>Then you will jump back to the welcome page with you email on the welcome text and account
                         section</p>
-                    <img src="static/LoginedWelcomePage.png" height="150px"
+                    <img src="/static/tutorial/LoginedWelcomePage.png" height="150px"
                          alt="the screenshot of the logined page">
-                    <img src="static/LoginedAccountSection.png" height="150px"
+                    <img src="/static/tutorial/LoginedAccountSection.png" height="150px"
                          alt="the screenshot of the logined page">
                     <p>Then you can check your hub now.</p>
                 </div>
@@ -125,14 +125,14 @@
                     <div class="tutorial-title">Labeling</div>
                     <p>Labeling is intuitive with this configuration of Jbrowse.
                         To add a label, select the type of label, then click the highlight button</p>
-                    <img src="static/LabelSelect.png"
+                    <img src="/static/tutorial/LabelSelect.png"
                          alt="An imagage depicting the dropdown menu to select a type of label"><br>
-                    <img src="static/HighlightButton.png"
+                    <img src="/static/tutorial/HighlightButton.png"
                          alt="An image depicting where the highlight button is on the page">
                     <p>Then, click and drag from where you want one side of the label to be, to the other</p>
-                    <img src="static/StartOfLabel.png" alt="An image depicting the start of drawing a label">
+                    <img src="/static/tutorial/StartOfLabel.png" alt="An image depicting the start of drawing a label">
                     <p>After adding the label it should look like the below image.</p>
-                    <img src="static/EndOfLabel.png" alt="An image depicting the end result of adding a label">
+                    <img src="/static/tutorial/EndOfLabel.png" alt="An image depicting the end result of adding a label">
                     <p>Labels can also be changed and deleted either individually, or on labels which are aligned.</p>
 
                     <div class="carousel-item">
@@ -143,28 +143,28 @@
                             On the navigation bar at the top, click hubs, then add new hub. (Note: this will change
                             pages, do this in a new tab if you are following this guide)
                         </p>
-                        <img src="static/AddNewHub.png" alt="Adding a new hub">
+                        <img src="/static/tutorial/AddNewHub.png" alt="Adding a new hub">
                         <p>Then the hubs are successfully uploaded</p>
                         <p>If you want to check your hubs, click MyHub button</p>
-                        <img src="static/MyhubButton.png" height="150px" alt="MyhubButton">
+                        <img src="/static/tutorial/MyhubButton.png" height="150px" alt="MyhubButton">
                         <p>You will see the Myhub page, and at this page you can see what tracks you have in your
                             account which shows at top</p>
                         <p>Including how many tracks and labels you have, Every hub will show owner and all of the users
                             also with their rights(oprations on hubs)</p>
                         <p>Click the hub name will lead you to the newly created hub in the genome viewer called
                             Jbrowse</p>
-                        <img src="static/HubInfo.png" height="200px" alt="Hub Information will be showed">
+                        <img src="/static/tutorial/HubInfo.png" height="200px" alt="Hub Information will be showed">
                         <p>You can choose to show the hubs you have or other people shared with you or both</p>
-                        <img src="static/choiceofshowing.png" height="150px" alt="choose what to show">
+                        <img src="/static/tutorial/choiceofshowing.png" height="150px" alt="choose what to show">
                         <p>If you want to add or delete users in the hub you own</p>
                         <p>You can click the "Edit Hubs" button on the right side of the hub information</p>
-                        <img src="static/edithubs.png" height="150px" alt="how to edit a hub">
+                        <img src="/static/tutorial/edithubs.png" height="150px" alt="how to edit a hub">
                         <p>If you want to add some users in the hubs that you own, you can enter the e-mail address in
                             the text box and press add button</p>
                         <p>If you want to remove some users in the hub you own, you can click the "remove" button behind
                             the user</p>
                         <p>Once editing finished,press "FINISH EDITING"</p>
-                        <img src="static/editingpage.png" height="300px" alt="editing page">
+                        <img src="/static/tutorial/editingpage.png" height="300px" alt="editing page">
                         <p>Then you are clear to manage hubs</p>
                     </div>
 
@@ -176,14 +176,14 @@
                             On the navigation bar at the top, click hubs, then add new hub. (Note: this will change
                             pages, do this in a new tab if you are following this guide)
                         </p>
-                        <img src="static/AddNewHub.png" alt="Adding a new hub">
+                        <img src="/static/tutorial/AddNewHub.png" alt="Adding a new hub">
 
                         <p>On the new hub page, paste your hub.txt url into the textbox then hit submit.
                             <!-- TODO: Add redirecting to newHub.html and update this -->
                             <br>This will redirect you (Not yet implemented but planning to soon) to the newly created
                             hub in the genome viewer called Jbrowse. An example of what this would look like can be seen
                             below</p>
-                        <img src="static/NewHubInJbrowse.png"
+                        <img src="/static/tutorial/NewHubInJbrowse.png"
                              alt="The hub after being uploaded, being viewed from the Jbrowse genome viewer">
                         <p>On the left is the available tracks, with the data from the hub.txt being in the data
                             section.
@@ -191,7 +191,7 @@
                             with which data points are aligned to.</p>
                         <p>After selecting a few data tracks and a set of reference genes, the webpage might look like
                             this.</p>
-                        <img src="static/AfterTrackSelection.png" alt="The hub after selecting a few data tracks">
+                        <img src="/static/tutorial/AfterTrackSelection.png" alt="The hub after selecting a few data tracks">
                         <p>With data tracks and a set of reference genes, labels can now be added to analyze the genomic
                             data.</p>
                     </div>
@@ -199,17 +199,17 @@
                         <div class="tutorial-title">Labeling</div>
                         <p>Labeling is intuitive with this configuration of Jbrowse.
                             To add a label, click the label button as shown in the below image</p>
-                        <img src="static/HighlightButton.png"
+                        <img src="/static/tutorial/HighlightButton.png"
                              alt="An image depicting where the highlight button is on the page">
                         <p>Then, click and drag from where you want one side of the label to be, to the other</p>
-                        <img src="static/StartOfLabel.png" alt="An image depicting the start of drawing a label">
+                        <img src="/static/tutorial/StartOfLabel.png" alt="An image depicting the start of drawing a label">
                         <p>After adding the label it should look like the below image.</p>
-                        <img src="static/EndOfLabel.png" alt="An image depicting the end result of adding a label">
+                        <img src="/static/tutorial/EndOfLabel.png" alt="An image depicting the end result of adding a label">
                         <p>Then, click on each label until the correct label is desired. For this example, I will set
                             both labels to peak</p>
-                        <img src="static/SetToPeak.png" alt="Labels after being set to peak">
+                        <img src="/static/tutorial/SetToPeak.png" alt="Labels after being set to peak">
                         <p>Labels can also be deleted, simply right click a label to delete it.</p>
-                        <img src="static/AfterDelete.png" alt="After deletion of a label">
+                        <img src="/static/tutorial/AfterDelete.png" alt="After deletion of a label">
 
 
                     </div>
