@@ -80,7 +80,10 @@ def dfPotentialSeriesOut(request: Request, out: pd.DataFrame) -> Response:
         outputType = 'json'
 
     if outputType == 'json' or outputType == 'application/json' or outputType == '*/*':
-        output = out.to_dict('records')
+        if isinstance(out, pd.Series):
+            output = out.to_dict()
+        else:
+            output = out.to_dict('records')
         if isinstance(output, list):
             if len(output) == 1:
                 output = output[0]
