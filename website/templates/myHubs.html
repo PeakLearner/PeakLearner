@@ -19,7 +19,7 @@
             <h4 class="text-center">Public</h4>
             {% endif %}
             <div class="text-center">
-                <a class="btn btn-primary" href="/newHub/" style="display:inline-block;" id="uploadHubButton">
+                <a class="btn btn-primary" href="/newHub" style="display:inline-block;" id="uploadHubButton">
                 Upload New Hub
             </a>
             </div>
@@ -224,7 +224,7 @@
                                                     {% if coUser != "Public" and coUser != user %}
                                                         <tr>
                                                             <th scope="row">
-                                                                <form class="edit-elements float-right" action="/{{ hub['owner'] }}/{{ hubName }}/removeUser/" method="post"
+                                                                <form class="edit-elements float-right" action="/{{ hub['owner'] }}/{{ hubName }}/removeUser" method="post"
                                                                     style="display:none">
                                                                     <input value="{{ hubName }}" id="hubName" type="hidden" name="hubName">
                                                                     <input value="{{ coUser }}" id="coUserName" type="hidden"
@@ -240,7 +240,7 @@
                                                             </th>
 
                                                             {% if coUserPerms is not none %}
-                                                                <form action="/{{ hub['owner'] }}/{{ hubName }}/permissions/" method="POST">
+                                                                <form action="/{{ hub['owner'] }}/{{ hubName }}/permissions" method="POST">
                                                                     <fieldset>
                                                                         <td class="text-center">
                                                                             <input type="checkbox" name="Label" id="chkLabel" onChange="this.form.submit()"
@@ -287,7 +287,7 @@
 
                                                         {% if perms is not none %}
                                                         {% set publicPerms = perms["Public"] %}
-                                                            <form action="/{{ hub['owner'] }}/{{ hubName }}/permissions/" method="POST">
+                                                            <form action="/{{ hub['owner'] }}/{{ hubName }}/permissions" method="POST">
                                                                 <fieldset>
                                                                     <input type="hidden" id="coUser" name="coUser" value="Public">
                                                                     <td class="text-center">
@@ -328,7 +328,7 @@
                             </div>
 
                         {% if hub['owner'] == user %}
-                            <form class="edit-elements" action="/{{hub['owner']}}/{{ hubName }}/addUser/" method="POST" style="display: none">
+                            <form class="edit-elements" action="/{{hub['owner']}}/{{ hubName }}/addUser" method="POST" style="display: none">
                                 <br>
                                 <div class="input-group mb-3">
                                     <div class="input-group-prepend">

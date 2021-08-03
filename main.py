@@ -1,20 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-
-from typing import Optional
-from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.openapi.utils import get_openapi
-
-from starlette.config import Config
-from starlette.requests import Request
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from authlib.integrations.starlette_client import OAuth
 
 import website.routes
-from core import Jobs, Labels, Loss, Features, Hubs, Models, Authentication
 from core.util import PLConfig as cfg
+from core import Jobs, Labels, Loss, Features, Hubs, Models, Authentication
 import core
 
 app = FastAPI()
@@ -33,7 +24,7 @@ app.include_router(core.otherRouter)
 
 app.include_router(Authentication.authRouter)
 
-app.add_middleware(SessionMiddleware, secret_key='secret')
+app.add_middleware(SessionMiddleware, secret_key=cfg.client_secret, max_age=600)
 
 app.mount("/static", StaticFiles(directory='website/static'), name='static')
 app.mount('/{user}/{hub}', StaticFiles(directory='jbrowse/jbrowse'), name='jbrowseFiles')

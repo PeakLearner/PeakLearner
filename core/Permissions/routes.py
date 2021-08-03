@@ -1,14 +1,13 @@
 import json
+import core
 from core.Hubs import Hubs
-from pyramid_google_login import *
-from pyramid.view import view_config
-from pyramid.response import Response
+from fastapi import Request
 from core.Permissions import Permissions
-from pyramid.httpexceptions import HTTPFound
+from fastapi.responses import Response, RedirectResponse
 
 
-@view_config(route_name='adjustPerms', request_method='POST')
-def adjustPermsPOST(request):
+@core.hubRouter.post('/permissions')
+async def adjustPermsPOST(request: Request, user: str, hub: str):
     """Process permission change post requests
 
     Update the db.HubInfo object from the post request by receiving its hub name, owner userid and the userid of which
@@ -21,19 +20,18 @@ def adjustPermsPOST(request):
         seamless.
     """
 
-    userid = request.authenticated_userid
-    query = request.matchdict
-    owner = query['user']
-    hub = query['hub']
+    authUser = request.session.get('user')
 
-    args = dict(request.params)
+    if authUser is None:
+        authUser = 'Public'
+    else:
+        authUser = authUser['email']
 
-    coUser = args['coUser']
+    print(await request.body())
 
-    Permissions.adjustPermissions(owner, hub, userid, coUser, args)
+    # Permissions.adjustPermissions(owner, hub, userid, coUser, args)
 
-    url = request.route_url('myHubs', _app_url=get_app_url(request))
-    return HTTPFound(location=url)
+    # return RedirectResponse('/myHubs')
 
 
 @view_config(route_name='addUser', request_method='POST')

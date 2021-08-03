@@ -20,9 +20,10 @@ jbrowse/jbrowse/website
 !PeakLearner
 !website
 !PeakLearner.cfg
-!production.ini
-!setup.py
 !requirements.txt
-!wsgi.ini
+!main.py
+!gunicorn.cfg.py
+!startServer.sh
+
 
 **/__pycache__

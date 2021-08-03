@@ -4,24 +4,15 @@ import pandas as pd
 from glmnet_python import cvglmnet
 from simpleBDB import retry, txnAbortOnError
 from core.util import PLConfig as cfg, PLdb as db
+import logging
 
-try:
-    import uwsgi
-    import uwsgidecorators
-
-    @uwsgidecorators.timer(cfg.timeBetween)
-    def doLearning(num):
-        print('prediction system running')
-        if db.isLoaded():
-            runPrediction({})
-except ModuleNotFoundError:
-    pass
+log = logging.getLogger(__name__)
 
 
 @retry
 @txnAbortOnError
 def runPrediction(data, txn=None):
-
+    log.info('runPrediction')
     datapoints = getDataPoints(txn=txn)
     if datapoints is None:
         return

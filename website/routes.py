@@ -13,7 +13,7 @@ router = APIRouter()
 templates = Jinja2Templates(directory='website/templates')
 
 
-@router.get('/', response_class=HTMLResponse)
+@router.get('/', response_class=HTMLResponse, include_in_schema=False)
 def home(request: Request):
     """Home page renderer
 
@@ -31,7 +31,7 @@ def home(request: Request):
     return templates.TemplateResponse('index.html', {'request': request, 'user': user})
 
 
-@router.get('/about', response_class=HTMLResponse)
+@router.get('/about', response_class=HTMLResponse, include_in_schema=False)
 def about(request: Request):
     """About page renderer
 
@@ -49,7 +49,7 @@ def about(request: Request):
     return templates.TemplateResponse('about.html', {'request': request, 'user': user})
 
 
-@router.get('/help', response_class=HTMLResponse)
+@router.get('/help', response_class=HTMLResponse, include_in_schema=False)
 def help(request: Request):
     user = request.session.get('user')
 
@@ -61,7 +61,7 @@ def help(request: Request):
     return templates.TemplateResponse('help.html', {'request': request, 'user': user})
 
 
-@router.get('/newHub', response_class=HTMLResponse)
+@router.get('/newHub', response_class=HTMLResponse, include_in_schema=False)
 def newHub(request: Request):
     """Upload hub renderer
 
@@ -79,7 +79,7 @@ def newHub(request: Request):
     return templates.TemplateResponse('newHub.html', {'request': request, 'user': user})
 
 
-@router.get('/tutorial', response_class=HTMLResponse)
+@router.get('/tutorial', response_class=HTMLResponse, include_in_schema=False)
 def tutorial(request: Request):
     """Tutorial page renderer
 
@@ -97,7 +97,7 @@ def tutorial(request: Request):
     return templates.TemplateResponse('tutorial.html', {'request': request, 'user': user})
 
 
-@router.get('/stats', response_class=HTMLResponse)
+@router.get('/stats', response_class=HTMLResponse, include_in_schema=False)
 def statsView(request: Request):
     """TODO: Document this view"""
     user = request.session.get('user')
@@ -124,7 +124,7 @@ def statsView(request: Request):
 
 
 # TODO: Maybe make these stats user specific?
-@router.get('/model', response_class=HTMLResponse)
+@router.get('/model', response_class=HTMLResponse, include_in_schema=False)
 def modelStats(request: Request):
     """TODO: Document this view"""
     user = request.session.get('user')
@@ -140,7 +140,7 @@ def modelStats(request: Request):
                                                             'user': user})
 
 
-@router.get('/label', response_class=HTMLResponse)
+@router.get('/label', response_class=HTMLResponse, include_in_schema=False)
 def labelStats(request: Request):
     user = request.session.get('user')
 
@@ -157,7 +157,7 @@ def labelStats(request: Request):
                                                             'user': user})
 
 
-@router.get('/myHubs', response_class=HTMLResponse)
+@router.get('/myHubs', response_class=HTMLResponse, include_in_schema=False)
 def getMyHubs(request: Request):
     """My Hubs page renderer
 

@@ -4,7 +4,6 @@ from pydantic.main import BaseModel
 
 import core
 from core.Models import Models
-from core import dfDataOut
 from core.util import PLConfig as cfg
 
 from fastapi import APIRouter, Request
@@ -66,7 +65,7 @@ async def putModel(request: Request, user: str, hub: str, track: str, modelData:
 # ---- HUB MODELS ---- #
 
 
-@core.hubRouter.get('models')
+@core.hubRouter.get('/models')
 def getHubModels(request: Request,
              user: str,
              hub: str,

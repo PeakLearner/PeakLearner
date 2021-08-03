@@ -645,33 +645,18 @@ def jobsStats(data, txn=None):
     return output
 
 
-try:  # pragma: no cover
-    import uwsgi
-    import uwsgidecorators
-
-
-    # run Job Spawner every 60 seconds
-    @uwsgidecorators.timer(60, target='mule')
-    def start_job_spawner(num):
-        spawnJobs(num)
-
-
-    @uwsgidecorators.timer(3600, target='mule')
-    def start_restart_jobCheck(num):
-        checkRestartJobs(num)
-
-except ModuleNotFoundError:  # pragma: no cover
-    print('Running in none uwsgi mode, Jobs wont automatically be spawned or restarted')
-
 @retry
 @txnAbortOnError
 def spawnJobs(data, txn=None):
+    log.info('spawnJobs')
     for job in db.Job.all(txn=txn):
         if job.status.lower() == 'new':
             return
     numJobs = getNoCorrectModelsJobs(txn=txn)
 
     numJobs = checkForPredictJobs(numJobs, txn=txn)
+
+    log.info('number of jobs spawned: %s' % numJobs)
 
 
 def getNoCorrectModelsJobs(txn=None):

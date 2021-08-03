@@ -17,7 +17,13 @@ router = APIRouter(
 templates = Jinja2Templates(directory='website/templates')
 
 
-@router.get('/')
+@router.get('',
+            responses={
+                200: {
+                    "content": {"text/html": {}},
+                    "description": "Gets all the jobs currently on the server",
+                }
+            }, )
 async def getJobs(request: Request):
     if 'accept' in request.headers:
         outputType = request.headers['accept']
@@ -42,7 +48,13 @@ async def queueNextTask():
     return out
 
 
-@router.get('/{job_id}')
+@router.get('/{job_id}',
+            responses={
+                200: {
+                    "content": {"text/html": {}},
+                    "description": "Provides information on a task",
+                }
+            }, )
 async def getJobWithId(request: Request, job_id: int):
     if 'accept' in request.headers:
         outputType = request.headers['accept']
@@ -82,7 +94,12 @@ async def restartJob(job_id: int):
     return output.__dict__()
 
 
-@core.trackRouter.get('/jobs')
+@core.trackRouter.get('/jobs',
+            responses={
+                200: {
+                    "description": "Provides the jobs",
+                }
+            }, )
 async def getTrackJobs(user: str, hub: str, track: str, ref: str, start: int, end: int):
     data = {'user': user,
             'hub': hub,

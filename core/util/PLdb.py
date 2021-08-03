@@ -21,8 +21,7 @@ def isLoaded():
     return loaded
 
 
-# Remove locks if they are left over
-if not loaded:
+def clearLocks():
     if os.path.exists(dbPath):  # pragma: no cover
         for file in os.listdir(dbPath):
             if '__db.0' not in file:
@@ -34,50 +33,21 @@ if not loaded:
 
 def openDBs():
     global loaded
-    print('opening db')
     db.open_env()
     db.createEnvWithDir(dbPath)
     db.open_dbs()
+    db.setLockDetect()
     loaded = True
 
 
-def closeDBs(closeEnv=True):
+def closeDBObjects():
+    db.close_dbs()
+
+
+def closeDBs():
     global loaded
     loaded = False
-    db.close_dbs()
     db.close_env()
-
-
-def deadlock_detect():
-    if loaded:
-        db.lockDetect()
-
-
-loadLater = False
-try:  # pragma: no cover
-    import uwsgi
-    import uwsgidecorators
-
-    uwsgi.atexit = closeDBs
-
-    @uwsgidecorators.postfork
-    def doOpen():
-        openDBs()
-        loaded = True
-
-    # run lock detect every second
-    @uwsgidecorators.timer(1, target='mule')
-    def start_lock_detect(num):
-        deadlock_detect()
-
-
-    @uwsgidecorators.timer(10, target='mule')
-    def logClean(num):
-        cleanLogs()
-
-except ModuleNotFoundError:
-    loadLater = True
-    print('Running in non uwsgi mode, deadlocks won\'t be detected automatically')
 
 
 def cleanLogs():
@@ -370,9 +340,3 @@ class PermissionsCursor(db.Cursor):
     def dup(self, flags=berkeleydb.db.DB_POSITION):
         cursor = db.Cursor.dup(self, flags=flags)
         return PermissionsCursor(cursor, Permissions)
-
-
-if loadLater:
-    db.open_env()
-    db.createEnvWithDir(dbPath)
-    openDBs()

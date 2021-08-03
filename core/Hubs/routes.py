@@ -16,7 +16,13 @@ templates = Jinja2Templates(directory='website/templates')
 import core
 
 
-@core.hubRouter.get('/info')
+@core.hubRouter.get('/info',
+                      responses={
+                          200: {
+                              "content": {"text/html": {}},
+                              "description": "Provides information on a job",
+                          }
+                      },)
 def getHubInfo(request: Request, user: str, hub: str):
     """TODO: Document this view"""
     data = {'user': user, 'hub': hub}
@@ -29,7 +35,6 @@ def getHubInfo(request: Request, user: str, hub: str):
         outputType = 'json'
 
     if 'text/html' in outputType:
-        print('html')
         extraLabelInfo = Labels.hubInfoLabels(data)
         output = {'request': request, 'hubInfo': output, **extraLabelInfo, 'hubName': hub, 'user': 'user'}
         return templates.TemplateResponse('hubInfo.html', output)
@@ -37,8 +42,9 @@ def getHubInfo(request: Request, user: str, hub: str):
         return output
 
 
-@core.hubRouter.get('/data/{handler}')
+@core.hubRouter.get('/data/{handler}', include_in_schema=False)
 async def getJbrowseJsons(user: str, hub: str, handler: str):
+    # Only really used for parsing the hubInfo into a form which JBrowse can work with
     data = {'user': user, 'hub': hub}
 
     return Hubs.getHubJsons(data, handler)
@@ -55,10 +61,15 @@ def deleteHub(request: Request, user: str, hub: str):
     myHubs: reroute to page from which deleting is page so that deleting process of a hub is seamless.
     """
 
-    #TODO: Authentication
+    authUser = request.session.get('user')
+
+    if authUser is None:
+        userEmail = None
+    else:
+        userEmail = authUser['email']
 
     # create authorization
-    Hubs.deleteHub(user, hub, 'Public')
+    Hubs.deleteHub(user, hub, userEmail)
 
     return RedirectResponse(request.url)
 
@@ -115,7 +126,7 @@ async def setPublic(request: Request, user: str, hub: str):
 
 
 @core.hubRouter.put('/addTrack')
-def addTrack(request: Request, user: str, hub: str):
+def addTrack(request: Request, user: str, hub: str, category: str, trackName: str, trackUrl: str):
     """Add a track to a db.HubInfo object
 
     Update the db.HubInfo object from the post request by receiving its hub name and owner userid and then conducting a
@@ -128,20 +139,23 @@ def addTrack(request: Request, user: str, hub: str):
         current hub is seamless.
     """
 
-    userid = request.authenticated_userid
+    authUser = request.session.get('user')
+
+    if authUser is None:
+        userEmail = None
+    else:
+        userEmail = authUser['email']
+    
     hubName = hub
     owner = user
-    category = request.params['category']
-    trackName = request.params['track']
-    url = request.params['url']
 
-    Hubs.addTrack(owner, hubName, userid, category, trackName, url)
+    Hubs.addTrack(owner, hubName, userEmail, category, trackName, trackUrl)
 
     return RedirectResponse('/myHubs')
 
 
 @core.hubRouter.put('/removeTrack')
-def removeTrack(request: Request):
+def removeTrack(request: Request, user: str, hub: str, trackName: str):
     """Remove a track from a db.HubInfo object
 
     Update the db.HubInfo object from the post request by receiving its hub name and owner userid and then conducting a
@@ -154,13 +168,14 @@ def removeTrack(request: Request):
         current hub is seamless.
     """
 
-    userid = request.authenticated_userid
-    query = request.matchdict
-    hubName = query['hub']
-    owner = query['user']
-    trackName = request.params['track']
+    authUser = request.session.get('user')
 
-    Hubs.removeTrack(owner, hubName, userid, trackName)
+    if authUser is None:
+        userEmail = None
+    else:
+        userEmail = authUser['email']
+
+    Hubs.removeTrack(user, hub, userEmail, trackName)
 
     return RedirectResponse('/myHubs')
 

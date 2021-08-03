@@ -27,7 +27,13 @@ async def putFeatures(request: Request, user: str, hub: str, track: str, feature
     return Response(status_code=404)
 
 
-@core.trackRouter.get('/features')
+@core.trackRouter.get('/features',
+                      responses={
+                          200: {
+                              "content": {"text/csv": {}},
+                              "description": "The feature for that contig",
+                          }
+                      },)
 def getFeatures(request: Request, user: str, hub: str, track: str, ref: str, start: int):
     # Unpacks the data into 1 dict
     data = {'user': user, 'hub': hub, 'track': track, 'ref': ref, 'start': start}
@@ -37,14 +43,19 @@ def getFeatures(request: Request, user: str, hub: str, track: str, ref: str, sta
     if out is None:
         return Response(status_code=204)
 
-    return Response(json.dumps(out), media_type='application/json')
+    return core.dfPotentialSeriesOut(request, out)
 
 
-@core.otherRouter.get('/features')
+@core.otherRouter.get('/features',
+                      responses={
+                          200: {
+                              "content": {"text/csv": {}},
+                              "description": "A collection of all the features",
+                          }
+                      },)
 def getAllFeatures(request: Request):
     out = Features.getAllFeatures({})
 
     if out is None:
         return Response(status_code=204)
     return core.dfPotentialSeriesOut(request, out)
-

@@ -198,7 +198,7 @@ define([
                         label: 'Job stats',
                         onClick: event => {
                             let query = {ref: ref, start: visStart, end: visEnd}
-                            let url = this.modelStore.track + '/jobs/'
+                            let url = this.modelStore.track + '/jobs'
                             this.modelStore.sendGet(query, jobCallback, url)
                         }
                     }))
@@ -237,7 +237,7 @@ define([
                         label: 'Model stats',
                         onClick: (event, test) => {
                             let query = {ref: ref, start: visStart, end: visEnd}
-                            let url = this.modelStore.track + '/modelSums/'
+                            let url = this.modelStore.track + '/modelSums'
                             this.modelStore.sendGet(query, modelCallback, url)
                         }
                     }))
