@@ -1,18 +1,15 @@
-from fastapi import FastAPI, Depends, HTTPException, APIRouter
-from fastapi.staticfiles import StaticFiles
-
 from typing import Optional
-from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.openapi.utils import get_openapi
+from fastapi import APIRouter
 from pydantic import BaseModel
 from starlette.config import Config
 from starlette.requests import Request
-from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
+from starlette.responses import RedirectResponse
 
 from authlib.integrations.starlette_client import OAuth
 
 from core.util import PLConfig as cfg
+
+openid_url = 'https://accounts.google.com/.well-known/openid-configuration'
 
 config = Config('.env')
 oAuth = OAuth(config)
@@ -20,7 +17,7 @@ oAuth.register(
     name='google',
     client_id=cfg.client_id,
     client_secret=cfg.client_secret,
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    server_metadata_url=openid_url,
     client_kwargs={
         'scope': 'openid email profile'
     }

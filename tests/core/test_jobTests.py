@@ -62,7 +62,6 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
         jobToRestart = out.json()
 
         assert jobToRestart['status'].lower() == 'queued'
-        assert jobToRestart['lastModified'] == 0
 
         Jobs.checkRestartJobs({})
 

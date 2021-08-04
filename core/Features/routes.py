@@ -16,7 +16,9 @@ class FeatureData(BaseModel):
     problem: dict
 
 
-@core.trackRouter.put('/features')
+@core.trackRouter.put('/features',
+                      summary='Put features',
+                      description='Allows HPC clusters to upload the features which they generate')
 async def putFeatures(request: Request, user: str, hub: str, track: str, featureData: FeatureData):
     # Unpacks the data into 1 dict
     data = {'user': user, 'hub': hub, 'track': track, **dict(featureData)}
@@ -33,7 +35,9 @@ async def putFeatures(request: Request, user: str, hub: str, track: str, feature
                               "content": {"text/csv": {}},
                               "description": "The feature for that contig",
                           }
-                      },)
+                      },
+                      summary='Get features for current viewed track region',
+                      description='Provides information on current features within a region')
 def getFeatures(request: Request, user: str, hub: str, track: str, ref: str, start: int):
     # Unpacks the data into 1 dict
     data = {'user': user, 'hub': hub, 'track': track, 'ref': ref, 'start': start}
@@ -52,7 +56,9 @@ def getFeatures(request: Request, user: str, hub: str, track: str, ref: str, sta
                               "content": {"text/csv": {}},
                               "description": "A collection of all the features",
                           }
-                      },)
+                      },
+                      summary='Get all features',
+                      description='Provides a list of all the features currently generated')
 def getAllFeatures(request: Request):
     out = Features.getAllFeatures({})
 

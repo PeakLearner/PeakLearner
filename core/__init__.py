@@ -1,8 +1,6 @@
 import json
-import typing
 
 import pandas as pd
-from starlette.background import BackgroundTask
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import HTMLResponse
@@ -31,7 +29,7 @@ hubRouter = APIRouter(
 jbrowseTemplates = Jinja2Templates(directory='jbrowse/jbrowse')
 
 
-@hubRouter.get('/', response_class=HTMLResponse)
+@hubRouter.get('/', response_class=HTMLResponse, include_in_schema=False)
 async def getJbrowse(request: Request):
     return jbrowseTemplates.TemplateResponse('index.html', {'request': request})
 

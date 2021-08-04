@@ -1,6 +1,6 @@
 from typing import Optional
 
-from . import Hubs
+from . import Hubs, Models
 
 from core.Labels import Labels
 from core.util import PLConfig as cfg
@@ -12,17 +12,19 @@ from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory='website/templates')
 
-
 import core
 
 
 @core.hubRouter.get('/info',
-                      responses={
-                          200: {
-                              "content": {"text/html": {}},
-                              "description": "Provides information on a job",
-                          }
-                      },)
+                    responses={
+                        200: {
+                            "content": {"text/html": {}},
+                            "description": "Provides information on a job",
+                        }
+                    },
+                    response_model=Models.HubInfo,
+                    summary='Get the hubInfo for this hub',
+                    description='Gets the hubInfo for this hub. It contains the tracks, urls, the reference genome, and categories for that data')
 def getHubInfo(request: Request, user: str, hub: str):
     """TODO: Document this view"""
     data = {'user': user, 'hub': hub}
@@ -50,7 +52,9 @@ async def getJbrowseJsons(user: str, hub: str, handler: str):
     return Hubs.getHubJsons(data, handler)
 
 
-@core.hubRouter.delete('')
+@core.hubRouter.delete('',
+                       summary='Deletes a hub, requires authentication',
+                       description='Removes a hub from the database. The labels/models aren\'t deleted')
 def deleteHub(request: Request, user: str, hub: str):
     """Delete a db.HubInfo object
 
@@ -78,7 +82,9 @@ class HubURL(BaseModel):
     url: str
 
 
-@core.otherRouter.put('/uploadHubUrl', tags=['Hubs'])
+@core.otherRouter.put('/uploadHubUrl', tags=['Hubs'],
+                      summary='Upload a new hub.txt to the system',
+                      description='Route for uploading a new UCSC formatted hub.txt with a genomes.txt and trackList.txt in the same directory')
 async def uploadHubUrl(request: Request, hubUrl: HubURL):
     user = request.session.get('user')
 
@@ -92,7 +98,9 @@ async def uploadHubUrl(request: Request, hubUrl: HubURL):
     return output
 
 
-@core.hubRouter.post('/public')
+@core.hubRouter.post('/public',
+                     summary='Sets a hub to a public hub',
+                     description='Allows a hub to be publicly viewed')
 async def setPublic(request: Request, user: str, hub: str):
     """Make a hub public from checking the public checkbox on a hub card
 
@@ -125,7 +133,9 @@ async def setPublic(request: Request, user: str, hub: str):
     return RedirectResponse('/myHubs', status_code=304)
 
 
-@core.hubRouter.put('/addTrack')
+@core.hubRouter.put('/addTrack',
+                    summary='Adds a track to a hub',
+                    description='Adds a track to a hub with a track name and categories')
 def addTrack(request: Request, user: str, hub: str, category: str, trackName: str, trackUrl: str):
     """Add a track to a db.HubInfo object
 
@@ -145,7 +155,7 @@ def addTrack(request: Request, user: str, hub: str, category: str, trackName: st
         userEmail = None
     else:
         userEmail = authUser['email']
-    
+
     hubName = hub
     owner = user
 
@@ -154,7 +164,9 @@ def addTrack(request: Request, user: str, hub: str, category: str, trackName: st
     return RedirectResponse('/myHubs')
 
 
-@core.hubRouter.put('/removeTrack')
+@core.hubRouter.put('/removeTrack',
+                    summary='Removes a track from a hub',
+                    description='Removes a track from a hub with a track name. This could be changed to a DELETE')
 def removeTrack(request: Request, user: str, hub: str, trackName: str):
     """Remove a track from a db.HubInfo object
 
@@ -180,14 +192,18 @@ def removeTrack(request: Request, user: str, hub: str, trackName: str):
     return RedirectResponse('/myHubs')
 
 
-@core.hubRouter.get('/unlabeled')
+@core.hubRouter.get('/unlabeled',
+                    summary='Gets an unlabeled region for the hub',
+                    description='Gets an unlabeled region for the hub, and returns what is needed to navigate to that')
 def getUnlabeledRegion(request: Request, user: str, hub: str):
     query = {'user': user, 'hub': hub, 'type': 'unlabeled'}
 
     return Hubs.goToRegion(query)
 
 
-@core.hubRouter.get('/labeled')
+@core.hubRouter.get('/labeled',
+                    summary='Gets a labeled region for the hub',
+                    description='Gets a labeled region for the hub, and returns what is needed to navigate to that')
 def getLabeledRegion(request: Request, user: str, hub: str):
     query = {'user': user, 'hub': hub, 'type': 'labeled'}
 

@@ -1,16 +1,26 @@
 import json
-from typing import Optional
+from typing import Optional, List
 
 from pydantic.main import BaseModel
 
 import core
-from core.Labels import Labels
+from core.Labels import Labels, Models
 from fastapi import APIRouter, Request
 from fastapi.responses import Response, HTMLResponse, RedirectResponse
 
+csvResponse = {
+    200: {
+        "content": {"text/csv": {"description": "Gets the value as a csv"}},
+    }
+}
 
-@core.trackRouter.get('/labels')
-async def getLabels(request: Request, user: str, hub: str, track: str, ref: str = None, start: int = None, end: int = None):
+
+@core.trackRouter.get('/labels',
+                      responses=csvResponse,
+                      summary='Get the labels for a given track',
+                      description='Gets the labels for a given track, with parameters for limiting the query')
+async def getLabels(request: Request, user: str, hub: str, track: str, ref: str = None, start: int = None,
+                    end: int = None):
     query = {'user': user, 'hub': hub, 'track': track, 'ref': ref, 'start': start, 'end': end}
     output = Labels.getLabels(data=query)
 
@@ -39,7 +49,9 @@ class LabelQuery(BaseModel):
     label: Optional[str] = None
 
 
-@core.trackRouter.put('/labels')
+@core.trackRouter.put('/labels',
+                      summary='Add label for a given track',
+                      description='Adds the label at the given position to the current args')
 async def putLabel(request: Request, user: str, hub: str, track: str, label: LabelQuery):
     authUser = request.session.get('user')
 
@@ -53,7 +65,9 @@ async def putLabel(request: Request, user: str, hub: str, track: str, label: Lab
     return Labels.addLabel(query)
 
 
-@core.trackRouter.post('/labels')
+@core.trackRouter.post('/labels',
+                       summary='Update labels for a given track',
+                       description='Updates the label at the given position to the current args')
 async def postLabel(request: Request, user: str, hub: str, track: str, label: LabelQuery):
     authUser = request.session.get('user')
 
@@ -67,7 +81,9 @@ async def postLabel(request: Request, user: str, hub: str, track: str, label: La
     return Labels.updateLabel(query)
 
 
-@core.trackRouter.delete('/labels')
+@core.trackRouter.delete('/labels',
+                         summary='Delete a label at this location',
+                         description='Removes the label at the given position to the current args')
 async def deleteLabel(request: Request, user: str, hub: str, track: str, label: LabelQuery):
     authUser = request.session.get('user')
 
@@ -88,7 +104,11 @@ async def deleteLabel(request: Request, user: str, hub: str, track: str, label: 
 keysToInt = ['start', 'end']
 
 
-@core.hubRouter.get('/labels')
+@core.hubRouter.get('/labels',
+                    response_model=List[Models.LabelValues],
+                    responses=csvResponse,
+                    summary='Get the labels for a given hub/tracks',
+                    description='Gets the labels for a given track, with parameters for limiting the query')
 async def getHubLabels(request: Request, user: str, hub: str):
     authUser = request.session.get('user')
 
@@ -118,7 +138,9 @@ class HubLabelWithLabel(HubLabelData):
     label: str
 
 
-@core.hubRouter.put('/labels')
+@core.hubRouter.put('/labels',
+                    summary='Add label for a given hub/tracks',
+                    description='Adds the label at the given position to the current args')
 async def putHubLabel(request: Request, user: str, hub: str, hubLabelData: HubLabelWithLabel):
     authUser = request.session.get('user')
 
@@ -133,7 +155,9 @@ async def putHubLabel(request: Request, user: str, hub: str, hubLabelData: HubLa
     return Response(json.dumps(output), media_type='application/json')
 
 
-@core.hubRouter.post('/labels')
+@core.hubRouter.post('/labels',
+                     summary='Update labels for a given hub/tracks',
+                     description='Updates the label at the given position to the current args')
 async def postHubLabel(request: Request, user: str, hub: str, hubLabelData: HubLabelWithLabel):
     authUser = request.session.get('user')
 
@@ -148,7 +172,9 @@ async def postHubLabel(request: Request, user: str, hub: str, hubLabelData: HubL
     return Response(json.dumps(output), media_type='application/json')
 
 
-@core.hubRouter.delete('/labels')
+@core.hubRouter.delete('/labels',
+                       summary='Delete a label at this location',
+                       description='Removes the label at the given position to the current args')
 async def deleteHubLabel(request: Request, user: str, hub: str, hubLabelData: HubLabelData):
     authUser = request.session.get('user')
 
