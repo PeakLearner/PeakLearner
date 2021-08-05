@@ -14,12 +14,6 @@ from core.Permissions import Permissions
 
 dbPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'db')
 
-loaded = False
-
-
-def isLoaded():
-    return loaded
-
 
 def clearLocks():
     if os.path.exists(dbPath):  # pragma: no cover
@@ -32,21 +26,22 @@ def clearLocks():
 
 
 def openDBs():
-    global loaded
     db.open_env()
     db.createEnvWithDir(dbPath)
     db.open_dbs()
     db.setLockDetect()
-    loaded = True
 
 
 def closeDBObjects():
     db.close_dbs()
 
 
+import atexit
+
+atexit.register(closeDBObjects)
+
+
 def closeDBs():
-    global loaded
-    loaded = False
     db.close_env()
 
 

@@ -4,9 +4,11 @@ from starlette.middleware.sessions import SessionMiddleware
 
 
 import website.routes
-from core.util import PLConfig as cfg
-from core import Jobs, Labels, Loss, Features, Hubs, Models, Authentication
+from core.util import PLConfig as cfg, PLdb as db
+from core import Jobs, Labels, Loss, Features, Hubs, Models, Permissions, Prediction, Authentication
 import core
+
+db.openDBs()
 
 app = FastAPI()
 

@@ -1,3 +1,4 @@
+
 from typing import Optional
 
 from . import Hubs, Models
@@ -6,7 +7,7 @@ from core.Labels import Labels
 from core.util import PLConfig as cfg
 
 from pydantic import BaseModel
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -133,10 +134,10 @@ async def setPublic(request: Request, user: str, hub: str):
     return RedirectResponse('/myHubs', status_code=304)
 
 
-@core.hubRouter.put('/addTrack',
+@core.hubRouter.post('/addTrack',
                     summary='Adds a track to a hub',
                     description='Adds a track to a hub with a track name and categories')
-def addTrack(request: Request, user: str, hub: str, category: str, trackName: str, trackUrl: str):
+def addTrack(request: Request, user: str, hub: str, category: str = Form(...), track: str = Form(...), url: str = Form(...)):
     """Add a track to a db.HubInfo object
 
     Update the db.HubInfo object from the post request by receiving its hub name and owner userid and then conducting a
@@ -159,15 +160,15 @@ def addTrack(request: Request, user: str, hub: str, category: str, trackName: st
     hubName = hub
     owner = user
 
-    Hubs.addTrack(owner, hubName, userEmail, category, trackName, trackUrl)
+    Hubs.addTrack(owner, hubName, userEmail, category, track, url)
 
-    return RedirectResponse('/myHubs')
+    return RedirectResponse('/myHubs', status_code=302)
 
 
-@core.hubRouter.put('/removeTrack',
+@core.hubRouter.post('/removeTrack',
                     summary='Removes a track from a hub',
                     description='Removes a track from a hub with a track name. This could be changed to a DELETE')
-def removeTrack(request: Request, user: str, hub: str, trackName: str):
+async def removeTrack(request: Request, user: str, hub: str, trackName: str = Form(...)):
     """Remove a track from a db.HubInfo object
 
     Update the db.HubInfo object from the post request by receiving its hub name and owner userid and then conducting a
@@ -189,13 +190,13 @@ def removeTrack(request: Request, user: str, hub: str, trackName: str):
 
     Hubs.removeTrack(user, hub, userEmail, trackName)
 
-    return RedirectResponse('/myHubs')
+    return RedirectResponse('/myHubs', status_code=302)
 
 
 @core.hubRouter.get('/unlabeled',
                     summary='Gets an unlabeled region for the hub',
                     description='Gets an unlabeled region for the hub, and returns what is needed to navigate to that')
-def getUnlabeledRegion(request: Request, user: str, hub: str):
+async def getUnlabeledRegion(request: Request, user: str, hub: str):
     query = {'user': user, 'hub': hub, 'type': 'unlabeled'}
 
     return Hubs.goToRegion(query)
@@ -204,7 +205,7 @@ def getUnlabeledRegion(request: Request, user: str, hub: str):
 @core.hubRouter.get('/labeled',
                     summary='Gets a labeled region for the hub',
                     description='Gets a labeled region for the hub, and returns what is needed to navigate to that')
-def getLabeledRegion(request: Request, user: str, hub: str):
+async def getLabeledRegion(request: Request, user: str, hub: str):
     query = {'user': user, 'hub': hub, 'type': 'labeled'}
 
     return Hubs.goToRegion(query)

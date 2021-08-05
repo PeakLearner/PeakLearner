@@ -42,8 +42,10 @@ def lock_detect(func):
 class PeakLearnerTestBase(unittest.TestCase):
 
     def setUp(self):
-        if db.isLoaded():
+        try:
             db.closeDBs()
+        except:
+            pass
 
         if os.path.exists(dbDir):
             shutil.rmtree(dbDir)
@@ -52,20 +54,18 @@ class PeakLearnerTestBase(unittest.TestCase):
         with tarfile.open(dbTar) as tar:
             tar.extractall(dataDir)
 
-        if not db.isLoaded():
-            db.openDBs()
-        else:
-            raise Exception
+        db.openDBs()
 
     def tearDown(self):
-        if db.isLoaded():
-            db.closeDBs()
+        db.closeDBs()
 
 
 class PeakLearnerAsyncTestBase(asynctest.TestCase):
     async def setUp(self):
-        if db.isLoaded():
+        try:
             db.closeDBs()
+        except:
+            pass
 
         if os.path.exists(dbDir):
             shutil.rmtree(dbDir)
@@ -74,11 +74,7 @@ class PeakLearnerAsyncTestBase(asynctest.TestCase):
         with tarfile.open(dbTar) as tar:
             tar.extractall(dataDir)
 
-        if not db.isLoaded():
-            db.openDBs()
-        else:
-            raise Exception
+        db.openDBs()
 
     def tearDown(self):
-        if db.isLoaded():
-            db.closeDBs()
+        db.closeDBs()

@@ -1,13 +1,23 @@
 import json
+from typing import Optional
+
 import core
 from core.Hubs import Hubs
-from fastapi import Request
+from fastapi import Request, Form
 from core.Permissions import Permissions
 from fastapi.responses import Response, RedirectResponse
 
 
 @core.hubRouter.post('/permissions')
-async def adjustPermsPOST(request: Request, user: str, hub: str):
+async def adjustPermsPOST(request: Request,
+                          user: str,
+                          hub: str,
+                          coUser: Optional[str] = Form(...),
+                          Label: Optional[str] = Form(None),
+                          Track: Optional[str] = Form(None),
+                          Hub: Optional[str] = Form(None),
+                          Moderator: Optional[str] = Form(None),
+                          ):
     """Process permission change post requests
 
     Update the db.HubInfo object from the post request by receiving its hub name, owner userid and the userid of which
@@ -20,6 +30,17 @@ async def adjustPermsPOST(request: Request, user: str, hub: str):
         seamless.
     """
 
+    perms = {'Label': Label,
+             'Track': Track,
+             'Hub': Hub,
+             'Moderator': Moderator}
+
+    args = {'coUser': coUser}
+
+    for key in perms.keys():
+        if perms[key] is not None:
+            args[key] = perms[key]
+
     authUser = request.session.get('user')
 
     if authUser is None:
@@ -27,15 +48,13 @@ async def adjustPermsPOST(request: Request, user: str, hub: str):
     else:
         authUser = authUser['email']
 
-    print(await request.body())
+    Permissions.adjustPermissions(user, hub, authUser, args)
 
-    # Permissions.adjustPermissions(owner, hub, userid, coUser, args)
-
-    # return RedirectResponse('/myHubs')
+    return RedirectResponse('/myHubs', status_code=302)
 
 
-@view_config(route_name='addUser', request_method='POST')
-def addUser(request):
+@core.hubRouter.post('/addUser')
+async def addUser(request: Request, user: str, hub: str, userEmail: str = Form(...)):
     """Add a user to a db.HubInfo object
 
     Update the db.HubInfo object from the post request by receiving its hub name and owner userid and then calling the
@@ -47,18 +66,13 @@ def addUser(request):
         current hub is seamless.
     """
 
-    newUser = request.params['email']
-    hub = request.matchdict['hub']
-    owner = request.matchdict['user']
+    Permissions.addUserToHub(request, user, hub, userEmail)
 
-    Permissions.addUserToHub(request, owner, hub, newUser)
-
-    url = request.route_url('myHubs', _app_url=get_app_url(request))
-    return HTTPFound(location=url)
+    return RedirectResponse('/myHubs', status_code=302)
 
 
-@view_config(route_name='removeUser', request_method='POST')
-def removeUser(request):
+@core.hubRouter.post('/removeUser')
+async def removeUser(request: Request, user: str, hub: str, coUserName: str = Form(...)):
     """Remove a user to a db.HubInfo object
 
     Update the db.HubInfo object from the post request by receiving its hub name and owner userid and then calling the
@@ -70,11 +84,6 @@ def removeUser(request):
         current hub is seamless.
     """
 
-    userToRemove = request.params['email']
-    hub = request.matchdict['hub']
-    owner = request.matchdict['user']
+    Hubs.removeUserFromHub(request, user, hub, coUserName)
 
-    Hubs.removeUserFromHub(request, owner, hub, userToRemove)
-
-    url = request.route_url('myHubs', _app_url=get_app_url(request))
-    return HTTPFound(location=url)
+    return RedirectResponse('/myHubs', status_code=302)

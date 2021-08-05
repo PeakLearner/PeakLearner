@@ -69,7 +69,7 @@ backlog = 2048
 workers = 4
 worker_class = 'uvicorn.workers.UvicornH11Worker'
 worker_connections = 1000
-timeout = 30
+timeout = 60
 keepalive = 2
 
 #
@@ -180,42 +180,47 @@ proc_name = None
 #       A callable that takes a server instance as the sole argument.
 #
 
-from core.util import PLdb as db
 from apscheduler.schedulers.background import BackgroundScheduler
 # https://stackoverflow.com/questions/49269343/how-to-use-background-scheduler-with-an-flask-gunicorn-app
 scheduler = BackgroundScheduler()
 
 
 def on_starting(server):
+    from core.util import PLdb as db
     db.clearLocks()
-    db.openDBs()
 
     scheduler.add_job(spawnJobs, 'interval', seconds=60)
-    scheduler.add_job(runPrediction, 'interval', seconds=60)
-    scheduler.add_job(checkJobsRestart, 'interval', minutes=60)
+    scheduler.add_job(runPrediction, 'interval', minutes=10)
+    scheduler.add_job(checkJobsRestart, 'interval', seconds=10)
 
     scheduler.start()
 
 
 def on_exit(server):
+    from core.util import PLdb as db
     scheduler.shutdown(wait=False)
-    server.log.info('after scheduler shutdown')
+    atexit.unregister(db.closeDBObjects)
 
+
+import os
+import requests
+
+
+url = 'http://%s' % bind
+
+# Kind of a hack using requests to make the tasks run inside a worker which has a database connection
 
 # Background tasks
 def spawnJobs():
-    from core.Jobs import Jobs
-    Jobs.spawnJobs({})
+    requests.get(os.path.join(url, 'runJobSpawn'))
 
 
 def checkJobsRestart():
-    from core.Jobs import Jobs
-    Jobs.checkRestartJobs({})
+    requests.get(os.path.join(url, 'checkRestartJobs'))
 
 
 def runPrediction():
-    from core.Prediction import Prediction
-    Prediction.runPrediction({})
+    requests.get(os.path.join(url, 'runPrediction'))
 
 
 def post_fork(server, worker):
@@ -248,7 +253,6 @@ def worker_int(worker):
 
 
 def worker_exit(server, worker):
-    db.closeDBs()
     print('worker exited')
 
 

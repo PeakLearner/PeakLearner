@@ -139,7 +139,11 @@ async def getTrackJobs(user: str, hub: str, track: str, ref: str, start: int, en
     return output
 
 
-if cfg.testing:
-    @core.otherRouter.get('/runJobSpawn', include_in_schema=False)
-    async def runJobSpawn():
-        return Jobs.spawnJobs({})
+@core.otherRouter.get('/runJobSpawn', include_in_schema=False)
+async def runJobSpawn():
+    return Jobs.spawnJobs({})
+
+
+@core.otherRouter.get('/checkRestartJobs', include_in_schema=False)
+async def checkRestartJobs():
+    return Jobs.checkRestartJobs({})

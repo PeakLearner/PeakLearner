@@ -241,6 +241,7 @@
 
                                                             {% if coUserPerms is not none %}
                                                                 <form action="/{{ hub['owner'] }}/{{ hubName }}/permissions" method="POST">
+                                                                    <input value="{{ coUser }}" id="coUser" type="hidden" name="coUser">
                                                                     <fieldset>
                                                                         <td class="text-center">
                                                                             <input type="checkbox" name="Label" id="chkLabel" onChange="this.form.submit()"

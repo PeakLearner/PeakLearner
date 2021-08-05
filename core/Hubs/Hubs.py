@@ -101,14 +101,19 @@ def removeUserFromHub(request, owner, hubName, delUser, txn=None):
     db.HubInfo object.
     """
 
-    userid = request.authenticated_userid
+    authUser = request.session.get('user')
+
+    if authUser is None:
+        authUser = 'Public'
+    else:
+        authUser = authUser['email']
 
     txn = db.getTxn(parent=txn)
 
     permDb = db.Permission(owner, hubName)
     perms = permDb.get(txn=txn, write=True)
 
-    if not perms.hasPermission(userid, 'Hub'):
+    if not perms.hasPermission(authUser, 'Hub'):
         txn.commit()
         return
 
