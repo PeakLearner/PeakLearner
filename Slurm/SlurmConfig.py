@@ -19,8 +19,8 @@ if 'general' not in configSections:
 # Setup a default config if doesn't exist
 if 'remoteServer' not in configSections:
     config.add_section('remoteServer')
-    config['remoteServer']['url'] = 'http://localhost'
-    config['remoteServer']['port'] = '8080'
+    config['remoteServer']['url'] = 'https://peaklearner.rc.nau.edu'
+    config['remoteServer']['port'] = '80'
     config['remoteServer']['verify'] = 'True'
     save = True
 

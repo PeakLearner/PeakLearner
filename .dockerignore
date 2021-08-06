@@ -21,7 +21,10 @@ jbrowse/jbrowse/website
 !website
 !PeakLearner.cfg
 !requirements.txt
+!slurmRequirements.txt
 !main.py
+!Slurm
+!PeakLearnerSlurm.cfg
 !gunicorn.cfg.py
 !startServer.sh
 

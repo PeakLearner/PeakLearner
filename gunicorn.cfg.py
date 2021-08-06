@@ -19,7 +19,7 @@
 #
 import atexit
 
-bind = '127.0.0.1:8080'
+bind = 'localhost:8080'
 backlog = 2048
 
 #
