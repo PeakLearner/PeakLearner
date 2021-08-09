@@ -30,6 +30,7 @@ WORKDIR ../../
 FROM jbrowse AS pythonSetup
 COPY ./requirements.txt .
 RUN python3 -m pip install -U pip && \
+    python3 -m pip install requests[security] && \
     python3 -m pip install -r requirements.txt
 
 FROM pythonSetup AS build
