@@ -66,8 +66,8 @@ backlog = 2048
 #       A positive integer. Generally set in the 1-5 seconds range.
 #
 
-workers = 4
-worker_class = 'uvicorn.workers.UvicornH11Worker'
+workers = 25
+worker_class = 'uvicorn.workers.UvicornWorker'
 worker_connections = 1000
 timeout = 60
 keepalive = 2
