@@ -28,9 +28,9 @@ asynctest==0.13.0
 gunicorn==20.1.0
 apscheduler==3.7.0
 python-multipart==0.0.5
-git+git://github.com/deltarod/PeakError
-git+git://github.com/deltarod/PeakSegDisk
-git+git://github.com/deltarod/LOPART
-git+git://github.com/deltarod/FLOPART
-git+git://github.com/bbalasub1/glmnet_python.git
+git+https://github.com/deltarod/PeakError
+git+https://github.com/deltarod/PeakSegDisk
+git+https://github.com/deltarod/LOPART
+git+https://github.com/deltarod/FLOPART
+git+https://github.com/bbalasub1/glmnet_python.git
 
