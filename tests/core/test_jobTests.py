@@ -25,7 +25,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     def setUp(self):
         super().setUp()
 
-        import main
+        import core.main as main
 
         self.testapp = TestClient(main.app)
 

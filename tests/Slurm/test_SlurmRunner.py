@@ -21,7 +21,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
         """ Bring server up. """
         await super().setUp()
 
-        import main
+        import core.main as main
 
         self.proc = Process(target=uvicorn.run,
                             args=(main.app,),
@@ -47,15 +47,21 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         from Slurm.run import runTask
 
+        count = 0
+
         while True:
+            # To prevent getting stuck here
+            assert count < 50
+            count += 1
             txn = db.getTxn()
-            job = db.Job('2').get(txn=txn, write=True)
+            job = db.Job('2').get(txn=txn)
             txn.commit()
 
             # Empty dict default return for get when the job doesn't actually exist
             if isinstance(job, dict):
                 break
             runTask()
+
 
     async def tearDown(self):
         """ Shutdown the app. """

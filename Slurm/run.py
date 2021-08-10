@@ -17,9 +17,12 @@ def runTask():
     try:
         r = requests.get(queueUrl, timeout=10, verify=cfg.verify)
     except requests.exceptions.ReadTimeout:
+        print('timeout')
         return False
 
     if not r.status_code == 200:
+        print(queueUrl)
+        print('status', r.status_code)
         return False
 
     task = r.json()

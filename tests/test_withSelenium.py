@@ -74,7 +74,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
     async def setUp(self):
         await super().setUp()
 
-        import main
+        import core.main as main
 
         self.proc = Process(target=uvicorn.run,
                             args=(main.app,),

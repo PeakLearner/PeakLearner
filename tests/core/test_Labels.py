@@ -30,7 +30,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     def setUp(self):
         super().setUp()
 
-        import main
+        import core.main as main
 
         self.app = main.app
 
