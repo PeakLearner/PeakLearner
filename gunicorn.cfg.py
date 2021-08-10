@@ -66,8 +66,8 @@ backlog = 2048
 #       A positive integer. Generally set in the 1-5 seconds range.
 #
 
-workers = 25
-worker_class = 'uvicorn.workers.UvicornWorker'
+workers = 4
+worker_class = 'uvicorn.workers.UvicornH11Worker'
 worker_connections = 1000
 timeout = 60
 keepalive = 2
@@ -129,6 +129,7 @@ umask = 0
 user = None
 group = None
 tmp_upload_dir = None
+preload = True
 
 #
 #   Logging
@@ -184,24 +185,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 # https://stackoverflow.com/questions/49269343/how-to-use-background-scheduler-with-an-flask-gunicorn-app
 scheduler = BackgroundScheduler()
 
-
-def on_starting(server):
-    from core.util import PLdb as db
-    db.clearLocks()
-
-    scheduler.add_job(spawnJobs, 'interval', seconds=60)
-    scheduler.add_job(runPrediction, 'interval', minutes=10)
-    scheduler.add_job(checkJobsRestart, 'interval', seconds=10)
-
-    scheduler.start()
-
-
-def on_exit(server):
-    from core.util import PLdb as db
-    scheduler.shutdown(wait=False)
-    atexit.unregister(db.closeDBObjects)
-
-
 import os
 import requests
 
@@ -221,6 +204,26 @@ def checkJobsRestart():
 
 def runPrediction():
     requests.get(os.path.join(url, 'runPrediction'))
+
+
+scheduler.add_job(spawnJobs, 'interval', seconds=60)
+scheduler.add_job(runPrediction, 'interval', minutes=10)
+scheduler.add_job(checkJobsRestart, 'interval', seconds=60)
+
+from core.util import PLdb as db
+
+
+def on_starting(server):
+    server.log.info('starting')
+    db.clearLocks()
+
+    scheduler.start()
+    server.log.info('started')
+
+
+def on_exit(server):
+    scheduler.shutdown(wait=False)
+    atexit.unregister(db.closeDBObjects)
 
 
 def post_fork(server, worker):
