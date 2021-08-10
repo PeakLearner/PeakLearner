@@ -43,4 +43,4 @@ scheduler.add_job(checkJobsRestart, 'interval', seconds=60)
 if __name__ == '__main__':
     startup()
     scheduler.start()
-    uvicorn.run('core.main:app', port=port, workers=numWorkers)
+    uvicorn.run('core.main:app', host=host, port=port, workers=numWorkers)
