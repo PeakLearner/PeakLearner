@@ -37,5 +37,5 @@ FROM pythonSetup AS build
 COPY . .
 
 FROM build AS run
-CMD ["./startServer.sh"]
+CMD ["python3", "startServer.py"]
 

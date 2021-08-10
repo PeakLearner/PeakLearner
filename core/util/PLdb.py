@@ -36,9 +36,10 @@ def closeDBObjects():
     db.close_dbs()
 
 
-import atexit
+def addExitRegister():
+    import atexit
 
-atexit.register(closeDBObjects)
+    atexit.register(closeDBObjects)
 
 
 def closeDBs():

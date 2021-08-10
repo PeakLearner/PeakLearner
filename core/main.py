@@ -9,6 +9,8 @@ from core.util import PLConfig as cfg, PLdb as db
 from core import Jobs, Labels, Loss, Features, Hubs, Models, Permissions, Prediction, Authentication
 import core
 
+db.addExitRegister()
+
 db.openDBs()
 
 app = FastAPI()
