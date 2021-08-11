@@ -45,3 +45,9 @@ verify = config['remoteServer']['verify'].lower() == 'true'
 debug = config['general']['debug'].lower() == 'true'
 dataPath = config['slurm']['dataPath']
 jobUrl = os.path.join(remoteServer, 'Jobs')
+
+
+def testing():
+    global remoteServer, jobUrl
+    remoteServer = 'http://localhost:8080'
+    jobUrl = os.path.join(remoteServer, 'Jobs')

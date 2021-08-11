@@ -1,3 +1,5 @@
+import Slurm
+Slurm.SlurmConfig.testing()
 import requests
 from tests import Base
 from multiprocessing import Process
@@ -45,7 +47,6 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
         db.Job('0').put(job, txn=txn)
         txn.commit()
 
-        from Slurm.run import runTask
 
         count = 0
 
@@ -60,8 +61,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
             # Empty dict default return for get when the job doesn't actually exist
             if isinstance(job, dict):
                 break
-            runTask()
-
+            assert Slurm.run.runTask()
 
     async def tearDown(self):
         """ Shutdown the app. """
