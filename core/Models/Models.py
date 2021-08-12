@@ -370,13 +370,6 @@ def generateAltModel(data, problem, txn=None):
 
     lenBin = (end - start) / scaledBins
 
-    # TODO: Cache this
-    sumData = bw.bigWigSummary(trackUrl, chrom, start, end, scaledBins)
-
-    if len(sumData) < 1:
-        log.warning('Sum Data is 0 for alt model', data)
-        return []
-
     dbLabels = db.Labels(user, hub, track, chrom)
     labels = dbLabels.getInBounds(chrom, start, end, txn=txn)
     denom = end - start
@@ -415,6 +408,13 @@ def generateAltModel(data, problem, txn=None):
 
         if sameStartEnd.any():
             return pd.DataFrame([getZoomIn(problem)])
+
+    # TODO: Cache this
+    sumData = bw.bigWigSummary(trackUrl, chrom, start, end, scaledBins)
+
+    if len(sumData) < 1:
+        log.warning('Sum Data is 0 for alt model', data)
+        return []
 
     if modelType == 'lopart':
         out = generateLopartModel(data, sumData, labelsToUse)
