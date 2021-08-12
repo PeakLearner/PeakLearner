@@ -22,6 +22,7 @@ if 'http' not in configSections:
     config['http']['path'] = 'jbrowse/jbrowse/'
     config['http']['client_id'] = 'google_client_id'
     config['http']['client_secret'] = 'google_client_secret'
+    config['http']['auth_redirect'] = 'http://localhost:8080/auth'
 
     save = True
 
@@ -58,6 +59,7 @@ doIdlePredictions = config['learning']['doIdlePredictions'].lower() == 'true'
 maxJobsToSpawn = int(config['learning']['maxJobsToSpawn'])
 client_id = config['http']['client_id']
 client_secret = config['http']['client_secret']
+authRedirect = config['http']['auth_redirect']
 
 
 

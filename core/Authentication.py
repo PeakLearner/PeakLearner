@@ -38,7 +38,7 @@ class User(BaseModel):
 @authRouter.route('/login')
 async def login_via_google(request: Request):
     google = oAuth.create_client('google')
-    redirect_uri = request.url_for('authorize_google')
+    redirect_uri = cfg.authRedirect
     return await google.authorize_redirect(request, redirect_uri)
 
 
@@ -50,7 +50,7 @@ async def authorize_google(request: Request):
 
     request.session['user'] = user
     # do something with the token and profile
-    return RedirectResponse('/')
+    return RedirectResponse('/', status_code=302)
 
 
 @authRouter.route('/logout')
