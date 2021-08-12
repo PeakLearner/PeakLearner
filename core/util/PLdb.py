@@ -185,8 +185,8 @@ class Labels(db.PandasDf):
 
         return df.drop(columns='floatStart')
 
-    def getInBounds(self, chrom, start, end, txn=None):
-        labels = self.get(txn=txn)
+    def getInBounds(self, chrom, start, end, txn=None, write=False):
+        labels = self.get(txn=txn, write=write)
 
         if labels is None:
             return None

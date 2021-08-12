@@ -371,7 +371,7 @@ def generateAltModel(data, problem, txn=None):
     lenBin = (end - start) / scaledBins
 
     dbLabels = db.Labels(user, hub, track, chrom)
-    labels = dbLabels.getInBounds(chrom, start, end, txn=txn)
+    labels = dbLabels.getInBounds(chrom, start, end, txn=txn, write=True)
     denom = end - start
 
     # either convert labels to an index value or empty dataframe with cols if not
