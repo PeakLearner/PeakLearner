@@ -1,6 +1,8 @@
 import os
 import json
 import datetime
+import shutil
+
 import berkeleydb
 import pandas as pd
 import simpleBDB as db
@@ -12,15 +14,8 @@ from core.Permissions import Permissions
 
 dbPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'db')
 
-loaded = False
 
-
-def isLoaded():
-    return loaded
-
-
-# Remove locks if they are left over
-if not loaded:
+def clearLocks():
     if os.path.exists(dbPath):  # pragma: no cover
         for file in os.listdir(dbPath):
             if '__db.0' not in file:
@@ -31,47 +26,40 @@ if not loaded:
 
 
 def openDBs():
-    global loaded
-    print('opening db')
     db.open_env()
     db.createEnvWithDir(dbPath)
     db.open_dbs()
-    loaded = True
+    db.setLockDetect()
 
 
-def closeDBs(closeEnv=True):
-    global loaded
-    loaded = False
+def closeDBObjects():
     db.close_dbs()
+
+
+def addExitRegister():
+    import atexit
+
+    atexit.register(closeDBObjects)
+
+
+def closeDBs():
     db.close_env()
 
 
-def deadlock_detect():
-    if loaded:
-        db.lockDetect()
+def cleanLogs():
+    filesToBackup = db.getLogArchive()
 
+    logBackupDir = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'db_log_backup')
 
-loadLater = False
-try:  # pragma: no cover
-    import uwsgi
-    import uwsgidecorators
+    if not os.path.exists(logBackupDir):
+        os.makedirs(logBackupDir)
 
-    uwsgi.atexit = closeDBs
+    if len(filesToBackup) != 0:
+        for logFile in filesToBackup:
+            logFilePath = os.path.join(dbPath, logFile)
+            movePath = os.path.join(logBackupDir, logFile)
 
-    @uwsgidecorators.postfork
-    def doOpen():
-        openDBs()
-        loaded = True
-
-    # run lock detect every second
-    @uwsgidecorators.timer(1, target='mule')
-    def start_lock_detect(num):
-        deadlock_detect()
-
-
-except ModuleNotFoundError:
-    loadLater = True
-    print('Running in non uwsgi mode, deadlocks won\'t be detected automatically')
+            shutil.move(logFilePath, movePath)
 
 
 def getTxn(parent=None):
@@ -197,8 +185,8 @@ class Labels(db.PandasDf):
 
         return df.drop(columns='floatStart')
 
-    def getInBounds(self, chrom, start, end, txn=None):
-        labels = self.get(txn=txn)
+    def getInBounds(self, chrom, start, end, txn=None, write=False):
+        labels = self.get(txn=txn, write=write)
 
         if labels is None:
             return None
@@ -348,9 +336,3 @@ class PermissionsCursor(db.Cursor):
     def dup(self, flags=berkeleydb.db.DB_POSITION):
         cursor = db.Cursor.dup(self, flags=flags)
         return PermissionsCursor(cursor, Permissions)
-
-
-if loadLater:
-    db.open_env()
-    db.createEnvWithDir(dbPath)
-    openDBs()

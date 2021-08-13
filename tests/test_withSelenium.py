@@ -4,21 +4,24 @@ import time
 import random
 import selenium
 from tests import Base
-from pyramid import testing
 from selenium import webdriver
-from pyramid.paster import get_app
 from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from multiprocessing import Process
+import asyncio
+import uvicorn
 import faulthandler
 
 faulthandler.enable(sys.stderr, all_threads=True)
 waitTime = 60
 
-url = 'http://localhost:8080'
+host = 'localhost'
+port = 8080
+url = 'http://%s:%s' % (host, port)
 
 if not os.path.exists('screenshots'):
     os.makedirs('screenshots')
@@ -64,19 +67,24 @@ class TitleChanges(object):
             return False
 
 
-class PeakLearnerTests(Base.PeakLearnerTestBase):
+class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
     user = 'Public'
     hub = 'H3K4me3_TDH_ENCODE'
 
-    def setUp(self):
-        super().setUp()
+    async def setUp(self):
+        await super().setUp()
 
-        self.config = testing.setUp()
-        app = get_app('production.ini')
+        import core.main as main
 
-        from webtest.http import StopableWSGIServer
-
-        self.testapp = StopableWSGIServer.create(app, port=8080)
+        self.proc = Process(target=uvicorn.run,
+                            args=(main.app,),
+                            kwargs={
+                                "host": host,
+                                "port": port,
+                                "log_level": "info"},
+                            daemon=True)
+        self.proc.start()
+        await asyncio.sleep(1)
 
         options = Options()
         try:
@@ -94,7 +102,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
                     self.driver = webdriver.Chrome('/buildtools/webdriver/chromedriver', options=options)
             self.driver.set_window_size(1280, 667)
         except:
-            self.testapp.close()
+            self.proc.close()
 
     # This test is mainly here so that when this file is ran on CI, it will have a genomes file for hub.
     def test_AddHub(self):
@@ -109,7 +117,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.driver.find_element(By.ID, 'submitButton').click()
 
-        wait = WebDriverWait(self.driver, waitTime * 10)
+        wait = WebDriverWait(self.driver, 5)
         wait.until(EC.presence_of_element_located((By.ID, 'search-box')))
 
     def test_LOPART_model(self):
@@ -123,7 +131,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.driver.find_element(By.ID, 'myHubs').click()
 
-        self.driver.find_element(By.ID, 'H3K4me3_TDH_ENCODE_publicHubLink').click()
+        self.driver.find_element(By.ID, '(\'Public\', \'H3K4me3_TDH_ENCODE\')_publicHubLink').click()
 
         self.moveToDefinedLocation()
 
@@ -255,7 +263,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         self.driver.find_element(By.ID, 'myHubs').click()
 
-        self.driver.find_element(By.ID, 'H3K4me3_TDH_ENCODE_publicHubLink').click()
+        self.driver.find_element(By.ID, '(\'Public\', \'H3K4me3_TDH_ENCODE\')_publicHubLink').click()
 
         self.moveToDefinedLocation()
 
@@ -504,10 +512,14 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         action.perform()
 
-    def tearDown(self):
-        self.testapp.close()
+    async def tearDown(self):
+        """ Shutdown the app. """
+
+        self.proc.terminate()
 
         for entry in self.driver.get_log('browser'):
             print(entry)
 
         self.driver.close()
+
+        super().tearDown()

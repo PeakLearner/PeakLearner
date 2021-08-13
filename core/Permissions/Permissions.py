@@ -1,5 +1,6 @@
 from simpleBDB import retry, txnAbortOnError, AbortTXNException
 from core.util import PLdb as db
+from fastapi.security import OAuth2PasswordBearer
 
 
 defaultPerms = {'Label': True, 'Track': False, 'Hub': False, 'Moderator': False}
@@ -79,7 +80,6 @@ class Permission:
                     userPerms[perm] = True
                 else:
                     userPerms[perm] = False
-            print(userPerms)
 
     def __dict__(self):
         output = {
@@ -94,10 +94,11 @@ class Permission:
 
 @retry
 @txnAbortOnError
-def adjustPermissions(owner, hub, userid, coUser, args, txn=None):
+def adjustPermissions(owner, hub, userid, args, txn=None):
     # create authorization
     permDb = db.Permission(owner, hub)
     perms = permDb.get(txn=txn, write=True)
+    coUser = args['coUser']
     perms.adjustPermissions(owner, hub, userid, coUser, args, txn=txn)
     permDb.put(perms, txn=txn)
     return True
@@ -111,12 +112,17 @@ def addUserToHub(request, owner, hubName, newUser, txn=None):
     Additionally the permissions of that user are initialized to being empty.
     """
 
-    userid = request.authenticated_userid
+    authUser = request.session.get('user')
+
+    if authUser is None:
+        authUser = 'Public'
+    else:
+        authUser = authUser['email']
 
     permDb = db.Permission(owner, hubName)
     perms = permDb.get(txn=txn, write=True)
 
-    if not perms.hasPermission(userid, 'Hub'):
+    if not perms.hasPermission(authUser, 'Hub'):
         return
 
     perms.users[newUser] = defaultPerms.copy()
@@ -124,3 +130,6 @@ def addUserToHub(request, owner, hubName, newUser, txn=None):
     permDb.put(perms, txn=txn)
 
     # TODO: Perhaps send an email to the user which was added?
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='test')

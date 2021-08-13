@@ -53,7 +53,7 @@ define([
                         const states = {
                             'noPeak': 'rgba(255,250,150,0.4)',
                             'peakStart': 'rgba(255,180,235,0.4)',
-                            'peakEnd': 'rgba(244,185,185,0.4)'
+                            'peakEnd': 'rgba(244,125,125,0.4)'
                         };
                         return states[feature.get('label') || 'unknown'];
                     },
@@ -64,7 +64,7 @@ define([
                         const states = {
                             'noPeak': 'rgb(255,245,150)',
                             'peakStart': 'rgb(255,210,241)',
-                            'peakEnd': 'rgb(244,204,204)'
+                            'peakEnd': 'rgb(244,145,145)'
                         };
                         return states[feature.get('label') || 'unknown'];
                     },

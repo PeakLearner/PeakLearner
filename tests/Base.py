@@ -2,11 +2,14 @@ import os
 import time
 import shutil
 import tarfile
+import aiohttp
 import unittest
 import threading
+import asynctest
 
 dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
 dbDir = os.path.join(dataDir, 'db')
+dbLogBackupDir = os.path.join(dataDir, 'db_log_backup')
 dbTar = os.path.join('data', 'db.tar.gz')
 testDataPath = os.path.join('tests', 'data')
 
@@ -39,19 +42,39 @@ def lock_detect(func):
 class PeakLearnerTestBase(unittest.TestCase):
 
     def setUp(self):
-        if db.isLoaded():
+        try:
             db.closeDBs()
+        except:
+            pass
 
         if os.path.exists(dbDir):
             shutil.rmtree(dbDir)
+        if os.path.exists(dbLogBackupDir):
+            shutil.rmtree(dbLogBackupDir)
         with tarfile.open(dbTar) as tar:
             tar.extractall(dataDir)
 
-        if not db.isLoaded():
-            db.openDBs()
-        else:
-            raise Exception
+        db.openDBs()
 
     def tearDown(self):
-        if db.isLoaded():
+        db.closeDBs()
+
+
+class PeakLearnerAsyncTestBase(asynctest.TestCase):
+    async def setUp(self):
+        try:
             db.closeDBs()
+        except:
+            pass
+
+        if os.path.exists(dbDir):
+            shutil.rmtree(dbDir)
+        if os.path.exists(dbLogBackupDir):
+            shutil.rmtree(dbLogBackupDir)
+        with tarfile.open(dbTar) as tar:
+            tar.extractall(dataDir)
+
+        db.openDBs()
+
+    def tearDown(self):
+        db.closeDBs()

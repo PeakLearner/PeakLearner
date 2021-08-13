@@ -175,8 +175,9 @@ define([
 
                 let xhrArgs = {
                     handleAs: 'json',
-                    method: 'put',
-                    data: query
+                    method: 'PUT',
+                    data: JSON.stringify(query),
+                    headers: {'Content-Type': 'application/json'}
                 };
                 xhr(queryUrl, xhrArgs).then(
                     function (data) {
@@ -193,7 +194,8 @@ define([
                 let xhrArgs = {
                     handleAs: 'json',
                     method: 'post',
-                    data: query
+                    data: JSON.stringify(query),
+                    headers: {'Content-Type': 'application/json'}
                 };
                 xhr(queryUrl, xhrArgs).then(
                     function (data) {
@@ -207,10 +209,13 @@ define([
             sendDelete: function (query, queryUrl, callback) {
                 query['name'] = this.name;
 
+                console.log(JSON.stringify(query))
+
                 let xhrArgs = {
                     handleAs: 'json',
                     method: 'delete',
-                    data: query
+                    data: JSON.stringify(query),
+                    headers: {'Content-Type': 'application/json'}
                 };
                 xhr(queryUrl, xhrArgs).then(
                     function (data) {
@@ -222,10 +227,10 @@ define([
                 );
             },
             getHandlerUrl: function () {
-                return this.track + '/' + this.handler + '/'
+                return this.track + '/' + this.handler
             },
             getHubHandlerUrl: function() {
-                return this.handler + '/'
+                return this.handler
             },
             // Acquired from jbrowse/Store/SeqFeature/REST.js
             _errorHandler: function (handler) {

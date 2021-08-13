@@ -23,3 +23,5 @@ log.txt
 screenshots
 !tests/*
 tools
+.env
+.pytest_cache

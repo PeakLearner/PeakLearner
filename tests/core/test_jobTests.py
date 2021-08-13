@@ -1,18 +1,9 @@
 import json
 import os
-import time
-import pytest
-import tarfile
-import shutil
-import webtest
-import pyramid
-import unittest
 import threading
-import numpy as np
 import pandas as pd
-import pyramid.paster
-import pyramid.testing
 from tests import Base
+from fastapi.testclient import TestClient
 
 dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
 dbDir = os.path.join(dataDir, 'db')
@@ -28,16 +19,15 @@ useThreads = False
 
 
 class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
-    jobsURL = '/Jobs/'
-    queueUrl = '%squeue/' % jobsURL
+    jobsURL = '/Jobs'
+    queueUrl = os.path.join(jobsURL, 'queue')
 
     def setUp(self):
         super().setUp()
 
-        self.config = pyramid.testing.setUp()
-        self.app = pyramid.paster.get_app('production.ini')
+        import core.main as main
 
-        self.testapp = webtest.TestApp(self.app)
+        self.testapp = TestClient(main.app)
 
     def getJobs(self):
         return self.testapp.get(self.jobsURL, headers={'Accept': 'application/json'})
@@ -46,15 +36,15 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         job = self.doPredictionFeatureStep()
 
-        jobUrl = '%s%s/' % (self.jobsURL, job['id'])
+        jobUrl = os.path.join(self.jobsURL, job['id'])
 
         data = {'taskId': job['taskId'], 'status': 'Done', 'totalTime': '0'}
 
-        out = self.testapp.post_json(jobUrl, data)
+        out = self.testapp.post(jobUrl, json=data)
 
         assert out.status_code == 200
 
-        job = out.json
+        job = out.json()
 
         assert job['jobStatus'].lower() == 'done'
 
@@ -63,16 +53,15 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         Jobs.makeJobHaveBadTime({})
 
-        jobUrl = '%s0/' % self.jobsURL
+        jobUrl = os.path.join(self.jobsURL, '0')
 
         out = self.testapp.get(jobUrl, headers={'Accept': 'application/json'})
 
         assert out.status_code == 200
 
-        jobToRestart = out.json
+        jobToRestart = out.json()
 
         assert jobToRestart['status'].lower() == 'queued'
-        assert jobToRestart['lastModified'] == 0
 
         Jobs.checkRestartJobs({})
 
@@ -80,7 +69,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         assert out.status_code == 200
 
-        jobAfterRestart = out.json
+        jobAfterRestart = out.json()
 
         assert jobAfterRestart['status'].lower() == 'new'
         assert jobAfterRestart['lastModified'] != 0
@@ -93,11 +82,11 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         assert out.status_code == 200
 
-        predictionJob = out.json
+        predictionJob = out.json()
 
         assert predictionJob['jobStatus'].lower() == 'queued'
 
-        trackUrl = '/%s/%s/%s/' % (predictionJob['user'], predictionJob['hub'], predictionJob['track'])
+        trackUrl = os.path.join(predictionJob['user'], predictionJob['hub'], predictionJob['track'])
 
         # Put a random feature there, really just to see that it works to begin with
         feature = featuresDf.sample()
@@ -108,9 +97,9 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
         data = {'data': feature.to_dict('records'),
                 'problem': predictionJob['problem']}
 
-        featureUrl = '%sfeatures/' % trackUrl
+        featureUrl = os.path.join(trackUrl, 'features')
 
-        out = self.testapp.put_json(featureUrl, data)
+        out = self.testapp.put(featureUrl, json=data)
 
         assert out.status_code == 200
 
@@ -121,15 +110,17 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         assert out.status_code == 200
 
-        jobLen = len(out.json)
+        jobLen = len(out.json())
 
-        self.testapp.get('/runJobSpawn/')
+        out = self.testapp.get('/runJobSpawn/')
+
+        assert out.status_code == 200
 
         out = self.getJobs()
 
         assert out.status_code == 200
 
-        newJobLen = len(out.json)
+        newJobLen = len(out.json())
 
         assert jobLen == newJobLen
 
@@ -139,7 +130,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         assert out.status_code == 200
 
-        jobs = out.json
+        jobs = out.json()
 
         # All the jobs should be done and moved to DoneJob
         assert len(jobs) == 0
@@ -147,13 +138,15 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
         for job in jobs:
             assert job['status'].lower() == 'done'
 
-        self.testapp.get('/runJobSpawn/')
+        out = self.testapp.get('/runJobSpawn/')
+
+        assert out.status_code == 200
 
         out = self.getJobs()
 
         assert out.status_code == 200
 
-        jobs = out.json
+        jobs = out.json()
 
         # all jobs are done, more jobs should be spawned here because the job spawner was called
         assert len(jobs) != 0
@@ -161,29 +154,29 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     def test_getAllFeatures(self):
         self.test_featureJob()
 
-        out = self.testapp.get('/features/')
+        out = self.testapp.get('/features')
 
         assert out.status_code == 200
 
-        assert len(out.json) == 76
+        assert len(out.json()) == 76
 
     def test_getAllModelSums(self):
         self.test_featureJob()
 
-        out = self.testapp.get('/modelSums/')
+        out = self.testapp.get('/modelSums')
 
         assert out.status_code == 200
 
-        assert len(out.json) == 302
+        assert len(out.json()) == 302
 
     def test_getAllLosses(self):
         self.test_featureJob()
 
-        out = self.testapp.get('/losses/')
+        out = self.testapp.get('/losses')
 
         assert out.status_code == 200
 
-        assert len(out.json) == 300
+        assert len(out.json()) == 300
 
     def getRelevantData(self, job, data):
         user = data[data['user'] == job['user']]
@@ -202,9 +195,9 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
         if len(sum.index) < 1:
             raise Exception
 
-        data = {**job, 'sum': sum.to_dict('records')}
+        data = {**job, 'sum': sum.to_json()}
 
-        out = self.testapp.put_json('/modelSumUpload/', data)
+        out = self.testapp.put('/modelSumUpload', json=data)
 
         assert out.status_code == 200
 
@@ -222,9 +215,9 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         data = {'lossInfo': lossInfo, 'penalty': job['penalty'], 'lossData': loss.to_json()}
 
-        lossUrl = '%sloss/' % trackUrl
+        lossUrl = os.path.join(trackUrl, 'loss')
 
-        out = self.testapp.put_json(lossUrl, data)
+        out = self.testapp.put(lossUrl, json=data)
 
         assert out.status_code == 200
 
@@ -237,14 +230,13 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
         data = {'data': feature.to_dict('records'),
                 'problem': job['problem']}
 
-        featureUrl = '%sfeatures/' % trackUrl
+        featureUrl = os.path.join(trackUrl, 'features')
 
-        out = self.testapp.put_json(featureUrl, data)
+        out = self.testapp.put(featureUrl, json=data)
 
         assert out.status_code == 200
 
     def doJob(self, job):
-
         jobId = job['id']
         taskId = job['taskId']
         user = job['user']
@@ -252,8 +244,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
         track = job['track']
         problem = job['problem']
 
-        trackUrl = '/%s/%s/%s/' % (user, hub, track)
-
+        trackUrl = os.path.join(user, hub, track)
 
         if job['type'] == 'feature':
             self.putFeature(job, trackUrl)
@@ -261,11 +252,11 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
             self.putModelSum(job)
             self.putLoss(job, trackUrl)
 
-        jobUrl = '%s%s/' % (self.jobsURL, job['id'])
+        jobUrl = os.path.join(self.jobsURL, job['id'])
 
         data = {'taskId': job['taskId'], 'status': 'Done', 'totalTime': '0'}
 
-        out = self.testapp.post_json(jobUrl, data)
+        out = self.testapp.post(jobUrl, json=data)
 
         assert out.status_code == 200
 
@@ -276,13 +267,13 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         while out.status_code != 204:
             if useThreads:
-                thread = threading.Thread(target=self.doJob, args=(out.json,))
+                thread = threading.Thread(target=self.doJob, args=(out.json(),))
 
                 thread.start()
 
                 threads.append(thread)
             else:
-                self.doJob(out.json)
+                self.doJob(out.json())
 
             out = self.testapp.get(self.queueUrl)
 

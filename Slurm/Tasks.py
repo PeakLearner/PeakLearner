@@ -58,7 +58,7 @@ def feature(task, dataPath, coveragePath, trackUrl):
     featureQuery = {'data': featureDf.to_dict('records'),
                     'problem': task['problem']}
 
-    featureUrl = '%sfeatures/' % trackUrl
+    featureUrl = os.path.join(trackUrl, 'features')
 
     try:
         r = requests.put(featureUrl, json=featureQuery, verify=cfg.verify)
@@ -84,7 +84,7 @@ def sendSegments(segmentsFile, task, trackUrl):
                  'problem': task['problem'],
                  'jobId': task['id']}
 
-    modelUrl = '%smodels/' % trackUrl
+    modelUrl = os.path.join(trackUrl, 'models')
 
     query = {'modelInfo': modelInfo, 'penalty': task['penalty'], 'modelData': sortedModel.to_json()}
 
@@ -102,7 +102,7 @@ def sendSegments(segmentsFile, task, trackUrl):
 
 def sendLoss(lossFile, task, trackUrl):
     strPenalty = str(task['penalty'])
-    lossUrl = '%sloss/' % trackUrl
+    lossUrl = os.path.join(trackUrl, 'loss')
 
     lossData = pd.read_csv(lossFile, sep='\t', header=None)
     lossData.columns = ['penalty',
@@ -193,7 +193,7 @@ def fixCoverage(task, coveragePath):
 
 
 def runTask(task):
-    trackUrl = '%s%s/%s/%s/' % (cfg.remoteServer, task['user'], task['hub'], task['track'])
+    trackUrl = os.path.join(cfg.remoteServer, task['user'], task['hub'], task['track'])
 
     dataPath = os.path.join(cfg.dataPath, 'PeakLearner-%s-%s' % (task['id'], task['taskId']))
 
@@ -211,7 +211,7 @@ def runTask(task):
 
     query = {'taskId': task['taskId'], 'status': 'Processing', 'queuedTime': queueTime - startTime}
 
-    currentJobUrl = '%s%s/' % (cfg.jobUrl, task['id'])
+    currentJobUrl = os.path.join(cfg.jobUrl, task['id'])
 
     try:
         r = requests.post(currentJobUrl, json=query, verify=cfg.verify)
@@ -258,6 +258,8 @@ def runTask(task):
 
     if not r.status_code == 200:
         raise Exception(r.status_code)
+
+    return False
 
 
 def getTaskFunc(task):

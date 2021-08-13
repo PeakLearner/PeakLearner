@@ -179,7 +179,7 @@ define([
                         }
                     };
 
-                    let url = this.browser.config.baseUrl + region + '/';
+                    let url = this.browser.config.baseUrl + region;
 
                     let xhrArgs = {
                         url: url,

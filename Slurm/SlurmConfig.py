@@ -1,3 +1,4 @@
+import os
 import configparser
 
 configFile = 'PeakLearnerSlurm.cfg'
@@ -18,8 +19,8 @@ if 'general' not in configSections:
 # Setup a default config if doesn't exist
 if 'remoteServer' not in configSections:
     config.add_section('remoteServer')
-    config['remoteServer']['url'] = 'http://localhost'
-    config['remoteServer']['port'] = '8080'
+    config['remoteServer']['url'] = 'https://peaklearner.rc.nau.edu'
+    config['remoteServer']['port'] = '80'
     config['remoteServer']['verify'] = 'True'
     save = True
 
@@ -36,11 +37,17 @@ if save:
 port = int(config['remoteServer']['port'])
 
 if port == 80:
-    remoteServer = "%s/" % config['remoteServer']['url']
+    remoteServer = "%s" % config['remoteServer']['url']
 else:
-    remoteServer = "%s:%s/" % (config['remoteServer']['url'], config['remoteServer']['port'])
+    remoteServer = "%s:%s" % (config['remoteServer']['url'], config['remoteServer']['port'])
 
 verify = config['remoteServer']['verify'].lower() == 'true'
 debug = config['general']['debug'].lower() == 'true'
 dataPath = config['slurm']['dataPath']
-jobUrl = '%sJobs/' % remoteServer
+jobUrl = os.path.join(remoteServer, 'Jobs')
+
+
+def testing():
+    global remoteServer, jobUrl
+    remoteServer = 'http://localhost:8080'
+    jobUrl = os.path.join(remoteServer, 'Jobs')

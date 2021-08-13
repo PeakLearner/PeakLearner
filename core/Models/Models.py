@@ -40,6 +40,7 @@ def getModels(data, txn=None):
             altout = generateAltModel(data, problem, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
+
             continue
 
         if len(modelSummaries.index) == 1:
@@ -47,7 +48,14 @@ def getModels(data, txn=None):
 
             # This is probably a predict model then
             if sum['regions'] == 0:
-                penalty = '%g' % sum['penalty'].item()
+                if isinstance(sum['penalty'], str):
+                    penalty = sum['penalty']
+                else:
+                    if str(sum['penalty']).split('.')[1] == '0':
+                        penalty = '%g' % sum['penalty'].item()
+                    else:
+                        penalty = str(sum['penalty'])
+
                 minErrorModelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart'],
                                            penalty)
@@ -60,6 +68,11 @@ def getModels(data, txn=None):
                 minErrorModel.columns = jbrowseModelColumns
 
                 output = output.append(minErrorModel, ignore_index=True)
+                continue
+            else:
+                altout = generateAltModel(data, problem, txn=txn)
+                if isinstance(altout, pd.DataFrame):
+                    output = output.append(altout, ignore_index=True)
                 continue
 
         # Remove processing models from ones which can be displayed
@@ -196,7 +209,6 @@ def updateAllModelLabels(data, labels, txn):
         modelsums = modelSummaries.get(txn=modelTxn, write=True)
 
         if len(modelsums.index) < 1:
-
             out = Jobs.PregenJob(data['user'],
                                  data['hub'],
                                  data['track'],
@@ -247,8 +259,19 @@ def putModel(data, txn=None):
     labels = db.Labels(user, hub, track, problem['chrom']).getInBounds(problem['chrom'],
                                                                        problem['chromStart'],
                                                                        problem['chromEnd'], txn=txn)
-    errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
-    db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart']).add(errorSum, txn=txn)
+
+    modelSumsDb = db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart'])
+
+    modelSums = modelSumsDb.get(txn=txn, write=True)
+
+    if len(labels.index) > 0:
+        errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
+        modelSumsDb.put(modelSums.append(errorSum, ignore_index=True), txn=txn)
+    else:
+        peaks = modelData[modelData['annotation'] == 'peak']
+        errorSum = getErrorSeries(penalty, len(peaks.index), errors=0)
+        modelSumsDb.put(modelSums.append(errorSum, ignore_index=True), txn=txn)
+
     return modelInfo
 
 
@@ -285,9 +308,9 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
     return singleRow
 
 
-def getErrorSeries(penalty, numPeaks, regions=0):
+def getErrorSeries(penalty, numPeaks, regions=0, errors=-1):
     return pd.Series({'regions': regions, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
-                      'errors': -1, 'penalty': penalty, 'numPeaks': numPeaks})
+                      'errors': errors, 'penalty': penalty, 'numPeaks': numPeaks})
 
 
 # TODO: This could be better (learning a penalty based on PeakSegDisk Models?)
@@ -308,6 +331,14 @@ def getFLOPARTPenalty(data):
         return 5000
 
 
+def getZoomIn(problem):
+    return {'start': problem['chromStart'],
+            'end': problem['chromEnd'],
+            'ref': problem['chrom'],
+            'score': 0,
+            'type': 'zoomIn'}
+
+
 def generateAltModel(data, problem, txn=None):
     if 'modelType' not in data:
         return []
@@ -322,14 +353,15 @@ def generateAltModel(data, problem, txn=None):
     track = data['track']
     chrom = data['ref']
     scale = data['scale']
+
+    if scale < 0.002:
+        return pd.DataFrame([getZoomIn(problem)])
+
     hubInfo = db.HubInfo(user, hub).get(txn=txn)
     trackUrl = hubInfo['tracks'][data['track']]['url']
 
     start = max(data['visibleStart'], problem['chromStart'], 0)
     end = min(data['visibleEnd'], problem['chromEnd'])
-
-    if scale < 0.002:
-        return pd.DataFrame([{'start': data['start'], 'end': data['end'], 'type': 'zoomIn'}])
 
     scaledBins = int(scale * (end - start))
 
@@ -338,15 +370,8 @@ def generateAltModel(data, problem, txn=None):
 
     lenBin = (end - start) / scaledBins
 
-    # TODO: Cache this
-    sumData = bw.bigWigSummary(trackUrl, chrom, start, end, scaledBins)
-
-    if len(sumData) < 1:
-        log.warning('Sum Data is 0 for alt model', data)
-        return []
-
     dbLabels = db.Labels(user, hub, track, chrom)
-    labels = dbLabels.getInBounds(chrom, start, end, txn=txn)
+    labels = dbLabels.getInBounds(chrom, start, end, txn=txn, write=True)
     denom = end - start
 
     # either convert labels to an index value or empty dataframe with cols if not
@@ -382,7 +407,14 @@ def generateAltModel(data, problem, txn=None):
         sameStartEnd = (labelsToUse['end'] - labelsToUse['start']) <= 1
 
         if sameStartEnd.any():
-            return pd.DataFrame([{'start': data['start'], 'end': data['end'], 'type': 'zoomIn'}])
+            return pd.DataFrame([getZoomIn(problem)])
+
+    # TODO: Cache this
+    sumData = bw.bigWigSummary(trackUrl, chrom, start, end, scaledBins)
+
+    if len(sumData) < 1:
+        log.warning('Sum Data is 0 for alt model', data)
+        return []
 
     if modelType == 'lopart':
         out = generateLopartModel(data, sumData, labelsToUse)
@@ -534,7 +566,7 @@ def indexToStartEnd(row, start, scale):
 
 
 # This block of code is ran but coverage doesn't pick it up as
-def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType): # pragma: no cover
+def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType):  # pragma: no cover
     scaledStart = round(((row['chromStart'] - modelStart) * bins) / denom)
     scaledEnd = round(((row['chromEnd'] - modelStart) * bins) / denom)
 
@@ -559,7 +591,7 @@ def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType): # pragma
         try:
             output['change'] = flopartLabels[output['annotation']]
         except KeyError:
-            print('unknownAnnotation', output['annotation'])
+            log.warning('unknownAnnotation', output['annotation'])
             output['change'] = -2
 
     return output
@@ -590,7 +622,7 @@ def doPrediction(job, txn=None):
     if prediction is None:
         return False
 
-    return float(10**prediction)
+    return float(10 ** prediction)
 
 
 def predictWithFeatures(features, model):
@@ -713,7 +745,7 @@ if cfg.testing:
         track = data['track']
         problem = data['problem']
 
-        sum = pd.DataFrame(data['sum'])
+        sum = pd.read_json(data['sum'])
 
         sumsDb = db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart'])
 

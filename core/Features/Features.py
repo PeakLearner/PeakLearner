@@ -25,7 +25,7 @@ def getFeatures(data, txn=None):
     if isinstance(features, dict):
         return
 
-    return features.to_dict()
+    return features
 
 
 @retry

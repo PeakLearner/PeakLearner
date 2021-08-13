@@ -20,9 +20,12 @@ jbrowse/jbrowse/website
 !PeakLearner
 !website
 !PeakLearner.cfg
-!production.ini
-!setup.py
 !requirements.txt
-!wsgi.ini
+!slurmRequirements.txt
+!main.py
+!Slurm
+!PeakLearnerSlurm.cfg
+!startServer.py
+
 
 **/__pycache__

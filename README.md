@@ -34,8 +34,7 @@ The Slurm Server should work with 3.6 and up but this is also untested.
 14. `cd jbrowse/jbrowse`
 15. `./setup.sh`
 16. `cd ../../`
-17. `pip install -e .`
-18. `uwsgi wsgi.ini`
+17. `gunicorn -c gunicorn.config.py main:app`
 
 Now that the CFG is created, stop the server with ctrl + C, then enter your google client secret into PeakLearner.cfg and change the client ID in production.ini to yours.
 

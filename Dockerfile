@@ -4,7 +4,7 @@ RUN apt-get update
 RUN apt-get -y install dialog apt-utils ca-certificates
 RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata
 ENV TMPDIR="/home/tem83/tmp/"
-RUN apt-get install -y samtools libdb5.3-dev libdb5.3++-dev git build-essential zlib1g-dev libxml2-dev libexpat-dev npm nano python3-numpy python3-pip db-util
+RUN apt-get install -y samtools libdb5.3-dev libdb5.3++-dev git build-essential zlib1g-dev libxml2-dev libexpat-dev npm nano python3-numpy python3-pip db-util dumb-init
 # libgfortran3 is not included in Ubuntu20.04 but required for current casa6-py36 whl
 # here we copy .so filed from Ubuntu18.04
 #   reference: https://pkgs.org
@@ -30,16 +30,13 @@ WORKDIR ../../
 FROM jbrowse AS pythonSetup
 COPY ./requirements.txt .
 RUN python3 -m pip install -U pip && \
+    python3 -m pip install requests[security] && \
     python3 -m pip install -r requirements.txt
 
 FROM pythonSetup AS build
 COPY . .
-RUN python3 -m pip install -e .
-
-FROM build AS profile
-RUN mkdir testProfile/
-CMD ["uwsgi", "profile.ini"]
 
 FROM build AS run
-CMD ["uwsgi", "wsgi.ini"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["python3", "startServer.py"]
 

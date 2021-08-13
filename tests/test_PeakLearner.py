@@ -1,14 +1,6 @@
 import os
-import time
-import pytest
-import shutil
-import tarfile
-import webtest
-import unittest
-import threading
 import pandas as pd
-import pyramid.paster
-import pyramid.testing
+from fastapi.testclient import TestClient
 from tests import Base
 from core.util import PLConfig as cfg
 
@@ -31,17 +23,17 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
     testHub = 'TestHub'
     track = 'aorta_ENCFF115HTK'
     sampleTrack = 'aorta_ENCFF502AXL'
-    hubURL = '/%s/%s/' % (user, hub)
-    testHubURL = '/%s/%s/' % (user, testHub)
-    trackURL = '%s%s/' % (hubURL, track)
-    axlTrackURL = '%s%s/' % (hubURL, 'aorta_ENCFF502AXL')
-    sampleTrackURL = '%s%s/' % (hubURL, sampleTrack)
-    trackInfoURL = '%sinfo/' % trackURL
-    labelURL = '%slabels/' % trackURL
-    modelsUrl = '%smodels/' % trackURL
-    sampleModelsUrl = '%smodels/' % sampleTrackURL
-    jobsURL = '/Jobs/'
-    queueUrl = '%squeue/' % jobsURL
+    hubURL = '/%s/%s' % (user, hub)
+    testHubURL = '/%s/%s' % (user, testHub)
+    trackURL = '%s/%s' % (hubURL, track)
+    axlTrackURL = '%s/%s' % (hubURL, 'aorta_ENCFF502AXL')
+    sampleTrackURL = '%s/%s' % (hubURL, sampleTrack)
+    trackInfoURL = '%s/info' % trackURL
+    labelURL = '%s/labels' % trackURL
+    modelsUrl = '%s/models' % trackURL
+    sampleModelsUrl = '%s/models' % sampleTrackURL
+    jobsURL = '/Jobs'
+    queueUrl = '%s/queue' % jobsURL
     rangeArgs = {'ref': 'chr1', 'start': 0, 'end': 120000000, 'label': 'peakStart'}
     startLabel = rangeArgs.copy()
     startLabel['start'] = 15250059
@@ -58,10 +50,11 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
     def setUp(self):
         super().setUp()
 
-        self.config = pyramid.testing.setUp()
-        self.app = pyramid.paster.get_app('production.ini')
+        import core.main as main
 
-        self.testapp = webtest.TestApp(self.app)
+        self.app = main.app
+
+        self.testapp = TestClient(self.app)
 
     def test_serverWorking(self):
         res = self.testapp.get('/')
@@ -70,11 +63,9 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
     def test_AddHubAndEnvSetup(self):
         query = {'url': 'https://rcdata.nau.edu/genomic-ml/PeakLearner/testHub/hub.txt'}
 
-        request = self.testapp.put('/uploadHubUrl/', query)
+        request = self.testapp.put('/uploadHubUrl', json=query)
 
         assert request.status_code == 200
-
-        assert request.json == self.testHubURL
 
         dataPath = os.path.join(cfg.jbrowsePath, cfg.dataPath)
 
@@ -100,12 +91,13 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
                              'thyroid_ENCFF014AIG', 'thyroid_ENCFF020VFT', 'thyroid_ENCFF482XRP',
                              'thyroid_ENCFF606GLK', 'thyroid_Input_ENCFF054RMF',
                              'thyroid_Input_ENCFF108SOQ', 'thyroid_Input_ENCFF442YKA', 'thyroid_Input_ENCFF995SFR']
-        hubInfoURL = '%sinfo/' % self.hubURL
+        hubInfoURL = '%s/info' % self.hubURL
+
         request = self.testapp.get(hubInfoURL)
 
         assert request.status_code == 200
 
-        requestOutput = request.json
+        requestOutput = request.json()
 
         assert requestOutput['genome'] == 'hg19'
 
@@ -120,44 +112,39 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         return self.testapp.get(self.labelURL, params=params, headers={'Accept': 'application/json'})
 
     def test_labels(self):
-        request = self.getJobs()
-
-        numJobsBefore = len(request.json)
-
         # Blank Label Test
-        request = self.getLabels(params=self.rangeArgs)
+        rangeQuery = self.rangeArgs.copy()
+        del rangeQuery['label']
 
-        numLabelsBefore = len(request.json)
+        request = self.getLabels(params=rangeQuery)
+
+        assert request.status_code == 200
+
+        numLabelsBefore = len(request.json())
 
         # Add label
-        request = self.testapp.put_json(self.labelURL, self.startLabel)
+        request = self.testapp.put(self.labelURL, json=self.startLabel)
+
+        assert request.status_code == 200
 
         # Check Label Added
         request = self.getLabels(params=self.rangeArgs)
 
         assert request.status_code == 200
 
-        assert len(request.json) == numLabelsBefore + 1
+        assert len(request.json()) == numLabelsBefore + 1
 
-        numLabelsBefore = len(request.json)
+        numLabelsBefore = len(request.json())
 
-        serverLabel = request.json[0]
+        serverLabel = request.json()[0]
 
         assert serverLabel['ref'] == self.startLabel['ref']
         assert serverLabel['start'] == self.startLabel['start']
         assert serverLabel['end'] == self.startLabel['end']
         assert serverLabel['label'] == 'peakStart'
 
-        request = self.getJobs()
-
-        assert request.status_code == 200
-
-        assert len(request.json) == numJobsBefore + 1
-
-        numJobsBefore = len(request.json)
-
         # Try adding another label
-        request = self.testapp.put_json(self.labelURL, self.endLabel)
+        request = self.testapp.put(self.labelURL, json=self.endLabel)
 
         assert request.status_code == 200
 
@@ -165,30 +152,25 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert request.status_code == 200
 
-        assert len(request.json) == numLabelsBefore + 1
+        assert len(request.json()) == numLabelsBefore + 1
 
         # Update second label
         updateAnother = self.endLabel.copy()
         updateAnother['label'] = 'peakEnd'
 
-        request = self.testapp.post_json(self.labelURL, updateAnother)
+        request = self.testapp.post(self.labelURL, json=updateAnother)
 
         assert request.status_code == 200
-
-        request = self.getJobs()
-
-        # Check that system doesn't create duplicate jobs
-        assert len(request.json) == numJobsBefore
 
         request = self.getLabels(params=self.rangeArgs)
 
         assert request.status_code == 200
 
-        assert len(request.json) == numLabelsBefore + 1
+        assert len(request.json()) == numLabelsBefore + 1
 
         # Remove Labels
-        for label in request.json:
-            request = self.testapp.delete_json(self.labelURL, params=label)
+        for label in request.json():
+            request = self.testapp.delete(self.labelURL, json=label)
 
             assert request.status_code == 200
 
@@ -206,11 +188,11 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
             jobDir = os.path.join(modelsPath, jobDir)
 
-            jobUrl = self.jobsURL + jobId + '/'
+            jobUrl = os.path.join(self.jobsURL, jobId)
 
             output = self.testapp.get(jobUrl, headers={'Accept': 'application/json'})
 
-            job = output.json
+            job = output.json()
 
             task = job['tasks'][taskId]
 
@@ -233,16 +215,16 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
                              'problem': job['problem'],
                              'jobId': job['id']}
 
-                modelUrl = '%smodels/' % trackUrl
+                modelUrl = '%smodels' % trackUrl
 
                 query = {'modelInfo': modelInfo, 'penalty': task['penalty'], 'modelData': sortedModel.to_json()}
-                output = self.testapp.put_json(modelUrl, query)
+                output = self.testapp.put(modelUrl, json=query)
                 assert output.status_code == 200
 
                 # Upload Loss
 
                 strPenalty = str(task['penalty'])
-                lossUrl = '%sloss/' % trackUrl
+                lossUrl = '%sloss' % trackUrl
 
                 lossData = pd.read_csv(lossFile, sep='\t', header=None)
                 lossData.columns = ['penalty',
@@ -264,7 +246,8 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
                 query = {'lossInfo': lossInfo, 'penalty': strPenalty, 'lossData': lossData.to_json()}
 
-                output = self.testapp.put_json(lossUrl, query)
+                output = self.testapp.put(lossUrl, json=query)
+
                 assert output.status_code == 200
             if task['type'] == 'feature':
                 featurePath = os.path.join(jobDir, 'features.tsv')
@@ -273,9 +256,9 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
                 featureQuery = {'data': featureDf.to_dict('records'),
                                 'problem': job['problem']}
 
-                featureUrl = '%sfeatures/' % trackUrl
+                featureUrl = '%sfeatures' % trackUrl
 
-                output = self.testapp.put_json(featureUrl, featureQuery)
+                output = self.testapp.put(featureUrl, json=featureQuery)
 
                 assert output.status_code == 200
 
@@ -301,13 +284,13 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         self.test_doSampleJob()
         params = {'ref': 'chr3', 'start': 93504854}
 
-        featureUrl = '%sfeatures/' % self.axlTrackURL
+        featureUrl = os.path.join(self.axlTrackURL, 'features')
 
         out = self.testapp.get(featureUrl, params=params)
 
         assert out.status_code == 200
 
-        assert len(out.json.keys()) > 1
+        assert len(out.json().keys()) > 1
 
         otherParams = params.copy()
 
@@ -317,17 +300,58 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert out.status_code == 204
 
+    def test_getPredictionModel(self):
+        # Put test model
+        testProblem = {'chrom': 'chr17', 'chromStart': 62460760, 'chromEnd': 77546461}
+        modelData = pd.DataFrame([{'chrom': 'chr17',
+                                   'start': 62500000,
+                                   'end': 62550000,
+                                   'annotation': 'background',
+                                   'mean': 0.1},
+                                  {'chrom': 'chr17',
+                                   'start': 62550001,
+                                   'end': 62600000,
+                                   'annotation': 'peak',
+                                   'mean': 15},
+                                  {'chrom': 'chr17',
+                                   'start': 62600001,
+                                   'end': 62650000,
+                                   'annotation': 'background',
+                                   'mean': 0.1}
+                                  ])
+
+        modelData.columns = ['chrom', 'start', 'end', 'annotation', 'mean']
+        sortedModel = modelData.sort_values('start', ignore_index=True)
+
+        modelInfo = {'user': self.user,
+                     'hub': self.hub,
+                     'track': self.track,
+                     'problem': testProblem}
+
+        query = {'modelInfo': modelInfo, 'penalty': 57094.997295, 'modelData': sortedModel.to_json()}
+        output = self.testapp.put(self.modelsUrl, json=query)
+        assert output.status_code == 200
+
+        # Get test model
+
+        getQuery = {'ref': testProblem['chrom'], 'start': testProblem['chromStart'], 'end': testProblem['chromEnd']}
+        output = self.testapp.get(self.modelsUrl, params=getQuery)
+
+        assert output.status_code == 200
+
+        assert len(output.json()) > 0
+
     def test_get_loss(self):
         self.test_doSampleJob()
         params = {'ref': 'chr3', 'start': 93504854, 'penalty': '10000'}
 
-        lossUrl = '%sloss/' % self.axlTrackURL
+        lossUrl = os.path.join(self.axlTrackURL, 'loss')
 
         out = self.testapp.get(lossUrl, params=params)
 
         assert out.status_code == 200
 
-        loss = out.json
+        loss = out.json()
 
         assert len(loss.keys()) > 1
 
@@ -337,91 +361,102 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         self.test_doSampleJob()
         params = {'ref': 'chr3', 'start': 93504854}
 
-        modelSumsUrl = '%smodelSum/' % self.axlTrackURL
+        modelSumsUrl = os.path.join(self.axlTrackURL, 'modelSum')
+
 
         out = self.testapp.get(modelSumsUrl, params=params)
 
-        assert len(out.json) != 0
+        assert out.status_code == 200
+
+        assert len(out.json()) != 0
 
     def test_unlabeledRegion(self):
-        unlabeledUrl = '%sunlabeled/' % self.hubURL
+        unlabeledUrl = os.path.join(self.hubURL, 'unlabeled')
 
         output = self.testapp.get(unlabeledUrl)
 
+        assert output.status_code == 200
+
         should = ['ref', 'start', 'end']
 
-        for key in output.json:
+        for key in output.json():
             assert key in should
 
-        hubInfoURL = '%sinfo/' % self.hubURL
+        hubInfoURL = os.path.join(self.hubURL, 'info')
         request = self.testapp.get(hubInfoURL)
 
-        hubInfo = request.json
+        assert request.status_code == 200
+
+        hubInfo = request.json()
 
         for track in hubInfo['tracks']:
-            trackLabelsUrl = '%s%s/labels/' % (self.hubURL, track)
+            trackLabelsUrl = os.path.join(self.hubURL, track, 'labels')
 
-            out = self.testapp.get(trackLabelsUrl, params=output.json, headers={'Accept': 'application/json'})
+            out = self.testapp.get(trackLabelsUrl, params=output.json(), headers={'Accept': 'application/json'})
 
             # No Content
             assert out.status_code == 204
 
     def test_labeledRegion(self):
-        unlabeledUrl = '%slabeled/' % self.hubURL
+        labeledUrl = os.path.join(self.hubURL, 'labeled')
 
-        output = self.testapp.get(unlabeledUrl)
+        output = self.testapp.get(labeledUrl)
 
         should = ['ref', 'start', 'end']
 
-        for key in output.json:
+        for key in output.json():
             assert key in should
 
-        hubInfoURL = '%sinfo/' % self.hubURL
+        hubInfoURL = os.path.join(self.hubURL, 'info')
         request = self.testapp.get(hubInfoURL)
 
-        hubInfo = request.json
+        hubInfo = request.json()
 
         labelsExist = False
 
         for track in hubInfo['tracks']:
-            trackLabelsUrl = '%s%s/labels/' % (self.hubURL, track)
+            trackLabelsUrl = os.path.join(self.hubURL, track, 'labels')
 
-            out = self.testapp.get(trackLabelsUrl, params=output.json, headers={'Accept': 'application/json'})
+            out = self.testapp.get(trackLabelsUrl, params=output.json(), headers={'Accept': 'application/json'})
 
             if out.status_code == 204:
                 continue
 
             if out.status_code == 200:
-                if len(out.json) > 0:
+                if len(out.json()) > 0:
                     labelsExist = True
 
         assert labelsExist
 
     def test_getTrackJob(self):
-        jobsUrl = '%sjobs/' % self.trackURL
+        jobsUrl = os.path.join(self.trackURL, 'jobs')
 
         output = self.testapp.get(jobsUrl, params=self.rangeArgs)
 
-        assert len(output.json) != 0
+        assert output.status_code == 200
+
+        assert len(output.json()) != 0
 
     def test_GetTrackModelSums(self):
 
-        jobsUrl = '%smodelSums/' % self.axlTrackURL
+        modelSumUrl = os.path.join(self.axlTrackURL, 'modelSums')
 
         modelRegion = {'ref': 'chr3', 'start': 93504854, 'end': 194041961}
 
-        output = self.testapp.get(jobsUrl, params=modelRegion)
+        output = self.testapp.get(modelSumUrl, params=modelRegion)
 
-        # There should be no models at this point
-        assert len(output.json) == 0
+        # No Models at this point
+        assert output.status_code == 204
 
         self.test_doSampleJob()
 
-        output = self.testapp.get(jobsUrl, params=modelRegion)
+        output = self.testapp.get(modelSumUrl, params=modelRegion)
 
-        # There should be no models at this point
+        assert output.status_code == 200
 
-        assert len(output.json) != 0
+        # There should be models at this point
+
+        assert len(output.json()) != 0
 
     def test_predictionModel(self):
         modelsPath = os.path.join(testDataPath, 'Models')
@@ -450,10 +485,10 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
                      'track': self.track,
                      'problem': problemWithNoLabels}
 
-        modelUrl = '%smodels/' % self.trackURL
+        modelUrl = os.path.join(self.trackURL, 'models')
 
         query = {'modelInfo': modelInfo, 'penalty': penalty, 'modelData': sortedModel.to_json()}
-        output = self.testapp.put_json(modelUrl, query)
+        output = self.testapp.put(modelUrl, json=query)
         assert output.status_code == 200
 
         params = {'ref': problemWithNoLabels['chrom'],
@@ -463,12 +498,24 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert modelOut.status_code == 200
 
-        assert len(modelOut.json) != 0
+        assert len(modelOut.json()) != 0
 
     def test_stats_page(self):
         output = self.testapp.get('/stats/')
 
         assert output.status_code == 200
+
+    def test_log_file_clean(self):
+
+        assert not os.path.exists(Base.dbLogBackupDir)
+
+        from core.util import PLdb as db
+
+        db.cleanLogs()
+
+        assert os.path.exists(Base.dbLogBackupDir)
+
+
 
     def test_model_stats_page(self):
         output = self.testapp.get('/stats/model/')

@@ -23,7 +23,7 @@ def getHubJsons(query, handler, txn=None):
 
         return createTrackListWithHubInfo(hubInfo, query['user'], query['hub'])
     else:
-        print('no handler for %s' % query['handler'])
+        print('no handler for %s' % handler)
 
 @retry
 @txnAbortOnError
@@ -101,14 +101,19 @@ def removeUserFromHub(request, owner, hubName, delUser, txn=None):
     db.HubInfo object.
     """
 
-    userid = request.authenticated_userid
+    authUser = request.session.get('user')
+
+    if authUser is None:
+        authUser = 'Public'
+    else:
+        authUser = authUser['email']
 
     txn = db.getTxn(parent=txn)
 
     permDb = db.Permission(owner, hubName)
     perms = permDb.get(txn=txn, write=True)
 
-    if not perms.hasPermission(userid, 'Hub'):
+    if not perms.hasPermission(authUser, 'Hub'):
         txn.commit()
         return
 
@@ -177,13 +182,12 @@ def getHubInfosForMyHubs(userid, txn=None):
         perms = db.Permission(owner, hubName).get(txn=txn)
 
         if not perms.hasViewPermission(userid, currHubInfo):
-            print('no perm')
             current = cursor.next()
             continue
 
         permissions[(owner, hubName)] = perms.users
 
-        usersdict[hubName] = perms.groups
+        usersdict[(owner, hubName)] = perms.groups
 
         everyLabelKey = db.Labels.keysWhichMatch(owner, hubName)
 
@@ -193,7 +197,7 @@ def getHubInfosForMyHubs(userid, txn=None):
 
         currHubInfo['numLabels'] = num_labels
 
-        hubInfos[hubName] = currHubInfo
+        hubInfos[(owner, hubName)] = currHubInfo
 
         current = cursor.next()
 
@@ -217,9 +221,8 @@ def makeHubPublic(data, txn=None):
         if not perms.hasPermission(userid, 'Hub'):
             return False
 
-    chkpublic = "chkpublic" in data.keys()
     hub = db.HubInfo(owner, hubName).get(txn=txn, write=True)
-    hub['isPublic'] = chkpublic
+    hub['isPublic'] = data['chkpublic']
     db.HubInfo(owner, hubName).put(hub, txn=txn)
 
     return True
@@ -252,8 +255,8 @@ def createTrackListWithHubInfo(info, owner, hub):
     return tracklist
 
 
-def parseHub(data):
-    parsed = parseUCSC(data)
+def parseHub(data, user):
+    parsed = parseUCSC(data, user)
     # Add a way to configure hub here somehow instead of just loading everythingS
     return createHubFromParse(parsed)
 
@@ -605,8 +608,8 @@ def formatIncludes(includes, prePath):
     return output
 
 
-def parseUCSC(data):
-    url = data['url']
+def parseUCSC(data, user):
+    url = data.url
     hubReq = requests.get(url, allow_redirects=True, verify=False)
     if not hubReq.status_code == 200:
         return None
@@ -618,9 +621,6 @@ def parseUCSC(data):
     lines = hubReq.text.split('\n')
 
     hub = readUCSCLines(lines)
-
-    # SETUP HUB VALUE KEYS
-    user = data['user']
 
     if user is None:
         user = 'Public'
