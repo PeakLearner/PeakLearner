@@ -259,6 +259,8 @@ def runTask(task):
     if not r.status_code == 200:
         raise Exception(r.status_code)
 
+    return False
+
 
 def getTaskFunc(task):
     tasks = {'model': model,

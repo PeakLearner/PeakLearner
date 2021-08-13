@@ -182,13 +182,12 @@ def getHubInfosForMyHubs(userid, txn=None):
         perms = db.Permission(owner, hubName).get(txn=txn)
 
         if not perms.hasViewPermission(userid, currHubInfo):
-            print('no perm')
             current = cursor.next()
             continue
 
         permissions[(owner, hubName)] = perms.users
 
-        usersdict[hubName] = perms.groups
+        usersdict[(owner, hubName)] = perms.groups
 
         everyLabelKey = db.Labels.keysWhichMatch(owner, hubName)
 
@@ -198,7 +197,7 @@ def getHubInfosForMyHubs(userid, txn=None):
 
         currHubInfo['numLabels'] = num_labels
 
-        hubInfos[hubName] = currHubInfo
+        hubInfos[(owner, hubName)] = currHubInfo
 
         current = cursor.next()
 

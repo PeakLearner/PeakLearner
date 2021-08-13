@@ -31,5 +31,5 @@ def runTask():
 
 
 if __name__ == '__main__':
-    if runTask():
+    if not runTask():
         time.sleep(15)
