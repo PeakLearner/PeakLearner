@@ -131,7 +131,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         self.driver.find_element(By.ID, 'myHubs').click()
 
-        self.driver.find_element(By.ID, 'H3K4me3_TDH_ENCODE_publicHubLink').click()
+        self.driver.find_element(By.ID, '(\'Public\', \'H3K4me3_TDH_ENCODE\')_publicHubLink').click()
 
         self.moveToDefinedLocation()
 
@@ -263,7 +263,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         self.driver.find_element(By.ID, 'myHubs').click()
 
-        self.driver.find_element(By.ID, 'H3K4me3_TDH_ENCODE_publicHubLink').click()
+        self.driver.find_element(By.ID, '(\'Public\', \'H3K4me3_TDH_ENCODE\')_publicHubLink').click()
 
         self.moveToDefinedLocation()
 

@@ -12,6 +12,8 @@
 
         function uploadHub() {
             let hubUrl = document.getElementById('hubUrl').value;
+            let button = document.getElementById('submitButton');
+            button.setAttribute('disabled', 'disabled');
             sendAjax('/uploadHubUrl', {url: hubUrl}, newHubCallback, 'PUT', 600000)
         }
     </script>
