@@ -29,11 +29,6 @@ hubRouter = APIRouter(
 jbrowseTemplates = Jinja2Templates(directory='jbrowse/jbrowse')
 
 
-@hubRouter.get('/', response_class=HTMLResponse, include_in_schema=False)
-async def getJbrowse(request: Request):
-    return jbrowseTemplates.TemplateResponse('index.html', {'request': request})
-
-
 trackRouter = APIRouter(
     prefix='/{user}/{hub}/{track}',
     tags=['Tracks'],
