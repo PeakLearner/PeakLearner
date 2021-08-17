@@ -34,6 +34,8 @@ async def getLabels(request: Request, user: str, hub: str, track: str, ref: str 
 
     if outputType == 'json' or outputType == 'application/json' or outputType == '*/*':
         outputDict = output.to_dict('records')
+        print('here')
+        print(outputDict)
         return outputDict
 
     elif outputType == 'csv' or outputType == 'text/csv':

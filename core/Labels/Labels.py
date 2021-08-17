@@ -5,8 +5,8 @@ from core.util import PLdb as db
 from core.Models import Models
 from simpleBDB import retry, txnAbortOnError
 
-labelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'lastModifiedBy', 'lastModified']
-jbrowseLabelColumns = ['ref', 'start', 'end', 'label', 'lastModifiedBy', 'lastModified']
+labelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
+jbrowseLabelColumns = ['ref', 'start', 'end', 'label']
 
 
 @retry
@@ -185,10 +185,16 @@ def getLabels(data, txn=None):
     if len(labelsDf.index) < 1:
         return []
 
-    labelsDf = labelsDf[labelColumns]
-    labelsDf.columns = jbrowseLabelColumns
+    labelsOut = labelsDf[labelColumns]
+    labelsOut.columns = jbrowseLabelColumns
+    try:
+        labelsOut['lastModifiedBy'] = labelsDf['lastModifiedBy']
+        labelsOut['lastModified'] = labelsDf['lastModifiedBy']
+    except KeyError:
+        pass
 
-    return labelsDf
+    # https://stackoverflow.com/a/14163209/14396857
+    return labelsOut.where(pd.notnull(labelsOut), None)
 
 
 @retry

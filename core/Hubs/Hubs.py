@@ -365,7 +365,7 @@ def checkForPrexistingLabels(coverageUrl, user, hub, track, genome, txn):
             f.flush()
             f.seek(0)
             labels = pd.read_csv(f, sep='\t', header=None)
-            labels.columns = Labels.labelColumns
+            labels.columns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
 
     grouped = labels.groupby(['chrom'], as_index=False)
     grouped.apply(saveLabelGroup, user, hub, track, genome, coverageUrl, txn)
