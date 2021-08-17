@@ -24,7 +24,7 @@
             delete window.require;
         }
 
-        function sendPost(command, args, successCallback, errorCallback)
+        function sendPost(command, url, args, successCallback, errorCallback)
         {
         let query = JSON.stringify({'command': command, 'args': args });
 
@@ -36,7 +36,7 @@
             };
         }
 
-        $.ajax('/', {
+        $.ajax(url, {
             data: query,
             type: 'POST',
             timeout: 60000,
@@ -54,10 +54,31 @@
             width: 100%;
         }
     </style>
-    <script type="text/javascript" src="/jbrowse/dist/main.bundle.js" charset="utf-8"></script>
+    <script type="text/javascript" src="dist/main.bundle.js" charset="utf-8"></script>
   </head>
 
   <body>
+  <div style="width: 100%; background: #fafafa">
+    <div style="float: right">
+    {% if user is not none and user != 'Public' %}
+      <div class="col text-center">
+          <img width="20px" height="20px" src="{{picture}}" id="userPicture">
+          <p style="display: inline">{{user}}</p>
+          <a href="/logout" id="logoutButton">Sign Out</a>
+      </div>
+    {% else %}
+        <div class="col text-center">
+            <a href="/login" role="button"
+               style="text-transform:none" id="loginButton">
+                <img width="15px"
+                     alt="Google sign-in"
+                     src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png"/>
+                Login
+            </a>
+        </div>
+    {% endif %}
+    </div>
+  </div>
     <div class="jbrowse" id="GenomeBrowser" data-config='"allowCrossOriginDataRoot": true, "cacheBuster": true'>
       <div id="LoadingScreen" style="padding: 50px;">
         <h1>Loading...</h1>

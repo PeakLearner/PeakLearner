@@ -146,7 +146,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         self.enableAltModel(whichModel)
 
-        self.addPeak(2257, width=120, genModel=True)
+        self.addPeak(2295, width=120, genModel=True)
 
         tracks = self.driver.find_elements(By.CLASS_NAME, 'track_peaklearnerbackend_view_track_model')
 
@@ -492,7 +492,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         go.click()
 
-        assert "93462708..193999814" in self.driver.title
+        assert "93452315..193989421" in self.driver.title
 
     def scrollUp(self):
         wait = WebDriverWait(self.driver, waitTime)

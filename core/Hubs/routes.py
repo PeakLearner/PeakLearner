@@ -16,11 +16,25 @@ templates = Jinja2Templates(directory='website/templates')
 import core
 
 
+@core.hubRouter.get('/', response_class=HTMLResponse)
+def getJbrowsePage(request: Request, user: str, hub: str):
+    user = request.session.get('user')
+    picture = None
+
+    if user is None:
+        user = 'Public'
+    else:
+        picture = user['picture']
+        user = user['email']
+
+    return templates.TemplateResponse('jbrowse.html', {'request': request, 'user': user, 'picture': picture})
+
+
 @core.hubRouter.get('/info',
                     responses={
                         200: {
                             "content": {"text/html": {}},
-                            "description": "Provides information on a job",
+                            "description": "Provides information on a hub",
                         }
                     },
                     response_model=Models.HubInfo,

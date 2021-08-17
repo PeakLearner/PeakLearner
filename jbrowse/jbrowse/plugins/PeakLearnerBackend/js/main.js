@@ -114,7 +114,6 @@ define([
                         if (dijitRegistry.byId('dropdownmenu_peaklearner') === undefined) {
                             myBrowser.renderGlobalMenu('peaklearner', {text: 'PeakLearner'}, myBrowser.menuBar);
                         }
-
                     });
 
                     let addLabels = (data) => {
