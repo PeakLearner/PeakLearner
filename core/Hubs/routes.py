@@ -24,7 +24,6 @@ def getJbrowsePage(request: Request, user: str, hub: str):
     if user is None:
         user = 'Public'
     else:
-        print(user)
         picture = user['picture']
         user = user['email']
 

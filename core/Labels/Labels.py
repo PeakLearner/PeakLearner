@@ -5,8 +5,8 @@ from core.util import PLdb as db
 from core.Models import Models
 from simpleBDB import retry, txnAbortOnError
 
-labelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
-jbrowseLabelColumns = ['ref', 'start', 'end', 'label']
+labelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'lastModifiedBy', 'lastModified']
+jbrowseLabelColumns = ['ref', 'start', 'end', 'label', 'lastModifiedBy', 'lastModified']
 
 
 @retry
