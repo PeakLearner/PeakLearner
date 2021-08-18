@@ -3,9 +3,10 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from starlette.config import Config
 from starlette.requests import Request
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, HTMLResponse
 
 from authlib.integrations.starlette_client import OAuth
+from starlette.templating import Jinja2Templates
 
 from core.util import PLConfig as cfg
 
@@ -61,6 +62,9 @@ async def authorize_google(request: Request):
     return RedirectResponse(redirectUrl, status_code=302)
 
 
+templates = Jinja2Templates(directory='website/templates')
+
+
 @authRouter.route('/logout')
 async def logout(request):
     request.session.pop('user', None)
@@ -72,4 +76,6 @@ async def logout(request):
     else:
         redirectUrl = '/'
     # do something with the token and profile
-    return RedirectResponse(redirectUrl, status_code=302)
+
+    out = {'request': request, 'redirect': redirectUrl, 'user': None}
+    return templates.TemplateResponse('logout.html', out)
