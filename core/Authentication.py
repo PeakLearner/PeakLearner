@@ -39,6 +39,8 @@ class User(BaseModel):
 async def login_via_google(request: Request):
     google = oAuth.create_client('google')
     redirect_uri = cfg.authRedirect
+    if 'referer' in request.headers:
+        request.session['referer'] = request.headers['referer']
     return await google.authorize_redirect(request, redirect_uri)
 
 
@@ -49,11 +51,25 @@ async def authorize_google(request: Request):
     user = await google.parse_id_token(request, token)
 
     request.session['user'] = user
+    if 'referer' in request.session:
+        redirectUrl = request.session['referer']
+    elif 'referer' in request.headers:
+        redirectUrl = request.headers['referer']
+    else:
+        redirectUrl = '/'
     # do something with the token and profile
-    return RedirectResponse('/', status_code=302)
+    return RedirectResponse(redirectUrl, status_code=302)
 
 
 @authRouter.route('/logout')
 async def logout(request):
     request.session.pop('user', None)
-    return RedirectResponse('/')
+
+    if 'referer' in request.session:
+        redirectUrl = request.session['referer']
+    elif 'referer' in request.headers:
+        redirectUrl = request.headers['referer']
+    else:
+        redirectUrl = '/'
+    # do something with the token and profile
+    return RedirectResponse(redirectUrl, status_code=302)
