@@ -14,6 +14,7 @@ save = False
 if 'general' not in configSections:
     config.add_section('general')
     config['general']['debug'] = 'False'
+    config['general']['numWorkers'] = str(1)
 
 
 # Setup a default config if doesn't exist
@@ -45,6 +46,7 @@ verify = config['remoteServer']['verify'].lower() == 'true'
 debug = config['general']['debug'].lower() == 'true'
 dataPath = config['slurm']['dataPath']
 jobUrl = os.path.join(remoteServer, 'Jobs')
+numWorkers = int(config['general']['numWorkers'])
 
 
 def testing():

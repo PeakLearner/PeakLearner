@@ -1,3 +1,5 @@
+sudo apt update
+sudo apt upgrade
 mkdir bin
 cd bin/
 wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigToBedGraph
