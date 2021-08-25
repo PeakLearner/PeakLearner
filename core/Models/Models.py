@@ -27,17 +27,22 @@ pd.set_option('mode.chained_assignment', None)
 @retry
 @txnAbortOnError
 def getModels(data, txn=None):
+    chromLabels = db.Labels(data['user'], data['hub'], data['track'], data['ref']).get(txn=txn)
+
     problems = Tracks.getProblems(data, txn=txn)
 
     output = pd.DataFrame()
 
     for problem in problems:
+        isInBounds = labels.apply(db.checkInBounds, axis=1, args=(chrom, start, end))
+
+        problemLabels = labels[isInBounds]
 
         modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart']).get(txn=txn)
 
         if len(modelSummaries.index) < 1:
-            altout = generateAltModel(data, problem, txn=txn)
+            altout = generateAltModel(data, problem, problemLabels, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
 
@@ -79,7 +84,7 @@ def getModels(data, txn=None):
         modelSummaries = modelSummaries[modelSummaries['errors'] >= 0]
 
         if len(modelSummaries.index) < 1:
-            altout = generateAltModel(data, problem, txn=txn)
+            altout = generateAltModel(data, problem, problemLabels, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -87,7 +92,7 @@ def getModels(data, txn=None):
         nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
 
         if len(nonZeroRegions.index) < 1:
-            altout = generateAltModel(data, problem, txn=txn)
+            altout = generateAltModel(data, problem, problemLabels, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -95,7 +100,7 @@ def getModels(data, txn=None):
         withPeaks = nonZeroRegions[nonZeroRegions['numPeaks'] > 0]
 
         if len(withPeaks.index) < 1:
-            altout = generateAltModel(data, problem, txn=txn)
+            altout = generateAltModel(data, problem, problemLabels, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -103,7 +108,7 @@ def getModels(data, txn=None):
         noError = withPeaks[withPeaks['errors'] < 1]
 
         if len(noError.index) < 1:
-            altout = generateAltModel(data, problem, txn=txn)
+            altout = generateAltModel(data, problem, problemLabels, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -339,7 +344,7 @@ def getZoomIn(problem):
             'type': 'zoomIn'}
 
 
-def generateAltModel(data, problem, txn=None):
+def generateAltModel(data, problem, labels, txn=None):
     if 'modelType' not in data:
         return []
 
@@ -370,8 +375,6 @@ def generateAltModel(data, problem, txn=None):
 
     lenBin = (end - start) / scaledBins
 
-    dbLabels = db.Labels(user, hub, track, chrom)
-    labels = dbLabels.getInBounds(chrom, start, end, txn=txn, write=True)
     denom = end - start
 
     # either convert labels to an index value or empty dataframe with cols if not
