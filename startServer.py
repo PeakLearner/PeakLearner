@@ -35,9 +35,9 @@ def startup():
     db.clearLocks()
 
 
-scheduler.add_job(spawnJobs, 'interval', seconds=60)
-scheduler.add_job(runPrediction, 'interval', seconds=60)
-scheduler.add_job(checkJobsRestart, 'interval', minutes=60)
+# scheduler.add_job(spawnJobs, 'interval', seconds=60)
+# scheduler.add_job(runPrediction, 'interval', seconds=60)
+# scheduler.add_job(checkJobsRestart, 'interval', minutes=60)
 
 
 if __name__ == '__main__':

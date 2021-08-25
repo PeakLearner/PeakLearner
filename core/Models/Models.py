@@ -34,9 +34,9 @@ def getModels(data, txn=None):
     output = pd.DataFrame()
 
     for problem in problems:
-        isInBounds = labels.apply(db.checkInBounds, axis=1, args=(chrom, start, end))
+        isInBounds = chromLabels.apply(db.checkInBounds, axis=1, args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
 
-        problemLabels = labels[isInBounds]
+        problemLabels = chromLabels[isInBounds]
 
         modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart']).get(txn=txn)
