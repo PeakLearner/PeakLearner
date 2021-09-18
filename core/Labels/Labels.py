@@ -267,3 +267,9 @@ def labelsStats(data, txn=None):
         labels = labels + len(labelsDf.index)
 
     return chroms, labels
+
+
+@retry
+@txnAbortOnError
+def putLabelsRefresh(data, txn=None):
+    db.Labels(data['user'], data['hub'], data['track'], data['chrom']).put(pd.read_json(data['labels']), txn=txn)

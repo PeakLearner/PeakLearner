@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -11,9 +12,13 @@ import core
 
 db.addExitRegister()
 
+db.openEnv()
+
 db.openDBs()
 
+from fastapi_cprofile.profiler import CProfileMiddleware
 app = FastAPI()
+# app.add_middleware(CProfileMiddleware, enable=True, print_each_request = True, strip_dirs = False, sort_by='cumulative')
 
 app.include_router(website.routes.router)
 
@@ -40,6 +45,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 app.mount("/static", StaticFiles(directory='website/static'), name='static')
 app.mount('/{user}/{hub}', StaticFiles(directory='jbrowse/jbrowse'), name='jbrowseFiles')

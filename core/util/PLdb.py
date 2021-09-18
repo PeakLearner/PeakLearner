@@ -25,11 +25,14 @@ def clearLocks():
             os.remove(filePath)
 
 
-def openDBs():
+def openEnv():
     db.open_env()
     db.createEnvWithDir(dbPath)
-    db.open_dbs()
     db.setLockDetect()
+
+
+def openDBs():
+    db.open_dbs()
 
 
 def closeDBObjects():

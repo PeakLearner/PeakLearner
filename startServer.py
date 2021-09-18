@@ -43,4 +43,4 @@ def startup():
 if __name__ == '__main__':
     startup()
     scheduler.start()
-    uvicorn.run('core.main:app', host=host, port=port, workers=numWorkers)
+    uvicorn.run('core.main:app', host=host, port=port, workers=1)
