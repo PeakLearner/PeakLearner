@@ -755,6 +755,30 @@ def putModelSumFeatures(data, txn=None):
             pass
 
 
+@retry
+@txnAbortOnError
+def putLossModel(data, txn=None):
+    try:
+        db.Loss(data['user'],
+                data['hub'],
+                data['track'],
+                data['chrom'],
+                data['start'],
+                data['penalty']).put(pd.read_json(data['loss'], typ='series'), txn=txn)
+    except KeyError:
+        pass
+
+    try:
+        db.Model(data['user'],
+                data['hub'],
+                 data['track'],
+                 data['chrom'],
+                 data['start'],
+                 data['penalty']).put(pd.read_json(data['model']), txn=txn)
+    except KeyError:
+        pass
+
+
 
 if cfg.testing:
     @retry

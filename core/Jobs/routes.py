@@ -147,3 +147,9 @@ async def runJobSpawn():
 @core.otherRouter.get('/checkRestartJobs', include_in_schema=False)
 async def checkRestartJobs():
     return Jobs.checkRestartJobs({})
+
+
+@core.otherRouter.put('/jobRefresh')
+async def putJobRefresh(request: Request):
+    data = await request.json()
+    Jobs.putJobRefresh(data)

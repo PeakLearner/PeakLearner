@@ -29,14 +29,8 @@ class RedisHandler:
 
         requests.put(url + '/uploadHubDict', json=newHubDict)
 
-
     async def labels(self):
         allLabels = db.Labels.all_dict()
-
-        numKeys = len(allLabels.keys())
-        done = 0
-
-        toPut = []
 
         for key, labels in allLabels.items():
             user, hub, track, chrom = key
@@ -183,8 +177,8 @@ class RedisHandler:
 async def run():
     handler = RedisHandler()
     # await handler.hubs()
-    await handler.labels()
-    # await handler.other()
+    # await handler.labels()
+    await handler.other()
     # await handler.modelSumFeatures()
     # await handler.lossModels()
     # await handler.jobs()

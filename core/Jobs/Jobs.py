@@ -935,6 +935,21 @@ def submitSearch(data, problem, bottom, top, regions, txn=None):
                           regions)
 
 
+@retry
+@txnAbortOnError
+def putJobRefresh(data, txn=None):
+    db.JobInfo('Id').put(data['Id'])
+
+    for iteration in data['iterations']:
+        db.Iteration(iteration['user'], iteration['hub'], iteration['track'], iteration['chrom'], iteration['start']).put(iteration['val'], txn=txn)
+
+    for job in data['jobs']:
+        db.Job(job['id']).put(job, txn=txn)
+
+    for job in data['done']:
+        db.DoneJob(job['id']).put(job, txn=txn)
+
+
 if cfg.testing:
     @retry
     @txnAbortOnError

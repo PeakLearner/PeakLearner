@@ -193,6 +193,12 @@ async def putModelSumFeatures(request: Request):
     Models.putModelSumFeatures(data)
 
 
+@core.otherRouter.put('/lossModel')
+async def putModelSumFeatures(request: Request):
+    data = await request.json()
+    Models.putLossModel(data)
+
+
 if cfg.testing:
     class ModelSumData(BaseModel):
         user: str
