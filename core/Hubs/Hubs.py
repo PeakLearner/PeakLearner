@@ -815,3 +815,12 @@ def uploadHubDicts(data, txn=None):
         permToStore = Permissions.Permission.fromStorable(permissions)
         permToStore.putPermissionsWithTxn(txn=txn)
         db.HubInfo(user, hub).put(hubInfo, txn=txn)
+
+
+@retry
+@txnAbortOnError
+def putProblem(data, txn=None):
+    key = data['genome']
+    problems = pd.read_json(data['problems'])
+
+    db.Problems(key).put(problems, txn=None)

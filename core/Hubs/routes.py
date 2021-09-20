@@ -232,5 +232,12 @@ async def uploadHubDict(request: Request):
     Hubs.uploadHubDicts(data)
 
 
+@core.otherRouter.put('/putProblem')
+async def putProblem(request: Request):
+    from core.Permissions import Permissions
+    data = await request.json()
+    Hubs.putProblem(data)
+
+
 
 

@@ -16,7 +16,7 @@ db.openEnv()
 
 db.openDBs()
 
-from fastapi_cprofile.profiler import CProfileMiddleware
+# from fastapi_cprofile.profiler import CProfileMiddleware
 app = FastAPI()
 # app.add_middleware(CProfileMiddleware, enable=True, print_each_request = True, strip_dirs = False, sort_by='cumulative')
 
