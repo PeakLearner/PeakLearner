@@ -154,12 +154,3 @@ def cvglmnetPlotReturn(cvobject, sign_lambda=1.0, **options): # pragma: no cover
     ax1.set_ylabel(cvobject['name'])
 
     return plt
-
-
-@retry
-@txnAbortOnError
-def putPredictionRefresh(data, txn=None):
-    for value in data:
-        keyData = pickle.loads(bytes.fromhex(value))
-
-        db.Prediction(*keyData['key']).put(keyData['value'], txn=txn)

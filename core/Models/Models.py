@@ -743,47 +743,6 @@ def getAllModelSummaries(data, txn=None):
     return pd.concat(output)
 
 
-@retry
-@txnAbortOnError
-def putModelSumFeatures(data, txn=None):
-    for key, value in data.items():
-        try:
-            db.ModelSummaries(value['user'], value['hub'], value['track'], value['chrom'], value['start']).put(pd.read_json(value['modelSum']), txn=txn)
-        except KeyError:
-            pass
-
-        try:
-            db.Features(value['user'], value['hub'], value['track'], value['chrom'], value['start']).put(
-                pd.read_json(value['features'], typ='series'), txn=txn)
-        except KeyError:
-            pass
-
-
-@retry
-@txnAbortOnError
-def putLossModel(data, txn=None):
-    try:
-        db.Loss(data['user'],
-                data['hub'],
-                data['track'],
-                data['chrom'],
-                data['start'],
-                data['penalty']).put(pd.read_json(data['loss'], typ='series'), txn=txn)
-    except KeyError:
-        pass
-
-    try:
-        db.Model(data['user'],
-                data['hub'],
-                 data['track'],
-                 data['chrom'],
-                 data['start'],
-                 data['penalty']).put(pd.read_json(data['model']), txn=txn)
-    except KeyError:
-        pass
-
-
-
 if cfg.testing:
     @retry
     @txnAbortOnError

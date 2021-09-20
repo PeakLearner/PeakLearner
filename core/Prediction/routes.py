@@ -7,9 +7,3 @@ from core.Prediction import Prediction
 async def runPrediction():
     Prediction.runPrediction({})
     return Response(status_code=200)
-
-
-@core.otherRouter.put('/predictionRefresh')
-async def putPredictionRefresh(request: Request):
-    data = await request.json()
-    Prediction.putPredictionRefresh(data)
