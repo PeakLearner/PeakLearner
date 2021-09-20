@@ -88,21 +88,18 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         options = Options()
         try:
+            if os.environ['TESTING'].lower() == 'true':
+                options.headless = True
+        except KeyError:
+            pass
+        try:
+            self.driver = webdriver.Chrome(options=options)
+        except WebDriverException:
             try:
-                if os.environ['TESTING'].lower() == 'true':
-                    options.headless = True
-            except KeyError:
-                pass
-            try:
-                self.driver = webdriver.Chrome(options=options)
+                self.driver = webdriver.Chrome('chromedriver', options=options)
             except WebDriverException:
-                try:
-                    self.driver = webdriver.Chrome('chromedriver', options=options)
-                except WebDriverException:
-                    self.driver = webdriver.Chrome('/buildtools/webdriver/chromedriver', options=options)
-            self.driver.set_window_size(1280, 667)
-        except:
-            self.proc.close()
+                self.driver = webdriver.Chrome('/buildtools/webdriver/chromedriver', options=options)
+        self.driver.set_window_size(1280, 667)
 
     # This test is mainly here so that when this file is ran on CI, it will have a genomes file for hub.
     def test_AddHub(self):
@@ -492,7 +489,9 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         go.click()
 
-        assert "93452315..193989421" in self.driver.title
+        print(self.driver.title)
+
+        assert "chr3:93456298..193993404" in self.driver.title
 
     def scrollUp(self):
         wait = WebDriverWait(self.driver, waitTime)

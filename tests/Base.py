@@ -54,6 +54,7 @@ class PeakLearnerTestBase(unittest.TestCase):
         with tarfile.open(dbTar) as tar:
             tar.extractall(dataDir)
 
+        db.openEnv()
         db.openDBs()
 
     def tearDown(self):
@@ -74,6 +75,7 @@ class PeakLearnerAsyncTestBase(asynctest.TestCase):
         with tarfile.open(dbTar) as tar:
             tar.extractall(dataDir)
 
+        db.openEnv()
         db.openDBs()
 
     def tearDown(self):

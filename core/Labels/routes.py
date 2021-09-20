@@ -188,10 +188,3 @@ async def deleteHubLabel(request: Request, user: str, hub: str, hubLabelData: Hu
 
     return Response(json.dumps(output), media_type='application/json')
 
-
-@core.otherRouter.put('/putLabelsRefresh')
-async def putLabelsForRefresh(request: Request):
-    data = await request.json()
-
-    Labels.putLabelsRefresh(data)
-

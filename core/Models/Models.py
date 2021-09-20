@@ -52,7 +52,7 @@ def getModels(data, txn=None):
             sum = modelSummaries.iloc[0]
 
             # This is probably a predict model then
-            if sum['regions'] == 0:
+            if sum['regions'] == 0 and sum['errors'] != -1:
                 if isinstance(sum['penalty'], str):
                     penalty = sum['penalty']
                 else:
@@ -69,13 +69,14 @@ def getModels(data, txn=None):
                 except KeyError:
                     log.warning('Missing a model for summary', modelSummaries)
                     continue
+
                 minErrorModel = minErrorModel[minErrorModel['annotation'] == 'peak']
                 minErrorModel.columns = jbrowseModelColumns
 
                 output = output.append(minErrorModel, ignore_index=True)
                 continue
             else:
-                altout = generateAltModel(data, problem, txn=txn)
+                altout = generateAltModel(data, problem, problemLabels, txn=txn)
                 if isinstance(altout, pd.DataFrame):
                     output = output.append(altout, ignore_index=True)
                 continue
@@ -376,6 +377,9 @@ def generateAltModel(data, problem, labels, txn=None):
     lenBin = (end - start) / scaledBins
 
     denom = end - start
+
+    inBoundsLabels = labels.apply(db.checkInBounds, axis=1, args=(chrom, start, end))
+    labels = labels[inBoundsLabels]
 
     # either convert labels to an index value or empty dataframe with cols if not
     if len(labels.index) < 1:
