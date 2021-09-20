@@ -491,7 +491,13 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         print(self.driver.title)
 
-        assert "chr3:93456298..193993404" in self.driver.title
+        try:
+            if os.environ['TESTING'].lower() == 'true':
+                assert "chr3:93452315..193989421" in self.driver.title
+        except KeyError:
+            assert "chr3:93456298..193993404" in self.driver.title
+
+
 
     def scrollUp(self):
         wait = WebDriverWait(self.driver, waitTime)
