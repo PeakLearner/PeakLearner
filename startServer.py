@@ -35,12 +35,12 @@ def startup():
     db.clearLocks()
 
 
-scheduler.add_job(spawnJobs, 'interval', seconds=60)
-scheduler.add_job(runPrediction, 'interval', minutes=10)
-scheduler.add_job(checkJobsRestart, 'interval', seconds=60)
+# scheduler.add_job(spawnJobs, 'interval', seconds=60)
+# scheduler.add_job(runPrediction, 'interval', seconds=60)
+# scheduler.add_job(checkJobsRestart, 'interval', minutes=60)
 
 
 if __name__ == '__main__':
     startup()
     scheduler.start()
-    uvicorn.run('core.main:app', host=host, port=port, workers=numWorkers)
+    uvicorn.run('core.main:app', host=host, port=port, workers=1)

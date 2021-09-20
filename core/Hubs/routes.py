@@ -223,3 +223,21 @@ async def getLabeledRegion(request: Request, user: str, hub: str):
     query = {'user': user, 'hub': hub, 'type': 'labeled'}
 
     return Hubs.goToRegion(query)
+
+
+@core.otherRouter.put('/uploadHubDict')
+async def uploadHubDict(request: Request):
+    from core.Permissions import Permissions
+    data = await request.json()
+    Hubs.uploadHubDicts(data)
+
+
+@core.otherRouter.put('/putProblem')
+async def putProblem(request: Request):
+    from core.Permissions import Permissions
+    data = await request.json()
+    Hubs.putProblem(data)
+
+
+
+

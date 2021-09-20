@@ -34,8 +34,6 @@ async def getLabels(request: Request, user: str, hub: str, track: str, ref: str 
 
     if outputType == 'json' or outputType == 'application/json' or outputType == '*/*':
         outputDict = output.to_dict('records')
-        print('here')
-        print(outputDict)
         return outputDict
 
     elif outputType == 'csv' or outputType == 'text/csv':
@@ -189,3 +187,11 @@ async def deleteHubLabel(request: Request, user: str, hub: str, hubLabelData: Hu
     output = Labels.deleteHubLabels(data)
 
     return Response(json.dumps(output), media_type='application/json')
+
+
+@core.otherRouter.put('/putLabelsRefresh')
+async def putLabelsForRefresh(request: Request):
+    data = await request.json()
+
+    Labels.putLabelsRefresh(data)
+

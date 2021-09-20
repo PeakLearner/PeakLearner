@@ -187,6 +187,12 @@ def getAllModelSums(request: Request):
     return core.dfPotentialSeriesOut(request, output)
 
 
+@core.otherRouter.put('/modelSumFeatures')
+async def putModelSumFeatures(request: Request):
+    data = await request.json()
+    Models.putModelSumFeatures(data)
+
+
 if cfg.testing:
     class ModelSumData(BaseModel):
         user: str

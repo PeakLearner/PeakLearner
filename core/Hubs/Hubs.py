@@ -802,3 +802,25 @@ def downloadAndUnpackFile(url, path):
 @txnAbortOnError
 def getHubInfo(data, txn=None):
     return db.HubInfo(data['user'], data['hub']).get(txn=txn)
+
+
+@retry
+@txnAbortOnError
+def uploadHubDicts(data, txn=None):
+    for key, dataDict in data.items():
+        hubInfo = dataDict['info']
+        permissions = dataDict['permissions']
+        user = dataDict['user']
+        hub = dataDict['hub']
+        permToStore = Permissions.Permission.fromStorable(permissions)
+        permToStore.putPermissionsWithTxn(txn=txn)
+        db.HubInfo(user, hub).put(hubInfo, txn=txn)
+
+
+@retry
+@txnAbortOnError
+def putProblem(data, txn=None):
+    key = data['genome']
+    problems = pd.read_json(data['problems'])
+
+    db.Problems(key).put(problems, txn=None)
