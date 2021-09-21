@@ -27,17 +27,22 @@ pd.set_option('mode.chained_assignment', None)
 @retry
 @txnAbortOnError
 def getModels(data, txn=None):
+    chromLabels = db.Labels(data['user'], data['hub'], data['track'], data['ref']).get(txn=txn)
+
     problems = Tracks.getProblems(data, txn=txn)
 
     output = pd.DataFrame()
 
     for problem in problems:
+        isInBounds = chromLabels.apply(db.checkInBounds, axis=1, args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
+
+        problemLabels = chromLabels[isInBounds]
 
         modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart']).get(txn=txn)
 
         if len(modelSummaries.index) < 1:
-            altout = generateAltModel(data, problem, txn=txn)
+            altout = generateAltModel(data, problem, problemLabels, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
 
@@ -47,7 +52,7 @@ def getModels(data, txn=None):
             sum = modelSummaries.iloc[0]
 
             # This is probably a predict model then
-            if sum['regions'] == 0:
+            if sum['regions'] == 0 and sum['errors'] != -1:
                 if isinstance(sum['penalty'], str):
                     penalty = sum['penalty']
                 else:
@@ -64,13 +69,14 @@ def getModels(data, txn=None):
                 except KeyError:
                     log.warning('Missing a model for summary', modelSummaries)
                     continue
+
                 minErrorModel = minErrorModel[minErrorModel['annotation'] == 'peak']
                 minErrorModel.columns = jbrowseModelColumns
 
                 output = output.append(minErrorModel, ignore_index=True)
                 continue
             else:
-                altout = generateAltModel(data, problem, txn=txn)
+                altout = generateAltModel(data, problem, problemLabels, txn=txn)
                 if isinstance(altout, pd.DataFrame):
                     output = output.append(altout, ignore_index=True)
                 continue
@@ -79,7 +85,7 @@ def getModels(data, txn=None):
         modelSummaries = modelSummaries[modelSummaries['errors'] >= 0]
 
         if len(modelSummaries.index) < 1:
-            altout = generateAltModel(data, problem, txn=txn)
+            altout = generateAltModel(data, problem, problemLabels, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -87,7 +93,7 @@ def getModels(data, txn=None):
         nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
 
         if len(nonZeroRegions.index) < 1:
-            altout = generateAltModel(data, problem, txn=txn)
+            altout = generateAltModel(data, problem, problemLabels, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -95,7 +101,7 @@ def getModels(data, txn=None):
         withPeaks = nonZeroRegions[nonZeroRegions['numPeaks'] > 0]
 
         if len(withPeaks.index) < 1:
-            altout = generateAltModel(data, problem, txn=txn)
+            altout = generateAltModel(data, problem, problemLabels, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -103,7 +109,7 @@ def getModels(data, txn=None):
         noError = withPeaks[withPeaks['errors'] < 1]
 
         if len(noError.index) < 1:
-            altout = generateAltModel(data, problem, txn=txn)
+            altout = generateAltModel(data, problem, problemLabels, txn=txn)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -231,16 +237,36 @@ def updateAllModelLabels(data, labels, txn):
 
         newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem, modelTxn))
 
+        try:
+            toDelete = newSum['delete'] == 1
+            newSum = newSum[~toDelete].drop('delete', axis=1)
+        except KeyError:
+            pass
+
         modelSummaries.put(newSum, txn=modelTxn)
 
         modelTxn.commit()
 
 
 def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
-    model = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
-                     problem['chromStart'], modelSum['penalty']).get(txn=txn)
+    if modelSum['numPeaks'] < 1:
+        return modelSum
+
+    modelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
+                     problem['chromStart'], modelSum['penalty'])
+
+    model = modelDb.get(txn=txn)
+
+    if model is None:
+        modelSum['delete'] = True
+        return modelSum
+    elif model.empty:
+        modelSum['delete'] = True
+        modelDb.put(None, txn=txn)
+        return modelSum
 
     return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
+
 
 
 @retry
@@ -339,7 +365,7 @@ def getZoomIn(problem):
             'type': 'zoomIn'}
 
 
-def generateAltModel(data, problem, txn=None):
+def generateAltModel(data, problem, labels, txn=None):
     if 'modelType' not in data:
         return []
 
@@ -370,9 +396,10 @@ def generateAltModel(data, problem, txn=None):
 
     lenBin = (end - start) / scaledBins
 
-    dbLabels = db.Labels(user, hub, track, chrom)
-    labels = dbLabels.getInBounds(chrom, start, end, txn=txn, write=True)
     denom = end - start
+
+    inBoundsLabels = labels.apply(db.checkInBounds, axis=1, args=(chrom, start, end))
+    labels = labels[inBoundsLabels]
 
     # either convert labels to an index value or empty dataframe with cols if not
     if len(labels.index) < 1:

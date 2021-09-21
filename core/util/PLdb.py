@@ -25,11 +25,14 @@ def clearLocks():
             os.remove(filePath)
 
 
-def openDBs():
+def openEnv():
     db.open_env()
     db.createEnvWithDir(dbPath)
-    db.open_dbs()
     db.setLockDetect()
+
+
+def openDBs():
+    db.open_dbs()
 
 
 def closeDBObjects():
@@ -70,6 +73,9 @@ def getTxn(parent=None):
 
 class Model(db.PandasDf):
     keys = ("user", "hub", "track", "chrom", "problemstart", "penalty")
+
+    def make_details(self):
+        return None
 
     def getInBounds(self, chrom, start, end, txn=None):
         model = self.get(txn=txn)

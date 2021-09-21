@@ -223,3 +223,7 @@ async def getLabeledRegion(request: Request, user: str, hub: str):
     query = {'user': user, 'hub': hub, 'type': 'labeled'}
 
     return Hubs.goToRegion(query)
+
+
+
+

@@ -1,5 +1,5 @@
 import core
-from fastapi import Response
+from fastapi import Response, Request
 from core.Prediction import Prediction
 
 
@@ -7,4 +7,3 @@ from core.Prediction import Prediction
 async def runPrediction():
     Prediction.runPrediction({})
     return Response(status_code=200)
-
