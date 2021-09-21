@@ -257,7 +257,10 @@ def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
 
     model = modelDb.get(txn=txn)
 
-    if model.empty:
+    if model is None:
+        modelSum['delete'] = True
+        return modelSum
+    elif model.empty:
         modelSum['delete'] = True
         modelDb.put(None, txn=txn)
         return modelSum

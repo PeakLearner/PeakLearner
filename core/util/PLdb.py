@@ -74,6 +74,9 @@ def getTxn(parent=None):
 class Model(db.PandasDf):
     keys = ("user", "hub", "track", "chrom", "problemstart", "penalty")
 
+    def make_details(self):
+        return None
+
     def getInBounds(self, chrom, start, end, txn=None):
         model = self.get(txn=txn)
 
