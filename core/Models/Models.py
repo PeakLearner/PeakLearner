@@ -237,16 +237,33 @@ def updateAllModelLabels(data, labels, txn):
 
         newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem, modelTxn))
 
+        try:
+            toDelete = newSum['delete'] == 1
+            newSum = newSum[~toDelete].drop('delete', axis=1)
+        except KeyError:
+            pass
+
         modelSummaries.put(newSum, txn=modelTxn)
 
         modelTxn.commit()
 
 
 def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
-    model = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
-                     problem['chromStart'], modelSum['penalty']).get(txn=txn)
+    if modelSum['numPeaks'] < 1:
+        return modelSum
+
+    modelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
+                     problem['chromStart'], modelSum['penalty'])
+
+    model = modelDb.get(txn=txn)
+
+    if model.empty:
+        modelSum['delete'] = True
+        modelDb.put(None, txn=txn)
+        return modelSum
 
     return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
+
 
 
 @retry

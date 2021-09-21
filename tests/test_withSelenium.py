@@ -489,8 +489,6 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         go.click()
 
-        print(self.driver.title)
-
         try:
             if os.environ['TESTING'].lower() == 'true':
                 assert "chr3:93452315..193989421" in self.driver.title
