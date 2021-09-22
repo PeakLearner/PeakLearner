@@ -13,14 +13,18 @@ port = 8080
 bind = '%s:%s' % (host, port)
 url = 'http://%s' % bind
 numWorkers = 4
+waited = 0
 
 
 # Kind of a hack using requests to make the tasks run inside a worker which has a database connection
 
 # Background tasks
 def spawnJobs():
-    requests.get(os.path.join(url, 'runJobSpawn'))
-
+    global waited
+    if waited > 5:
+        requests.get(os.path.join(url, 'runJobSpawn'))
+    else:
+        waited += 1
 
 def checkJobsRestart():
     requests.get(os.path.join(url, 'checkRestartJobs'))
