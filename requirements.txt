@@ -27,7 +27,6 @@ aiohttp==3.7.4
 asynctest==0.13.0
 apscheduler==3.7.0
 python-multipart==0.0.5
-couchbase==3.2.0
 git+https://github.com/deltarod/PeakError
 git+https://github.com/deltarod/PeakSegDisk
 git+https://github.com/deltarod/LOPART

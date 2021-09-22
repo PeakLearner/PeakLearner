@@ -20,8 +20,8 @@ csvResponse = {
                       summary='Get the labels for a given track',
                       description='Gets the labels for a given track, with parameters for limiting the query')
 async def getLabels(request: Request, user: str, hub: str, track: str, ref: str = None, start: int = None,
-                    end: int = None):
-    query = {'user': user, 'hub': hub, 'track': track, 'ref': ref, 'start': start, 'end': end}
+                    end: int = None, contig: bool = False):
+    query = {'user': user, 'hub': hub, 'track': track, 'ref': ref, 'start': start, 'end': end, 'contig': contig}
     output = Labels.getLabels(data=query)
 
     if isinstance(output, list):
@@ -109,14 +109,14 @@ keysToInt = ['start', 'end']
                     responses=csvResponse,
                     summary='Get the labels for a given hub/tracks',
                     description='Gets the labels for a given track, with parameters for limiting the query')
-async def getHubLabels(request: Request, user: str, hub: str):
+async def getHubLabels(request: Request, user: str, hub: str, contig: bool = False):
     authUser = request.session.get('user')
 
     if authUser is None:
         authUser = 'Public'
     else:
         authUser = authUser['email']
-    data = {'user': user, 'hub': hub, 'authUser': authUser}
+    data = {'user': user, 'hub': hub, 'authUser': authUser, 'contig': contig}
 
     output = Labels.getHubLabels(data)
 

@@ -7,6 +7,7 @@ from simpleBDB import retry, txnAbortOnError
 
 labelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
 jbrowseLabelColumns = ['ref', 'start', 'end', 'label']
+jbrowseContigLabelColumns = ['ref', 'start', 'end', 'label', 'contigStart', 'contigEnd']
 
 
 @retry
@@ -185,8 +186,17 @@ def getLabels(data, txn=None):
     if len(labelsDf.index) < 1:
         return []
 
-    labelsOut = labelsDf[labelColumns]
-    labelsOut.columns = jbrowseLabelColumns
+
+
+    if data['contig']:
+        labelsOut = labelsDf[labelColumns]
+        hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
+        contigs = db.Problems(hubInfo['genome']).get(txn=txn)
+        labelsOut = labelsOut.apply(addContigToLabel, axis=1, args=(contigs,))
+        labelsOut.columns = jbrowseContigLabelColumns
+    else:
+        labelsOut = labelsDf[labelColumns]
+        labelsOut.columns = jbrowseLabelColumns
     try:
         labelsOut['lastModifiedBy'] = labelsDf['lastModifiedBy']
         labelsOut['lastModified'] = labelsDf['lastModifiedBy']
@@ -194,7 +204,9 @@ def getLabels(data, txn=None):
         pass
 
     # https://stackoverflow.com/a/14163209/14396857
-    return labelsOut.where(pd.notnull(labelsOut), None)
+    labelsOut = labelsOut.where(pd.notnull(labelsOut), None)
+
+    return labelsOut
 
 
 @retry
@@ -229,7 +241,25 @@ def getHubLabels(data, txn=None):
             labels['track'] = track
 
             output = output.append(labels)
+
+    if data['contig']:
+        hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
+        contigs = db.Problems(hubInfo['genome']).get(txn=txn)
+        output = output.apply(addContigToLabel, axis=1, args=(contigs,))
     return output
+
+
+def addContigToLabel(row, contig):
+    inBounds = contig.apply(db.checkInBounds, axis=1, args=(row['chrom'], row['chromStart'], row['chromEnd']))
+
+    contigInBounds = contig[inBounds]
+
+    if len(contigInBounds.index) == 1:
+        contigRow = contigInBounds.iloc[0]
+        row['contigStart'] = contigRow['chromStart']
+        row['contigEnd'] = contigRow['chromEnd']
+
+    return row
 
 
 @retry

@@ -76,6 +76,12 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         assert len(out.json()) != 0
 
+        # Test get with contig
+        out = self.testapp.get(self.labelURL, params={'contig': True}, headers={'Accept': 'application/json'})
+
+        assert out.status_code == 200
+
+        assert len(out.json()) != 0
 
 
 
