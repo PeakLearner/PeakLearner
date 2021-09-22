@@ -128,7 +128,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         assert request.status_code == 200
 
         # Check Label Added
-        request = self.getLabels(params=self.rangeArgs)
+        request = self.getLabels(params={**self.rangeArgs, 'contig': True})
 
         assert request.status_code == 200
 
@@ -167,6 +167,8 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         assert request.status_code == 200
 
         assert len(request.json()) == numLabelsBefore + 1
+
+        assert request.status_code == 200
 
         # Remove Labels
         for label in request.json():
