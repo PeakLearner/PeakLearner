@@ -49,6 +49,23 @@ def closeDBs():
     db.close_env()
 
 
+from datetime import datetime
+
+
+def doBackup():
+    backupDir = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'backup')
+
+    if not os.path.exists(backupDir):
+        os.makedirs(backupDir)
+
+    currentBackupDir = os.path.join(backupDir, str(datetime.today().date()))
+
+    if not os.path.exists(currentBackupDir):
+        os.makedirs(currentBackupDir)
+
+    db.doBackup(currentBackupDir)
+
+
 def cleanLogs():
     filesToBackup = db.getLogArchive()
 
