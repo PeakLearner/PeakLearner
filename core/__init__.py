@@ -83,3 +83,9 @@ def dfPotentialSeriesOut(request: Request, out: pd.DataFrame) -> Response:
         return Response(json.dumps(output), media_type='application/json')
     elif outputType == 'text/csv':
         return Response(out.to_csv(), media_type='text/csv')
+
+
+@otherRouter.get('/backup')
+def doBackup():
+    from core.util import PLdb as db
+    db.doBackup()
