@@ -966,7 +966,6 @@ initView: function() {
                             var tracks = thisObj.view.visibleTracks();
                             array.forEach( tracks, function( track ) {
                                 // operate only on XYPlot or Density tracks
-                                console.log(track.config.type);
                                 if( ! /\b(XYPlot|Density|Model)/.test( track.config.type ) )
                                     return;
 

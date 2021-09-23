@@ -255,6 +255,55 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
     def test_goToUnlabeledRegion(self):
         self.goToRegion('unlabeled')
 
+    def test_resize(self):
+        self.driver.get(url)
+
+        self.driver.find_element(By.ID, 'myHubs').click()
+
+        self.driver.find_element(By.ID, '(\'Public\', \'H3K4me3_TDH_ENCODE\')_publicHubLink').click()
+
+        self.moveToDefinedLocation()
+
+        # Zoom in once so just incase it goes to the defined location region which is labeled already
+        self.zoomIn()
+
+        title = self.driver.title
+
+        self.selectTracks(numTracks=3)
+
+        track = self.driver.find_element(By.ID, 'track_aorta_ENCFF115HTK')
+
+        oldHeight = track.size['height']
+
+        wait = WebDriverWait(self.driver, waitTime)
+
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "view")))
+
+        self.driver.find_element(By.CLASS_NAME, 'view').click()
+
+        wait.until(EC.presence_of_element_located((By.ID, "dropdownmenu_view")))
+
+        wait.until(EC.presence_of_element_located((By.ID, "menubar_settrackheight_text")))
+        self.driver.find_element(By.ID, 'menubar_settrackheight_text').click()
+
+        wait.until(EC.presence_of_element_located((By.ID, 'dijit_form_NumberSpinner_0')))
+
+        text = self.driver.find_element(By.ID, 'dijit_form_NumberSpinner_0')
+
+        text.clear()
+
+        text.send_keys('50')
+
+        ok = self.driver.find_element(By.ID, 'dijit_form_Button_1_label')
+
+        ok.click()
+
+        track = self.driver.find_element(By.ID, 'track_aorta_ENCFF115HTK')
+
+        assert oldHeight != track.size['height']
+
+
+
     def goToRegion(self, region):
         self.driver.get(url)
 
