@@ -4,6 +4,7 @@ import pandas as pd
 from core.util import PLdb as db
 from core.Models import Models
 from simpleBDB import retry, txnAbortOnError
+from fastapi import Response
 
 labelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
 jbrowseLabelColumns = ['ref', 'start', 'end', 'label']
@@ -15,6 +16,8 @@ jbrowseContigLabelColumns = ['ref', 'start', 'end', 'label', 'contigStart', 'con
 def addLabel(data, txn=None):
     # Duplicated because calls from updateLabel are causing freezing
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
+    if perms is None:
+        return Response(status_code=404)
     if perms.hasPermission(data['authUser'], 'Label'):
         newLabel = pd.Series({'chrom': data['ref'],
                               'chromStart': data['start'],
@@ -37,6 +40,8 @@ def addLabel(data, txn=None):
         labelsDb.put(labels, txn=txn)
         db.Prediction('changes').increment(txn=txn)
         Models.updateAllModelLabels(data, labels, txn)
+    else:
+        return Response(status_code=401)
     return data
 
 
@@ -45,6 +50,8 @@ def addLabel(data, txn=None):
 def addHubLabels(data, txn=None):
     # Duplicated because calls from updateLabel are causing freezing
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
+    if perms is None:
+        return Response(status_code=404)
     if perms.hasPermission(data['authUser'], 'Label'):
         newLabel = pd.Series({'chrom': data['ref'],
                               'chromStart': data['start'],
@@ -78,6 +85,8 @@ def addHubLabels(data, txn=None):
             db.Prediction('changes').increment(txn=trackTxn)
             Models.updateAllModelLabels(data, labels, trackTxn)
             trackTxn.commit()
+    else:
+        return Response(status_code=401)
     return data
 
 
@@ -85,6 +94,8 @@ def addHubLabels(data, txn=None):
 @txnAbortOnError
 def deleteLabel(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
+    if perms is None:
+        return Response(status_code=404)
     if perms.hasPermission(data['authUser'], 'Label'):
         toRemove = pd.Series({'chrom': data['ref'],
                               'chromStart': data['start'],
@@ -95,13 +106,17 @@ def deleteLabel(data, txn=None):
         db.Prediction('changes').increment(txn=txn)
         Models.updateAllModelLabels(data, after, txn)
         return True
-    return False
+    else:
+        return Response(status_code=401)
+
 
 
 @retry
 @txnAbortOnError
 def deleteHubLabels(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
+    if perms is None:
+        return Response(status_code=404)
     if perms.hasPermission(data['authUser'], 'Label'):
         labelToRemove = pd.Series({'chrom': data['ref'],
                                    'chromStart': data['start'],
@@ -125,11 +140,16 @@ def deleteHubLabels(data, txn=None):
             Models.updateAllModelLabels(data, labels, trackTxn)
             trackTxn.commit()
 
+    else:
+        return Response(status_code=401)
+
 
 @retry
 @txnAbortOnError
 def updateLabel(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
+    if perms is None:
+        return Response(status_code=404)
     if perms.hasPermission(data['authUser'], 'Label'):
         label = data['label']
 
@@ -143,12 +163,16 @@ def updateLabel(data, txn=None):
         db.Prediction('changes').increment(txn=txn)
         item, labels = labelDb.add(labelToUpdate, txn=txn)
         Models.updateAllModelLabels(data, labels, txn)
+    else:
+        return Response(status_code=401)
 
 
 @retry
 @txnAbortOnError
 def updateHubLabels(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
+    if perms is None:
+        return Response(status_code=404)
     if perms.hasPermission(data['authUser'], 'Label'):
         labelToUpdate = pd.Series({'chrom': data['ref'],
                                    'chromStart': data['start'],
@@ -176,37 +200,45 @@ def updateHubLabels(data, txn=None):
             trackTxn.commit()
 
         return item.to_dict()
+    else:
+        return Response(status_code=401)
 
 
 @retry
 @txnAbortOnError
 def getLabels(data, txn=None):
-    labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-    labelsDf = labels.getInBounds(data['ref'], data['start'], data['end'], txn=txn)
-    if len(labelsDf.index) < 1:
-        return []
+    perms = db.Permission(data['user'], data['hub']).get(txn=txn)
 
+    if perms is None:
+        return Response(status_code=404)
 
+    if perms.hasPermission(data['authUser'], 'Label'):
+        labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
+        labelsDf = labels.getInBounds(data['ref'], data['start'], data['end'], txn=txn)
+        if len(labelsDf.index) < 1:
+            return []
 
-    if data['contig']:
-        labelsOut = labelsDf[labelColumns]
-        hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
-        contigs = db.Problems(hubInfo['genome']).get(txn=txn)
-        labelsOut = labelsOut.apply(addContigToLabel, axis=1, args=(contigs,))
-        labelsOut.columns = jbrowseContigLabelColumns
+        if data['contig']:
+            labelsOut = labelsDf[labelColumns]
+            hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
+            contigs = db.Problems(hubInfo['genome']).get(txn=txn)
+            labelsOut = labelsOut.apply(addContigToLabel, axis=1, args=(contigs,))
+            labelsOut.columns = jbrowseContigLabelColumns
+        else:
+            labelsOut = labelsDf[labelColumns]
+            labelsOut.columns = jbrowseLabelColumns
+        try:
+            labelsOut['lastModifiedBy'] = labelsDf['lastModifiedBy']
+            labelsOut['lastModified'] = labelsDf['lastModifiedBy']
+        except KeyError:
+            pass
+
+        # https://stackoverflow.com/a/14163209/14396857
+        labelsOut = labelsOut.where(pd.notnull(labelsOut), None)
+
+        return labelsOut
     else:
-        labelsOut = labelsDf[labelColumns]
-        labelsOut.columns = jbrowseLabelColumns
-    try:
-        labelsOut['lastModifiedBy'] = labelsDf['lastModifiedBy']
-        labelsOut['lastModified'] = labelsDf['lastModifiedBy']
-    except KeyError:
-        pass
-
-    # https://stackoverflow.com/a/14163209/14396857
-    labelsOut = labelsOut.where(pd.notnull(labelsOut), None)
-
-    return labelsOut
+        return Response(status_code=401)
 
 
 @retry
@@ -216,7 +248,10 @@ def getHubLabels(data, txn=None):
 
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
 
-    if perms is None or perms.hasPermission(data['authUser'], 'Label'):
+    if perms is None:
+        return Response(status_code=404)
+
+    if perms.hasPermission(data['authUser'], 'Label'):
         if 'tracks' in data and data['tracks'] is not None:
             tracks = data['tracks']
         else:
@@ -241,6 +276,8 @@ def getHubLabels(data, txn=None):
             labels['track'] = track
 
             output = output.append(labels)
+    else:
+        return Response(status_code=401)
 
     if data['contig']:
         hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)

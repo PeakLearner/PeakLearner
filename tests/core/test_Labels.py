@@ -25,6 +25,8 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     track = 'aorta_ENCFF115HTK'
     hubURL = os.path.join(user, hub)
     labelURL = os.path.join(hubURL, 'labels')
+    badHubUrl = os.path.join('fake', hub)
+    badLabelURL = os.path.join(badHubUrl, 'labels')
     rangeArgs = {'ref': 'chr1', 'start': 0, 'end': 120000000}
 
     def setUp(self):
@@ -38,6 +40,12 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
     def test_addHubLabel(self):
         label = {'ref': 'chr1', 'start': 15250059, 'end': 15251519, 'label': 'peakStart'}
+
+        # Test label for non existant route
+        out = self.testapp.put(self.badLabelURL, json=label)
+
+        assert out.status_code == 404
+
         out = self.testapp.put(self.labelURL, json=label)
 
         assert out.status_code == 200
@@ -83,6 +91,10 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         assert len(out.json()) != 0
 
+        # Test bad hub
+        out = self.testapp.get(self.badLabelURL, params={'contig': True}, headers={'Accept': 'application/json'})
+
+        assert out.status_code == 404
 
 
 

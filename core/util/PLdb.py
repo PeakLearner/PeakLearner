@@ -349,8 +349,6 @@ class Permission(db.Resource):
             return db.Resource.toStorable(data)
         return None
 
-    def make_details(self):
-        return Permissions.defaultPerms
     pass
 
 

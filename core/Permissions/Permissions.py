@@ -1,6 +1,7 @@
 from simpleBDB import retry, txnAbortOnError, AbortTXNException
 from core.util import PLdb as db
 from fastapi.security import OAuth2PasswordBearer
+from fastapi import Response
 
 
 defaultPerms = {'Label': True, 'Track': False, 'Hub': False, 'Moderator': False}
@@ -122,8 +123,11 @@ def addUserToHub(request, owner, hubName, newUser, txn=None):
     permDb = db.Permission(owner, hubName)
     perms = permDb.get(txn=txn, write=True)
 
+    if perms is None:
+        return Response(status_code=404)
+
     if not perms.hasPermission(authUser, 'Hub'):
-        return
+        return Response(status_code=401)
 
     perms.users[newUser] = defaultPerms.copy()
 

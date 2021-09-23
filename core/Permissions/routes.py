@@ -66,7 +66,9 @@ async def addUser(request: Request, user: str, hub: str, userEmail: str = Form(.
         current hub is seamless.
     """
 
-    Permissions.addUserToHub(request, user, hub, userEmail)
+    out = Permissions.addUserToHub(request, user, hub, userEmail)
+    if out is not None:
+        return out
 
     return RedirectResponse('/myHubs', status_code=302)
 
@@ -84,6 +86,8 @@ async def removeUser(request: Request, user: str, hub: str, coUserName: str = Fo
         current hub is seamless.
     """
 
-    Hubs.removeUserFromHub(request, user, hub, coUserName)
+    out = Hubs.removeUserFromHub(request, user, hub, coUserName)
+    if out is not None:
+        return out
 
     return RedirectResponse('/myHubs', status_code=302)
