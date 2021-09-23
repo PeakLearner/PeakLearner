@@ -88,4 +88,5 @@ def dfPotentialSeriesOut(request: Request, out: pd.DataFrame) -> Response:
 @otherRouter.get('/backup')
 def doBackup():
     from core.util import PLdb as db
+    db.cleanLogs()
     db.doBackup()
