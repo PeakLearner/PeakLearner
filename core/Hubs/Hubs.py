@@ -6,6 +6,7 @@ import tempfile
 import threading
 import pandas as pd
 from core.Jobs import Jobs
+from fastapi import Response
 from core.Labels import Labels
 from core.Models import Models
 from core.Handlers import Tracks
@@ -113,9 +114,11 @@ def removeUserFromHub(request, owner, hubName, delUser, txn=None):
     permDb = db.Permission(owner, hubName)
     perms = permDb.get(txn=txn, write=True)
 
+    if perms is None:
+        return Response(status_code=404)
+
     if not perms.hasPermission(authUser, 'Hub'):
-        txn.commit()
-        return
+        return Response(status_code=401)
 
     del perms.users[delUser]
 
@@ -131,11 +134,14 @@ def addTrack(owner, hubName, userid, category, trackName, url, txn=None):
     permDb = db.Permission(owner, hubName)
     perms = permDb.get(txn=txn)
 
-    if not perms.hasPermission(userid, 'Hub'):
-        raise AbortTXNException
+    if perms is None:
+        return Response(status_code=404)
 
-    hub['tracks'][trackName] = {'categories': category, 'key': trackName, 'url': url}
-    db.HubInfo(owner, hubName).put(hub, txn=txn)
+    if perms.hasPermission(userid, 'Hub'):
+        hub['tracks'][trackName] = {'categories': category, 'key': trackName, 'url': url}
+        db.HubInfo(owner, hubName).put(hub, txn=txn)
+    else:
+        return Response(status_code=401)
 
 
 @retry
@@ -146,8 +152,11 @@ def removeTrack(owner, hubName, userid, trackName, txn=None):
     permDb = db.Permission(owner, hubName)
     perms = permDb.get(txn=txn)
 
+    if perms is None:
+        return Response(status_code=404)
+
     if not perms.hasPermission(userid, 'Hub'):
-        raise AbortTXNException
+        return Response(status_code=401)
 
     del hub['tracks'][trackName]
     db.HubInfo(owner, hubName).put(hub, txn=txn)
@@ -218,8 +227,11 @@ def makeHubPublic(data, txn=None):
 
     if userid != owner:
         perms = db.Permission(owner, hubName).get(txn=txn)
+        if perms is None:
+            return Response(status_code=404)
+
         if not perms.hasPermission(userid, 'Hub'):
-            return False
+            return Response(status_code=401)
 
     hub = db.HubInfo(owner, hubName).get(txn=txn, write=True)
     hub['isPublic'] = data['chkpublic']

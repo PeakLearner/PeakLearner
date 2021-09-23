@@ -7,7 +7,7 @@ from core.Labels import Labels
 from core.util import PLConfig as cfg
 
 from pydantic import BaseModel
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Request, Form, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -144,6 +144,9 @@ async def setPublic(request: Request, user: str, hub: str):
 
     returnVal = Hubs.makeHubPublic(data)
 
+    if isinstance(returnVal, Response):
+        return Response
+
     # See other status code, should redirect to GET response instead of POST
     return RedirectResponse('/myHubs', status_code=304)
 
@@ -174,7 +177,9 @@ def addTrack(request: Request, user: str, hub: str, category: str = Form(...), t
     hubName = hub
     owner = user
 
-    Hubs.addTrack(owner, hubName, userEmail, category, track, url)
+    out = Hubs.addTrack(owner, hubName, userEmail, category, track, url)
+    if isinstance(out, Response):
+        return out
 
     return RedirectResponse('/myHubs', status_code=302)
 
@@ -202,7 +207,9 @@ async def removeTrack(request: Request, user: str, hub: str, trackName: str = Fo
     else:
         userEmail = authUser['email']
 
-    Hubs.removeTrack(user, hub, userEmail, trackName)
+    out = Hubs.removeTrack(user, hub, userEmail, trackName)
+    if out is not None:
+        return out
 
     return RedirectResponse('/myHubs', status_code=302)
 

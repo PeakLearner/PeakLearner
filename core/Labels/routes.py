@@ -21,11 +21,28 @@ csvResponse = {
                       description='Gets the labels for a given track, with parameters for limiting the query')
 async def getLabels(request: Request, user: str, hub: str, track: str, ref: str = None, start: int = None,
                     end: int = None, contig: bool = False):
-    query = {'user': user, 'hub': hub, 'track': track, 'ref': ref, 'start': start, 'end': end, 'contig': contig}
+    authUser = request.session.get('user')
+
+    if authUser is None:
+        authUser = 'Public'
+    else:
+        authUser = authUser['email']
+
+    query = {'user': user,
+             'hub': hub,
+             'track': track,
+             'ref': ref,
+             'start': start,
+             'end': end,
+             'contig': contig,
+             'authUser': authUser}
+
     output = Labels.getLabels(data=query)
 
     if isinstance(output, list):
         return Response(status_code=204)
+    elif isinstance(output, Response):
+        return output
 
     if 'Accept' in request.headers:
         outputType = request.headers['Accept']
@@ -78,7 +95,12 @@ async def postLabel(request: Request, user: str, hub: str, track: str, label: La
 
     query = {'user': user, 'hub': hub, 'track': track, 'authUser': authUser, **dict(label)}
 
-    return Labels.updateLabel(query)
+    out = Labels.updateLabel(query)
+
+    if isinstance(out, Response):
+        return out
+
+    return out
 
 
 @core.trackRouter.delete('/labels',
@@ -94,7 +116,11 @@ async def deleteLabel(request: Request, user: str, hub: str, track: str, label: 
 
     query = {'user': user, 'hub': hub, 'track': track, 'authUser': authUser, **dict(label)}
 
-    if Labels.deleteLabel(query):
+    out = Labels.deleteLabel(query)
+
+    if isinstance(out, Response):
+        return out
+    if out:
         return Response(status_code=200)
     return Response(status_code=404)
 
@@ -122,6 +148,8 @@ async def getHubLabels(request: Request, user: str, hub: str, contig: bool = Fal
 
     if isinstance(output, list):
         return Response(status_code=204)
+    elif isinstance(output, Response):
+        return output
 
     return core.dfOut(request, output)
 
@@ -152,6 +180,9 @@ async def putHubLabel(request: Request, user: str, hub: str, hubLabelData: HubLa
 
     output = Labels.addHubLabels(data)
 
+    if isinstance(output, Response):
+        return output
+
     return Response(json.dumps(output), media_type='application/json')
 
 
@@ -169,6 +200,9 @@ async def postHubLabel(request: Request, user: str, hub: str, hubLabelData: HubL
 
     output = Labels.updateHubLabels(data)
 
+    if isinstance(output, Response):
+        return output
+
     return Response(json.dumps(output), media_type='application/json')
 
 
@@ -185,6 +219,9 @@ async def deleteHubLabel(request: Request, user: str, hub: str, hubLabelData: Hu
     data = {'user': user, 'hub': hub, **dict(hubLabelData), 'authUser': authUser}
 
     output = Labels.deleteHubLabels(data)
+
+    if isinstance(output, Response):
+        return output
 
     return Response(json.dumps(output), media_type='application/json')
 
