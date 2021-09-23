@@ -216,7 +216,7 @@ def getHubLabels(data, txn=None):
 
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
 
-    if perms.hasPermission(data['authUser'], 'Label'):
+    if perms is None or perms.hasPermission(data['authUser'], 'Label'):
         if 'tracks' in data and data['tracks'] is not None:
             tracks = data['tracks']
         else:
