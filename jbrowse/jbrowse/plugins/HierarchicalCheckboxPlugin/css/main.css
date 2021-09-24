@@ -1,0 +1,10 @@
+.category-select{
+    display: block;
+    font-style: italic;
+    font-size: 8pt;
+    margin-bottom: 4px
+}
+
+input.hierachcheck{
+    float: right;
+}
