@@ -10,10 +10,10 @@ jobs:
       TESTING: True
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python 3.8
+      - name: Set up Python 3.9
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          python-version: 3.9
       - run: python3 -m pip install -U pip
       - run: sudo apt-get update
       - run: sudo apt-get -y install libdb-dev libdb++-dev samtools r-base
@@ -30,7 +30,7 @@ jobs:
       - run: python --version
       - run: ./setup.sh
         working-directory: jbrowse/jbrowse/
-      - run: python3 -m pip install numpy==1.20.3
+      - run: python3 -m pip install numpy
       - run: python3 -m pip install -r requirements.txt
       - run: mv PeakLearnerTestConfig.cfg PeakLearner.cfg
       - uses: nanasess/setup-chromedriver@master

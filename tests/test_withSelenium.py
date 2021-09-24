@@ -271,7 +271,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         self.selectTracks(numTracks=3)
 
-        track = self.driver.find_element(By.ID, 'track_aorta_ENCFF115HTK')
+        track = self.driver.find_element(By.ID, 'track_aorta_ENCFF502AXL')
 
         oldHeight = track.size['height']
 
@@ -298,7 +298,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         ok.click()
 
-        track = self.driver.find_element(By.ID, 'track_aorta_ENCFF115HTK')
+        track = self.driver.find_element(By.ID, 'track_aorta_ENCFF502AXL')
 
         assert oldHeight != track.size['height']
 
@@ -390,7 +390,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         element.click()
 
-        track = self.driver.find_element(By.ID, 'track_aorta_ENCFF115HTK')
+        track = self.driver.find_element(By.ID, 'track_aorta_ENCFF502AXL')
 
         action = ActionChains(self.driver)
 
@@ -410,7 +410,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         action.release().pause(1).perform()
 
-        wait.until(EC.presence_of_element_located((By.ID, "track_aorta_ENCFF115HTK")))
+        wait.until(EC.presence_of_element_located((By.ID, "track_aorta_ENCFF502AXL")))
 
         tracks = self.driver.find_elements(By.CLASS_NAME, 'track_peaklearnerbackend_view_track_model')
 
