@@ -158,13 +158,10 @@ def getCoverageFile(task, dataPath):
             time.sleep(1)
             continue
 
-        if os.path.exists(coveragePath):
-            break
-
-        # wait a second then make the request again
-        time.sleep(1)
-
-    return fixCoverage(task, coveragePath)
+        try:
+            return fixCoverage(task, coveragePath)
+        except pd.errors.EmptyDataError:
+            return
 
 
 def fixCoverage(task, coveragePath):
@@ -197,6 +194,8 @@ def runTask(task):
 
     dataPath = os.path.join(cfg.dataPath, 'PeakLearner-%s-%s' % (task['id'], task['taskId']))
 
+    currentJobUrl = os.path.join(cfg.jobUrl, task['id'])
+
     if not os.path.exists(dataPath):
         try:
             os.makedirs(dataPath)
@@ -207,36 +206,65 @@ def runTask(task):
 
     coveragePath = getCoverageFile(task, dataPath)
 
-    queueTime = time.time()
+    if coveragePath is not None:
+        queueTime = time.time()
 
-    query = {'taskId': task['taskId'], 'status': 'Processing', 'queuedTime': queueTime - startTime}
+        query = {'taskId': task['taskId'], 'status': 'Processing', 'queuedTime': queueTime - startTime}
 
-    currentJobUrl = os.path.join(cfg.jobUrl, task['id'])
+        try:
+            r = requests.post(currentJobUrl, json=query, verify=cfg.verify)
+        except requests.exceptions.ConnectionError:
+            raise Exception(query)
 
-    try:
-        r = requests.post(currentJobUrl, json=query, verify=cfg.verify)
-    except requests.exceptions.ConnectionError:
-        raise Exception(query)
+        task = r.json()
 
-    task = r.json()
+        funcToRun = getTaskFunc(task)
 
-    funcToRun = getTaskFunc(task)
+        status = funcToRun(task, dataPath, coveragePath, trackUrl)
 
-    status = funcToRun(task, dataPath, coveragePath, trackUrl)
+        endTime = time.time()
 
-    endTime = time.time()
+        totalTime = endTime - startTime
 
-    totalTime = endTime - startTime
+        if not cfg.debug:
+            os.remove(coveragePath)
+            shutil.rmtree(dataPath)
 
-    if not cfg.debug:
-        os.remove(coveragePath)
-        shutil.rmtree(dataPath)
+        if status:
+            query = {'id': task['id'],
+                     'taskId': task['taskId'],
+                     'status': 'Done',
+                     'totalTime': str(totalTime)}
 
-    if status:
+            try:
+                r = requests.post(currentJobUrl, json=query, verify=cfg.verify)
+            except requests.exceptions.ConnectionError:
+                raise Exception(query)
+
+            if not r.status_code == 200:
+                raise Exception(r.status_code)
+
+            return True
+
+        else:
+            query = {'id': task['id'],
+                     'taskId': task['taskId'],
+                     'status': 'Error',
+                     'totalTime': str(totalTime)}
+            try:
+                r = requests.post(currentJobUrl, json=query, verify=cfg.verify)
+            except requests.exceptions.ConnectionError:
+                raise Exception(query)
+
+            if not r.status_code == 200:
+                raise Exception(r.status_code)
+
+            return False
+
+    else:
         query = {'id': task['id'],
                  'taskId': task['taskId'],
-                 'status': 'Done',
-                 'totalTime': str(totalTime)}
+                 'status': 'NoData'}
         try:
             r = requests.post(currentJobUrl, json=query, verify=cfg.verify)
         except requests.exceptions.ConnectionError:
@@ -245,21 +273,7 @@ def runTask(task):
         if not r.status_code == 200:
             raise Exception(r.status_code)
 
-        return True
-
-    query = {'id': task['id'],
-             'taskId': task['taskId'],
-             'status': 'Error',
-             'totalTime': str(totalTime)}
-    try:
-        r = requests.post(currentJobUrl, json=query, verify=cfg.verify)
-    except requests.exceptions.ConnectionError:
-        raise Exception(query)
-
-    if not r.status_code == 200:
-        raise Exception(r.status_code)
-
-    return False
+        return False
 
 
 def getTaskFunc(task):
