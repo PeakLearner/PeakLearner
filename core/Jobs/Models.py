@@ -23,6 +23,7 @@ class Status(str, Enum):
     processing = 'Processing'
     done = 'Done'
     error = 'Error'
+    nodata = 'NoData'
 
 
 class Problem(BaseModel):

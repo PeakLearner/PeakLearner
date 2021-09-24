@@ -14,7 +14,7 @@ from core.util import PLdb as db, PLConfig as cfg
 
 log = logging.getLogger(__name__)
 
-statuses = ['New', 'Queued', 'Processing', 'Done', 'Error']
+statuses = ['New', 'Queued', 'Processing', 'Done', 'Error', 'NoData']
 
 
 class JobType(type):
@@ -183,7 +183,10 @@ class Job(metaclass=JobType):
         if self.status.lower() == 'done':
             times = []
             for task in self.tasks.values():
-                times.append(float(task['totalTime']))
+                try:
+                    times.append(float(task['totalTime']))
+                except KeyError:
+                    continue
 
             self.time = str(sum(times))
 

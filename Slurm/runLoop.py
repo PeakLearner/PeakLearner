@@ -1,3 +1,4 @@
+import time
 from multiprocessing import Process
 
 try:
@@ -10,7 +11,8 @@ except ModuleNotFoundError:
 
 def loop():
     while True:
-        run.runTask()
+        if not run.runTask():
+            time.sleep(15)
 
 
 if __name__ == '__main__':

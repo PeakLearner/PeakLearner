@@ -15,6 +15,7 @@ if 'general' not in configSections:
     config.add_section('general')
     config['general']['debug'] = 'False'
     config['general']['numWorkers'] = str(1)
+    save = True
 
 
 # Setup a default config if doesn't exist

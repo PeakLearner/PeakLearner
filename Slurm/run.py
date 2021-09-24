@@ -21,8 +21,6 @@ def runTask():
         return False
 
     if not r.status_code == 200:
-        print(queueUrl)
-        print('status', r.status_code)
         return False
 
     task = r.json()
@@ -32,4 +30,5 @@ def runTask():
 
 if __name__ == '__main__':
     if not runTask():
+        print('should be sleeping')
         time.sleep(15)
