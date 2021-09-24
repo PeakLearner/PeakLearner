@@ -114,7 +114,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         self.driver.find_element(By.ID, 'submitButton').click()
 
-        wait = WebDriverWait(self.driver, 5)
+        wait = WebDriverWait(self.driver, 60)
         wait.until(EC.presence_of_element_located((By.ID, 'search-box')))
 
     def test_LOPART_model(self):
