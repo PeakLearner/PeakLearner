@@ -459,6 +459,8 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         # Load all available tracks
         for checkbox in checkboxes:
+            if checkbox.get_attribute('class') == 'hierachcheck':
+                continue
             parent = checkbox.find_element(By.XPATH, '..')
             trackName = parent.text
 
