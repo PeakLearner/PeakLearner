@@ -565,6 +565,8 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         self.proc.terminate()
 
+        self.driver.save_screenshot(os.path.join('screenshots', self._testMethodName + '.png'))
+
         for entry in self.driver.get_log('browser'):
             print(entry)
 
