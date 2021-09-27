@@ -380,7 +380,7 @@ def generateAltModel(data, problem, labels, txn=None):
     chrom = data['ref']
     scale = data['scale']
 
-    if scale < 0.002:
+    if scale < 0.001:
         return pd.DataFrame([getZoomIn(problem)])
 
     hubInfo = db.HubInfo(user, hub).get(txn=txn)
