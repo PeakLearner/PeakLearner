@@ -1,5 +1,6 @@
 import time
 
+import numpy as np
 import pandas as pd
 from core.util import PLdb as db
 from core.Models import Models
@@ -302,20 +303,56 @@ def addContigToLabel(row, contig):
 @retry
 @txnAbortOnError
 def hubInfoLabels(query, txn=None):
+    # Get all labels for hub
+    # Combine label tracks with the same chromosone
+    # Maybe combine all in order to get unique users?
     labelKeys = db.Labels.keysWhichMatch(query['user'], query['hub'])
 
-    numLabels = 0
-    labels = {}
+
+    labels = []
     for key in labelKeys:
         user, hub, track, chrom = key
         labelsDf = db.Labels(*key).get(txn=txn)
-        numLabels += len(labelsDf.index)
-        if track not in labels:
-            labels[track] = {}
+        labels.append(labelsDf)
 
-        labels[track][chrom] = labelsDf.to_html()
+    allLabels = pd.concat(labels)
+    grouped = allLabels.groupby('chrom')
+    chromLabelUserTotals = grouped.apply(checkUserTotal)
 
-    return {'numLabels': numLabels, 'labels': labels}
+    labelTable = pd.DataFrame(chromLabelUserTotals.apply(pd.Series)).T.fillna(0).astype(np.int64).to_html().replace(' border="1"', '')
+
+    return {'labelTable': labelTable.replace('dataframe', 'table'), 'numLabels': len(allLabels.index)}
+
+def checkUserTotal(row):
+    """Calculates the total number of labels for each unique user given a chrom"""
+    unique = row['lastModifiedBy'].unique()
+
+    out = {}
+
+    for uniqueUser in unique:
+        # This should be NaN
+        if isinstance(uniqueUser, float):
+            uniqueUser = 'Public'
+            labelsByUser = row['lastModifiedBy'].isnull()
+        else:
+            labelsByUser = row['lastModifiedBy'] == uniqueUser
+
+        total = labelsByUser.value_counts()
+
+        try:
+            numLabels = total[True]
+        except KeyError:
+            continue
+
+        if uniqueUser is None:
+            uniqueUser = 'Public'
+
+        try:
+            out[uniqueUser] += numLabels
+        except KeyError:
+            out[uniqueUser] = numLabels
+
+    return out
 
 
 @retry

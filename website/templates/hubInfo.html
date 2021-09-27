@@ -17,15 +17,6 @@
         <br>
         <b>Labels:</b> {{ numLabels }}
         <br><br>
-        {%for track in labels%}
-            <h5>Track: {{ track }}</h5>
-            {% for chrom in labels[track] %}
-                <h6>Chromosome: {{ chrom }}</h6>
-                <br>
-                {{labels[track][chrom] | safe}}
-                <br>
-            {% endfor %}
-        <br>
-        {%endfor%}
+        {{ labelTable|safe }}
     </div>
 {% endblock %}
