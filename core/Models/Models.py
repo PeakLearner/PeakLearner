@@ -380,9 +380,6 @@ def generateAltModel(data, problem, labels, txn=None):
     chrom = data['ref']
     scale = data['scale']
 
-    if scale < 0.001:
-        return pd.DataFrame([getZoomIn(problem)])
-
     hubInfo = db.HubInfo(user, hub).get(txn=txn)
     trackUrl = hubInfo['tracks'][data['track']]['url']
 
@@ -533,18 +530,18 @@ def flopartToPeaksUsingMaxJump(flopartOut, lenBin):
 
     flopartOut['height'] = (flopartOut['height'] / lenBin)
 
-    output = pd.DataFrame()
+    output = []
 
     peakPrev = None
     currentPeak = pd.DataFrame()
     for index, row in flopartOut.iterrows():
         if row['state'] != 0:
-            currentPeak = currentPeak.append(row)
+            currentPeak = currentPeak.append(row, ignore_index=True)
 
         # Prev data point is the end of a peak
         else:
             if len(currentPeak.index) != 0:
-                output = output.append(maxJumpOnPeaks(currentPeak, peakPrev), ignore_index=True)
+                output.append(maxJumpOnPeaks(currentPeak, peakPrev))
 
                 currentPeak = pd.DataFrame()
 
@@ -552,9 +549,9 @@ def flopartToPeaksUsingMaxJump(flopartOut, lenBin):
 
     # Handles the case where the model ends with a peak
     if len(currentPeak.index) > 0:
-        output = output.append(maxJumpOnPeaks(currentPeak, peakPrev), ignore_index=True)
+        output.append(maxJumpOnPeaks(currentPeak, peakPrev))
 
-    return output
+    return pd.concat(output, axis=1).T
 
 
 def maxJumpOnPeaks(currentPeak, peakPrev):
