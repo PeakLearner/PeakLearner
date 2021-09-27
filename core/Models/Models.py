@@ -228,13 +228,6 @@ def updateAllModelLabels(data, labels, txn):
             modelTxn.commit()
             continue
 
-        processedSums = modelsums[modelsums['errors'] >= 0]
-
-        # Models being processed but not yet available
-        if len(processedSums.index) < 1:
-            modelTxn.commit()
-            continue
-
         newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem, modelTxn))
 
         try:
