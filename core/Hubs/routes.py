@@ -52,8 +52,8 @@ def getHubInfo(request: Request, user: str, hub: str):
         outputType = 'json'
 
     if 'text/html' in outputType:
-        extraLabelInfo = Labels.hubInfoLabels(data)
-        output = {'request': request, 'hubInfo': output, **extraLabelInfo, 'hubName': hub, 'user': 'user'}
+        labelTable = Labels.hubInfoLabels(data)
+        output = {'request': request, 'hubInfo': output, **labelTable, 'hubName': hub, 'user': 'user'}
         return templates.TemplateResponse('hubInfo.html', output)
     elif outputType == 'json' or outputType == 'application/json' or outputType == '*/*':
         return output
