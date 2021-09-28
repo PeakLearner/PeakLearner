@@ -1,14 +1,38 @@
 {% extends "base.jinja2" %}
 
 {% block inner_head %}
-    <title>My Account</title>
+<title>My Account</title>
 {% endblock %}
 
 {# handles account views for whether logged in or not #}
 
 {% block content %}
-    <h2 class="text-center">PROFILE PAGE:</h2>
-    <p>
-        <b>Email:</b> {{user}}
-    </p>
+<h2 class="text-center">{{name}}</h2>
+<img src="{{picture}}" alt="user icon">
+<p>
+    <b>Email:</b> {{user}}
+</p>
+
+<h3>Label Stats</h3>
+<table class="table">
+    <thead>
+    <tr>
+        <th scope="col">Owner</th>
+        <th scope="col">Hub</th>
+        <th scope="col">Total Labels</th>
+        <th scope="col">Your Labels</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for stat in hubLabelStats %}
+    <tr>
+        <th scope="row">{{stat['owner']}}</th>
+        <td><a href="/{{stat['owner']}}/{{stat['hub']}}/">{{stat['hub']}}</a></td>
+        <td><a href="/{{stat['owner']}}/{{stat['hub']}}/info">{{stat['totalLabels']}}</a></td>
+        <td>{{stat['userLabels']}}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
 {% endblock %}

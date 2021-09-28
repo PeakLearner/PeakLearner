@@ -245,7 +245,7 @@ def getLabels(data, txn=None):
 @retry
 @txnAbortOnError
 def getHubLabels(data, txn=None):
-    output = pd.DataFrame()
+    output = []
 
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
 
@@ -276,9 +276,11 @@ def getHubLabels(data, txn=None):
 
             labels['track'] = track
 
-            output = output.append(labels)
+            output.append(labels)
     else:
         return Response(status_code=401)
+
+    output = pd.concat(output)
 
     if data['contig']:
         hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
@@ -303,15 +305,10 @@ def addContigToLabel(row, contig):
 @retry
 @txnAbortOnError
 def hubInfoLabels(query, txn=None):
-    # Get all labels for hub
-    # Combine label tracks with the same chromosone
-    # Maybe combine all in order to get unique users?
+    """Provides table with user as index row, and chrom as column name. Value is label counts across tracks for that user/chrom"""
     labelKeys = db.Labels.keysWhichMatch(query['user'], query['hub'])
-
-
     labels = []
     for key in labelKeys:
-        user, hub, track, chrom = key
         labelsDf = db.Labels(*key).get(txn=txn)
         labels.append(labelsDf)
 
@@ -322,6 +319,7 @@ def hubInfoLabels(query, txn=None):
     labelTable = pd.DataFrame(chromLabelUserTotals.apply(pd.Series)).T.fillna(0).astype(np.int64).to_html().replace(' border="1"', '')
 
     return {'labelTable': labelTable.replace('dataframe', 'table'), 'numLabels': len(allLabels.index)}
+
 
 def checkUserTotal(row):
     """Calculates the total number of labels for each unique user given a chrom"""
