@@ -41,7 +41,10 @@ async def login_via_google(request: Request):
     google = oAuth.create_client('google')
     redirect_uri = cfg.authRedirect
     if 'referer' in request.headers:
-        request.session['referer'] = request.headers['referer']
+        if 'logout' in request.headers['referer']:
+            request.session['referer'] = '/'
+        else:
+            request.session['referer'] = request.headers['referer']
     return await google.authorize_redirect(request, redirect_uri)
 
 

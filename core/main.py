@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import website.routes
 from core.util import PLConfig as cfg, PLdb as db
-from core import Jobs, Labels, Loss, Features, Hubs, Models, Permissions, Prediction, Authentication
+from core import Jobs, Labels, Loss, Features, Hubs, Models, Permissions, Prediction, User, Authentication
 import core
 
 db.addExitRegister()
