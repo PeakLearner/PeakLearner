@@ -205,7 +205,7 @@ class Job(metaclass=JobType):
     def restartUnfinished(self):
         restarted = False
         for task in self.tasks.values():
-            if task['status'].lower() != 'done':
+            if task['status'].lower() != 'NoData':
                 task['status'] = 'New'
                 restarted = True
 
