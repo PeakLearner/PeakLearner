@@ -100,7 +100,8 @@ define([
                                     Math.min(feature.get('end') + this.config.broaden, block.endBase),
                                 );
 
-                                const score = Math.round(feature.get('score'));
+                                const score = Math.round(feature.get('score')) + 5;
+
                                 const height = (parseInt(heightVal, 10) - score) + "px";
                                 let colors = {PEAK: '#ff0000', LOPART: '#ff00a0', FLOPART: '#ff6f00'};
                                 const indicator = dojo.create(

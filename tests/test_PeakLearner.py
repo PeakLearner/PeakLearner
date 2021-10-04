@@ -549,7 +549,11 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert output.status_code == 200
 
-        assert len(output.json()) == 1
+        firstModel = output.json()
+
+        assert len(firstModel) == 1
+
+        print(firstModel[0])
 
         testLabels = [
             {
