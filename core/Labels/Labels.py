@@ -380,10 +380,8 @@ def fixLabels(data, txn=None):
     while current is not None:
         key, labels = current
 
-        print('before\n', labels)
-
         replaced = labels.replace('noPeak', 'noPeaks')
 
-        print('after\n', replaced)
+        cursor.put(key, replaced)
 
-        current = current.next()
+        current = cursor.next()
