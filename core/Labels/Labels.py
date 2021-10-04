@@ -369,19 +369,3 @@ def labelsStats(data, txn=None):
         labels = labels + len(labelsDf.index)
 
     return chroms, labels
-
-
-@retry
-@txnAbortOnError
-def fixLabels(data, txn=None):
-    cursor = db.Labels.getCursor(txn=txn, bulk=True)
-
-    current = cursor.next()
-    while current is not None:
-        key, labels = current
-
-        replaced = labels.replace('noPeak', 'noPeaks')
-
-        cursor.put(key, replaced)
-
-        current = cursor.next()
