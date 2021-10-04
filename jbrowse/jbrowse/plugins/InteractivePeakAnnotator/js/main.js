@@ -18,7 +18,7 @@ function (
             let browser = this.browser;
             let labelOptions = [{label: "peakStart", value: "peakStart", selected: true},
                                 {label: "peakEnd", value: "peakEnd"},
-                                {label: "noPeak", value: "noPeak"}]
+                                {label: "noPeaks", value: "noPeaks"}]
             browser.afterMilestone('initView', function () {
                 let navbox = dojo.byId('navbox');
                 thisB.browser.labelDropdown = new Select({
