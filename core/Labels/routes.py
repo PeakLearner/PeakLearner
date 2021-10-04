@@ -225,3 +225,8 @@ async def deleteHubLabel(request: Request, user: str, hub: str, hubLabelData: Hu
 
     return Response(json.dumps(output), media_type='application/json')
 
+
+@core.otherRouter.get('/fixLabels')
+async def deleteHubLabel():
+    Labels.fixLabels({})
+

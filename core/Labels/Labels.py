@@ -373,5 +373,17 @@ def labelsStats(data, txn=None):
 
 @retry
 @txnAbortOnError
-def putLabelsRefresh(data, txn=None):
-    db.Labels(data['user'], data['hub'], data['track'], data['chrom']).put(pd.read_json(data['labels']), txn=txn)
+def fixLabels(data, txn=None):
+    cursor = db.Labels.getCursor(txn=txn, bulk=True)
+
+    current = cursor.next()
+    while current is not None:
+        key, labels = current
+
+        print('before\n', labels)
+
+        replaced = labels.replace('noPeak', 'noPeaks')
+
+        print('after\n', replaced)
+
+        current = current.next()

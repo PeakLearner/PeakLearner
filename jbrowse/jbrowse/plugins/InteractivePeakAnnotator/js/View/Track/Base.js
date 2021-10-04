@@ -51,7 +51,7 @@ define([
                         // determins the color of the see through part of the label
                         // to add new type of label add type to this list
                         const states = {
-                            'noPeak': 'rgba(255,250,150,0.4)',
+                            'noPeaks': 'rgba(255,250,150,0.4)',
                             'peakStart': 'rgba(255,180,235,0.4)',
                             'peakEnd': 'rgba(244,125,125,0.4)'
                         };
@@ -62,7 +62,7 @@ define([
                         // determins the color of the bar at the bottom of the label
                         // to add new type of label add type to this list
                         const states = {
-                            'noPeak': 'rgb(255,245,150)',
+                            'noPeaks': 'rgb(255,245,150)',
                             'peakStart': 'rgb(255,210,241)',
                             'peakEnd': 'rgb(244,145,145)'
                         };
@@ -77,7 +77,7 @@ define([
                         },
 
                     addMenu: function (track, feature, highlight) {
-                        const states = ['peakStart', 'peakEnd', 'noPeak'];
+                        const states = ['peakStart', 'peakEnd', 'noPeaks'];
 
                         let redrawAllCallback = () => {
                             track.browser.view.redrawTracks();
