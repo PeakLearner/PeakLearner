@@ -1,5 +1,6 @@
 import pandas as pd
 from core.util import PLdb as db
+from core.Prediction import Prediction
 from simpleBDB import retry, txnAbortOnError
 
 
@@ -47,6 +48,6 @@ def getAllFeatures(data, txn=None):
 
         output.append(feature)
 
-    print('gets to here')
+    outputdf = pd.concat(output, axis=1).T
 
-    return pd.concat(output, axis=1).T
+    return Prediction.dropBadCols(outputdf, txn=txn)
