@@ -323,7 +323,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         trackCheckBox.click()
 
-        time.sleep(2)
+        time.sleep(5)
 
         self.addPeak(3450, width=80, genModel=True, trackName=trackName)
         self.addPeak(3780, width=80, genModel=True, trackName=trackName)
