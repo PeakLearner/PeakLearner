@@ -159,7 +159,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     def test_getAllFeatures(self):
         self.test_featureJob()
 
-        out = self.testapp.get('/features')
+        out = self.testapp.get('/features', timeout=60)
 
         assert out.status_code == 200
 
@@ -169,7 +169,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     def test_getAllModelSums(self):
         self.test_featureJob()
 
-        out = self.testapp.get('/modelSums')
+        out = self.testapp.get('/modelSums', timeout=60)
 
         assert out.status_code == 200
 
@@ -179,7 +179,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     def test_getAllLosses(self):
         self.test_featureJob()
 
-        out = self.testapp.get('/losses')
+        out = self.testapp.get('/losses', timeout=60)
 
         assert out.status_code == 200
 
