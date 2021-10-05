@@ -329,9 +329,18 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
         self.addPeak(3780, width=80, genModel=True, trackName=trackName)
 
         models = self.driver.find_elements(By.CLASS_NAME, 'Model')
+        track = self.driver.find_element(By.ID, 'track_' + trackName)
+
+        trackY = track.location['y']
+
+        trackHeight = track.size['height']
+
+        trackHeightCompare = trackY + trackHeight
 
         for model in models:
-            assert model.size['height'] > 5
+            modelHeightCompare = model.size['height'] + model.location['y']
+            heightCompare = trackHeightCompare - modelHeightCompare
+            assert heightCompare > 10
 
 
     def test_resize(self):
