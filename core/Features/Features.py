@@ -33,12 +33,9 @@ def getFeatures(data, txn=None):
 def getAllFeatures(data, txn=None):
     output = []
 
-    featureCursor = db.Features.getCursor(txn=txn, bulk=True)
+    allFeatures = db.Features.all_dict(txn=txn)
 
-    current = featureCursor.next()
-
-    while current is not None:
-        key, feature = current
+    for key, feature in allFeatures.items():
 
         user, hub, track, ref, start = key
 
@@ -49,10 +46,6 @@ def getAllFeatures(data, txn=None):
         feature['start'] = start
 
         output.append(feature)
-
-        current = featureCursor.next()
-
-    featureCursor.close()
 
     print('gets to here')
 
