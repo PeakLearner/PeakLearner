@@ -54,4 +54,6 @@ def getAllFeatures(data, txn=None):
 
     featureCursor.close()
 
+    print('gets to here')
+
     return pd.concat(output, axis=1).T
