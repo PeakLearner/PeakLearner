@@ -340,7 +340,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
         for model in models:
             modelHeightCompare = model.size['height'] + model.location['y']
             heightCompare = trackHeightCompare - modelHeightCompare
-            assert heightCompare > 10
+            assert heightCompare >= 8
 
 
     def test_resize(self):
