@@ -2,6 +2,7 @@ import json
 import os
 import threading
 import pandas as pd
+import pytest
 from tests import Base
 from fastapi.testclient import TestClient
 
@@ -32,6 +33,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     def getJobs(self):
         return self.testapp.get(self.jobsURL, headers={'Accept': 'application/json'})
 
+    @pytest.mark.timeout(300)
     def test_featureJob(self):
 
         job = self.doPredictionFeatureStep()
@@ -48,6 +50,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         assert job['jobStatus'].lower() == 'done'
 
+    @pytest.mark.timeout(300)
     def test_jobRestart(self):
         from core.Jobs import Jobs
 
@@ -105,6 +108,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         return predictionJob
 
+    @pytest.mark.timeout(300)
     def test_JobSpawner(self):
         out = self.getJobs()
 
@@ -151,6 +155,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
         # all jobs are done, more jobs should be spawned here because the job spawner was called
         assert len(jobs) != 0
 
+    @pytest.mark.timeout(300)
     def test_getAllFeatures(self):
         self.test_featureJob()
 
@@ -160,6 +165,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         assert len(out.json()) == 76
 
+    @pytest.mark.timeout(300)
     def test_getAllModelSums(self):
         self.test_featureJob()
 
@@ -169,6 +175,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         assert len(out.json()) == 302
 
+    @pytest.mark.timeout(300)
     def test_getAllLosses(self):
         self.test_featureJob()
 
