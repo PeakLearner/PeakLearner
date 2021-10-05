@@ -757,12 +757,6 @@ def checkForPredictJobs(numJobs, txn=None):
 
                     outputJob.putNewJob(txn=txn)
 
-                    featureTxn = db.getTxn(parent=txn)
-
-                    db.Features(*featureKey).put(pd.Series(), txn=featureTxn)
-
-                    featureTxn.commit()
-
                     numJobs += 1
 
                 if numJobs >= cfg.maxJobsToSpawn:

@@ -163,7 +163,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         assert out.status_code == 200
 
-        assert len(out.json()) == 76
+        assert len(out.json()) == 75
 
     @pytest.mark.timeout(300)
     def test_getAllModelSums(self):
