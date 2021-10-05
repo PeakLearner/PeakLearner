@@ -61,6 +61,8 @@ define([
 
                     let heightVal = canvas.style.height + (block.domNode.offsetHeight - canvas.style.height)
 
+
+
                     modelTypes.forEach(modelType => {
                         let menuCheck = dijit.byId(modelType)
 
@@ -75,6 +77,8 @@ define([
                     let visEnd = vis['end'];
 
                     this.addBlockMenu(block, this.browser.refSeq.name, visStart, visEnd);
+
+                    let labelHeightScale = parseInt(heightVal, 10) / parseInt(block.scaling.range, 10)
 
                     this.modelStore.getFeatures({
                             ref: this.browser.refSeq.name,
@@ -100,6 +104,7 @@ define([
                                     Math.min(feature.get('end') + this.config.broaden, block.endBase),
                                 );
 
+                                //const score = Math.round(feature.get('score') * labelHeightScale) + 5;
                                 const score = Math.round(feature.get('score')) + 5;
 
                                 const height = (parseInt(heightVal, 10) - score) + "px";

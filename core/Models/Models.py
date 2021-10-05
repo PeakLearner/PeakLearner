@@ -41,6 +41,8 @@ def getModels(data, txn=None):
         modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
                                            problem['chromStart']).get(txn=txn)
 
+        print(problem)
+
         if len(modelSummaries.index) < 1:
             altout = generateAltModel(data, problem, problemLabels, txn=txn)
             if isinstance(altout, pd.DataFrame):

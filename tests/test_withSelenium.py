@@ -255,6 +255,85 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
     def test_goToUnlabeledRegion(self):
         self.goToRegion('unlabeled')
 
+    def test_modelTooLow(self):
+        trackName = 'thyroid_ENCFF014AIG'
+        self.driver.get(url)
+
+        self.driver.find_element(By.ID, 'myHubs').click()
+
+        self.driver.find_element(By.ID, '(\'Public\', \'H3K4me3_TDH_ENCODE\')_publicHubLink').click()
+
+        # Move to defined location
+
+        wait = WebDriverWait(self.driver, waitTime)
+        wait.until(EC.presence_of_element_located((By.ID, 'search-box')))
+
+        searchbox = self.driver.find_element(By.ID, 'search-box')
+
+        chromDropdown = searchbox.find_element(By.ID, 'search-refseq')
+
+        chromDropdown.click()
+
+        menu = self.driver.find_element(By.ID, 'dijit_form_Select_0_menu')
+
+        options = menu.find_elements(By.XPATH, './/*')
+
+        # Go to chr17 chrom
+        for option in options:
+            if option.tag_name == 'tr':
+                label = option.get_attribute('aria-label')
+
+                if label is None:
+                    continue
+
+                # Space at end or something
+                if label.strip() == 'chr17':
+                    option.click()
+                    break
+
+        assert 'chr17' in self.driver.title
+
+        # Move location now
+        elem = searchbox.find_element(By.ID, 'widget_location')
+        nav = elem.find_element(By.ID, 'location')
+        nav.clear()
+
+        # not sure why navigating here goes to the url below but it does it seemingly every time so
+        nav.send_keys('40664901..40794200')
+
+        go = searchbox.find_element(By.ID, 'search-go-btn_label')
+
+        go.click()
+
+        assert "chr17:406" in self.driver.title
+
+        trackElements = self.driver.find_elements(By.CLASS_NAME, 'tracklist-label')
+
+        for element in trackElements:
+
+            title = element.get_attribute('title')
+
+            if title in trackName:
+                track = element
+                break
+
+        assert track is not None
+
+        trackCheckBox = track.find_element(By.CLASS_NAME, 'check')
+
+        trackCheckBox.click()
+
+        time.sleep(2)
+
+        self.addPeak(3450, width=80, genModel=True, trackName=trackName)
+        self.addPeak(3780, width=80, genModel=True, trackName=trackName)
+
+        models = self.driver.find_elements(By.CLASS_NAME, 'Model')
+
+        for model in models:
+            assert model.size['height'] > 5
+
+
     def test_resize(self):
         self.driver.get(url)
 
@@ -348,14 +427,14 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
             if '404' in self.driver.title:
                 raise Exception('404 Exception')
 
-    def addPeak(self, midPoint, width=40, genModel=False):
+    def addPeak(self, midPoint, width=40, genModel=False, trackName='aorta_ENCFF502AXL'):
         labelWidth = width / 2
 
-        self.addLabel('peakStart', midPoint - labelWidth, midPoint - 1, genModel=genModel)
+        self.addLabel('peakStart', midPoint - labelWidth, midPoint - 1, genModel=genModel, trackName=trackName)
 
-        self.addLabel('peakEnd', midPoint, midPoint + labelWidth, genModel=genModel)
+        self.addLabel('peakEnd', midPoint, midPoint + labelWidth, genModel=genModel, trackName=trackName)
 
-    def addLabel(self, labelType, start, end, genModel=False):
+    def addLabel(self, labelType, start, end, genModel=False, trackName='aorta_ENCFF502AXL'):
         wait = WebDriverWait(self.driver, waitTime)
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "track_peaklearnerbackend_view_track_model")))
 
@@ -390,7 +469,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         element.click()
 
-        track = self.driver.find_element(By.ID, 'track_aorta_ENCFF502AXL')
+        track = self.driver.find_element(By.ID, 'track_' + trackName)
 
         action = ActionChains(self.driver)
 
@@ -410,7 +489,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         action.release().pause(1).perform()
 
-        wait.until(EC.presence_of_element_located((By.ID, "track_aorta_ENCFF502AXL")))
+        wait.until(EC.presence_of_element_located((By.ID, 'track_' + trackName)))
 
         tracks = self.driver.find_elements(By.CLASS_NAME, 'track_peaklearnerbackend_view_track_model')
 
@@ -573,3 +652,4 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
         self.driver.close()
 
         super().tearDown()
+
