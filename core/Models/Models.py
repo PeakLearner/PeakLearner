@@ -17,6 +17,7 @@ modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
 jbrowseModelColumns = ["ref", "start", "end", "type", "score"]
 peakSegDiskPrePenalties = [1000, 10000, 100000, 1000000]
 flopartLabels = {'noPeak': 0,
+                 'noPeaks': 0,
                  'peakStart': 1,
                  'peakEnd': -1,
                  'unknown': -2}
