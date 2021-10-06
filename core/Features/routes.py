@@ -62,6 +62,8 @@ def getFeatures(request: Request, user: str, hub: str, track: str, ref: str, sta
 def getAllFeatures(request: Request):
     out = Features.getAllFeatures({})
 
+    print('here?')
+
     if out is None:
         return Response(status_code=204)
     return core.dfPotentialSeriesOut(request, out)
