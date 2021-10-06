@@ -26,7 +26,7 @@ def getFeatures(data, txn=None):
     if isinstance(features, dict):
         return
 
-    return features
+    return Prediction.dropBadCols(features, txn=txn)
 
 
 @retry
@@ -51,3 +51,5 @@ def getAllFeatures(data, txn=None):
     outputdf = pd.concat(output, axis=1).T
 
     return Prediction.dropBadCols(outputdf, txn=txn)
+
+
