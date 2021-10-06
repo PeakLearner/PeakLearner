@@ -82,6 +82,8 @@ def addHubLabels(data, txn=None):
 
             labels = labels.append(newLabel, ignore_index=True).sort_values('chromStart', ignore_index=True)
 
+            print(labels.to_dict('records'))
+
             labelsDb.put(labels, txn=trackTxn)
             db.Prediction('changes').increment(txn=trackTxn)
             Models.updateAllModelLabels(data, labels, trackTxn)

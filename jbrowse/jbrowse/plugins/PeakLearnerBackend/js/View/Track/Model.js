@@ -61,8 +61,6 @@ define([
 
                     let heightVal = canvas.style.height + (block.domNode.offsetHeight - canvas.style.height)
 
-
-
                     modelTypes.forEach(modelType => {
                         let menuCheck = dijit.byId(modelType)
 

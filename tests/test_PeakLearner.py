@@ -365,7 +365,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         modelSumsUrl = os.path.join(self.axlTrackURL, 'modelSum')
 
-
         out = self.testapp.get(modelSumsUrl, params=params)
 
         assert out.status_code == 200
@@ -502,6 +501,37 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert len(modelOut.json()) != 0
 
+    def test_flopart_model(self):
+        data = {'ref': 'chr3',
+                'start': 128660000,
+                'end': 165420000,
+                'modelType': 'FLOPART',
+                'scale': 5e-05,
+                'visibleStart': 134540000,
+                'visibleEnd': 152920000}
+
+        labels = [{'ref': 'chr3', 'start': 143679399, 'end': 143691199, 'label': 'peakStart'},
+                  {'ref': 'chr3', 'start': 143691399, 'end': 143703399, 'label': 'peakEnd'},
+                  {'ref': 'chr3', 'start': 143704399, 'end': 143707399, 'label': 'noPeaks'}]
+        trackUrl = '/%s' % os.path.join('Public', 'H3K4me3_TDH_ENCODE', 'aorta_ENCFF115HTK')
+        labelUrl = os.path.join(trackUrl, 'labels')
+        modelUrl = os.path.join(trackUrl, 'models')
+
+        for label in labels:
+            request = self.testapp.put(labelUrl, json=label)
+
+            assert request.status_code == 200
+
+        request = self.testapp.get(modelUrl, params=data)
+
+        if not request.status_code == 200:
+            print(request.content)
+
+        assert request.status_code == 200
+
+
+
+
     def test_stats_page(self):
         output = self.testapp.get('/stats/')
 
@@ -516,7 +546,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         db.cleanLogs()
 
         assert os.path.exists(Base.dbLogBackupDir)
-
 
     def test_model_stats_page(self):
         output = self.testapp.get('/stats/model/')
