@@ -255,7 +255,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
     def test_goToUnlabeledRegion(self):
         self.goToRegion('unlabeled')
 
-    def donttest_modelTooLow(self):
+    def test_modelTooLow(self):
         trackName = 'thyroid_ENCFF014AIG'
         self.driver.get(url)
 
