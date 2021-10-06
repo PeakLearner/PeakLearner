@@ -80,7 +80,7 @@ def dfPotentialSeriesOut(request: Request, out: pd.DataFrame) -> Response:
         if isinstance(output, list):
             if len(output) == 1:
                 output = output[0]
-        return Response(json.dumps(output), media_type='application/json')
+        return output
     elif outputType == 'text/csv':
         return Response(out.to_csv(), media_type='text/csv')
 

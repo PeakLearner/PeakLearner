@@ -518,7 +518,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         assert os.path.exists(Base.dbLogBackupDir)
 
 
-
     def test_model_stats_page(self):
         output = self.testapp.get('/stats/model/')
 

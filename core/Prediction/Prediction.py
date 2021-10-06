@@ -74,15 +74,21 @@ def makePrediction(data):
     print(model)
 
 
-def dropBadCols(df, txn=None):
+def dropBadCols(data, txn=None):
     pd.set_option("display.max_rows", None, "display.max_columns", None)
-    noNegatives = df.replace(-np.Inf, np.nan)
-    output = noNegatives.dropna(axis=1)
+    noNegatives = data.replace(-np.Inf, np.nan)
 
-    # Take a note of what columns were dropped so that can be later used during prediction
-    # This line just compares the two column indices and finds the differences
-    badCols = list(set(df.columns) - set(output.columns))
-    db.Prediction('badCols').put(badCols, txn=txn)
+    if isinstance(data, pd.DataFrame):
+        output = noNegatives.dropna(axis=1)
+
+        # Take a note of what columns were dropped so that can be later used during prediction
+        # This line just compares the two column indices and finds the differences
+        badCols = list(set(data.columns) - set(output.columns))
+        db.Prediction('badCols').put(badCols, txn=txn)
+
+    else:
+        output = noNegatives.dropna()
+
     return output
 
 
