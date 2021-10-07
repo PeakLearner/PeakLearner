@@ -209,8 +209,6 @@ define([
             sendDelete: function (query, queryUrl, callback) {
                 query['name'] = this.name;
 
-                console.log(JSON.stringify(query))
-
                 let xhrArgs = {
                     handleAs: 'json',
                     method: 'delete',
