@@ -156,7 +156,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
         assert len(jobs) != 0
 
     @pytest.mark.timeout(300)
-    def donttest_getAllFeatures(self):
+    def test_getAllFeatures(self):
         self.test_featureJob()
 
         out = self.testapp.get('/features', timeout=60)
@@ -166,7 +166,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
         assert len(out.json()) == 75
 
     @pytest.mark.timeout(300)
-    def donttest_getAllModelSums(self):
+    def test_getAllModelSums(self):
         self.test_featureJob()
 
         out = self.testapp.get('/modelSums', timeout=60)
@@ -176,7 +176,7 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
         assert len(out.json()) == 302
 
     @pytest.mark.timeout(300)
-    def donttest_getAllLosses(self):
+    def test_getAllLosses(self):
         self.test_featureJob()
 
         out = self.testapp.get('/losses', timeout=60)
