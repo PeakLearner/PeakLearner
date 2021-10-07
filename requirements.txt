@@ -4,7 +4,7 @@ asgiref>=3.3.4
 click>=7.*
 h11>=0.8
 fastapi==0.68.2
-starlette==0.14.2
+starlette
 typing-extensions>=3.7.4.3
 pydantic!=1.7,!=1.7.1,!=1.7.2,!=1.7.3,!=1.8,!=1.8.1,<2.0.0,>=1.6.2
 aiofiles==0.7.0
