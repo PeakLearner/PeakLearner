@@ -20,6 +20,7 @@ class FeatureData(BaseModel):
                       summary='Put features',
                       description='Allows HPC clusters to upload the features which they generate')
 async def putFeatures(request: Request, user: str, hub: str, track: str, featureData: FeatureData):
+    """Saves features to the db"""
     # Unpacks the data into 1 dict
     data = {'user': user, 'hub': hub, 'track': track, **dict(featureData)}
 
@@ -39,6 +40,7 @@ async def putFeatures(request: Request, user: str, hub: str, track: str, feature
                       summary='Get features for current viewed track region',
                       description='Provides information on current features within a region')
 def getFeatures(request: Request, user: str, hub: str, track: str, ref: str, start: int):
+    "Retrieves a feature vec from the db for a given region"
     # Unpacks the data into 1 dict
     data = {'user': user, 'hub': hub, 'track': track, 'ref': ref, 'start': start}
 
@@ -60,6 +62,7 @@ def getFeatures(request: Request, user: str, hub: str, track: str, ref: str, sta
                       summary='Get all features',
                       description='Provides a list of all the features currently generated')
 def getAllFeatures(request: Request):
+    """Get all the feature vecs currently in the db"""
     out = Features.getAllFeatures({})
 
     if out is None:

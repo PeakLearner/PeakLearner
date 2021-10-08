@@ -18,6 +18,7 @@ from simpleBDB import retry, txnAbortOnError, AbortTXNException
 @retry
 @txnAbortOnError
 def getHubJsons(query, handler, txn=None):
+    """Return the hub info in a way which JBrowse can understand"""
     if handler == 'trackList.json':
 
         hubInfo = db.HubInfo(query['user'], query['hub']).get(txn=txn)

@@ -7,7 +7,7 @@ from simpleBDB import retry, txnAbortOnError
 @retry
 @txnAbortOnError
 def putFeatures(data, txn=None):
-    """ Saves features to be later used for prediction and learning"""
+    """Saves features to be later used for prediction and learning"""
     if not isinstance(data['data'], list) and not len(data['data']) == 1:
         raise Exception(data['data'])
 
@@ -21,6 +21,7 @@ def putFeatures(data, txn=None):
 @retry
 @txnAbortOnError
 def getFeatures(data, txn=None):
+    """Retrieve a singular feature from the db"""
     features = db.Features(data['user'], data['hub'], data['track'], data['ref'], data['start']).get(txn=txn)
 
     if isinstance(features, dict):
@@ -32,6 +33,7 @@ def getFeatures(data, txn=None):
 @retry
 @txnAbortOnError
 def getAllFeatures(data, txn=None):
+    """Get all the feature vecs from the db"""
     output = []
 
     allFeatures = db.Features.all_dict(txn=txn)
