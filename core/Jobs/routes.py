@@ -31,6 +31,7 @@ templates = Jinja2Templates(directory='website/templates')
             summary='Gets all the jobs',
             description='Gets all the jobs currently on the server')
 async def getJobs(request: Request):
+    """Retrieves all jobs from PeakLearner"""
     if 'accept' in request.headers:
         outputType = request.headers['accept']
     else:
@@ -54,6 +55,7 @@ async def getJobs(request: Request):
             summary='Gets the next available task and queues it',
             description='If there is a task in a job which is able to be queued, queue it and return the job')
 async def queueNextTask():
+    """Queues the next job and returns the job which was queued"""
     # TODO: Some sort of authentication system
     out = Jobs.queueNextTask({})
 
@@ -73,6 +75,7 @@ async def queueNextTask():
             summary='Gets the job with the ID',
             description='Retrieves a job given the ID in the url')
 async def getJobWithId(request: Request, job_id: int):
+    """Retrieves a singular job"""
     if 'accept' in request.headers:
         outputType = request.headers['accept']
     else:
@@ -93,6 +96,7 @@ async def getJobWithId(request: Request, job_id: int):
              summary='Updates a task in a job',
              description='Updates the task given the parameters')
 async def postJobWithId(job_id: int, task: dict):
+    """Modifies a task in a job"""
     data = {'id': job_id, 'task': task}
 
     return Jobs.updateTask(data)
@@ -102,6 +106,7 @@ async def postJobWithId(job_id: int, task: dict):
              summary='Resets the job',
              description='Resets the given job')
 async def resetJob(job_id: int):
+    """Resets all tasks which are not done"""
     data = {'jobId': job_id}
 
     return Jobs.resetJob(data)
@@ -111,6 +116,7 @@ async def resetJob(job_id: int):
              summary='Restarts the job',
              description='Restarts the given job, sets all tasks back to status New')
 async def restartJob(job_id: int):
+    """Completely restarts a job like it was fresh"""
     data = {'jobId': job_id}
 
     output = Jobs.restartJob(data)
@@ -127,6 +133,7 @@ async def restartJob(job_id: int):
                       summary='Get jobs for current viewed track region',
                       description='Provides information on current jobs within a region')
 async def getTrackJobs(user: str, hub: str, track: str, ref: str, start: int, end: int):
+    """Retrieves jobs for a given track/contig"""
     data = {'user': user,
             'hub': hub,
             'track': track,
@@ -141,9 +148,11 @@ async def getTrackJobs(user: str, hub: str, track: str, ref: str, start: int, en
 
 @core.otherRouter.get('/runJobSpawn', include_in_schema=False)
 async def runJobSpawn():
+    """Checks to see if jobs can be spawned, if so then it spawns them"""
     return Jobs.spawnJobs({})
 
 
 @core.otherRouter.get('/checkRestartJobs', include_in_schema=False)
 async def checkRestartJobs():
+    """Checks if a job hasn't been modified in more than an hour, if so then restart the job"""
     return Jobs.checkRestartJobs({})

@@ -18,6 +18,7 @@ import core
 
 @core.hubRouter.get('/', response_class=HTMLResponse)
 def getJbrowsePage(request: Request, user: str, hub: str):
+    """retrieves jbrowse template with current user"""
     user = request.session.get('user')
     picture = None
 
@@ -41,7 +42,7 @@ def getJbrowsePage(request: Request, user: str, hub: str):
                     summary='Get the hubInfo for this hub',
                     description='Gets the hubInfo for this hub. It contains the tracks, urls, the reference genome, and categories for that data')
 def getHubInfo(request: Request, user: str, hub: str):
-    """TODO: Document this view"""
+    """Retrieves the hub info and serves it as a json or html file"""
     data = {'user': user, 'hub': hub}
 
     output = Hubs.getHubInfo(data)
@@ -61,6 +62,7 @@ def getHubInfo(request: Request, user: str, hub: str):
 
 @core.hubRouter.get('/data/{handler}', include_in_schema=False)
 async def getJbrowseJsons(user: str, hub: str, handler: str):
+    """Responsible for parsing the hub info into something jbrowse can use"""
     # Only really used for parsing the hubInfo into a form which JBrowse can work with
     data = {'user': user, 'hub': hub}
 
@@ -101,6 +103,7 @@ class HubURL(BaseModel):
                       summary='Upload a new hub.txt to the system',
                       description='Route for uploading a new UCSC formatted hub.txt with a genomes.txt and trackList.txt in the same directory')
 async def uploadHubUrl(request: Request, hubUrl: HubURL):
+    """How hubs are uploaded to peaklearner"""
     user = request.session.get('user')
 
     if user is None:

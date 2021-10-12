@@ -19,7 +19,6 @@ save = False
 # Setup a default config if doesn't exist
 if 'http' not in configSections:
     config.add_section('http')
-    config['http']['path'] = 'jbrowse/jbrowse/'
     config['http']['client_id'] = 'google_client_id'
     config['http']['client_secret'] = 'google_client_secret'
     config['http']['auth_redirect'] = 'http://localhost:8080/auth'
@@ -51,7 +50,7 @@ if save:
 # get ports from config
 jbrowsePath = config['http']['path']
 
-dataPath = config['data']['path']
+dataPath = 'jbrowse/jbrowse/'
 timeBetween = int(config['learning']['timeBetween'])
 numChanges = int(config['learning']['numChanges'])
 minLabeledRegions = int(config['learning']['minLabeledRegions'])
