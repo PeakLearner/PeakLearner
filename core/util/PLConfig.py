@@ -48,9 +48,8 @@ if save:
         config.write(cfg)
 
 # get ports from config
-jbrowsePath = config['http']['path']
-
-dataPath = 'jbrowse/jbrowse/'
+jbrowsePath = 'jbrowse/jbrowse/'
+dataPath = config['data']['path']
 timeBetween = int(config['learning']['timeBetween'])
 numChanges = int(config['learning']['numChanges'])
 minLabeledRegions = int(config['learning']['minLabeledRegions'])
