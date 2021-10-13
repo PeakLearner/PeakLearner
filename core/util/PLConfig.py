@@ -25,12 +25,6 @@ if 'http' not in configSections:
 
     save = True
 
-if 'data' not in configSections:
-    config.add_section('data')
-    config['data']['path'] = 'data/'
-
-    save = True
-
 if 'learning' not in configSections:
     config.add_section('learning')
     config['learning']['doIdlePredictions'] = 'False'
@@ -38,7 +32,6 @@ if 'learning' not in configSections:
     config['learning']['numChanges'] = '10'
     config['learning']['minLabeledRegions'] = '20'
     config['learning']['maxJobsToSpawn'] = '100'
-
 
     save = True
 
@@ -49,7 +42,7 @@ if save:
 
 # get ports from config
 jbrowsePath = 'jbrowse/jbrowse/'
-dataPath = config['data']['path']
+dataPath = 'data/'
 timeBetween = int(config['learning']['timeBetween'])
 numChanges = int(config['learning']['numChanges'])
 minLabeledRegions = int(config['learning']['minLabeledRegions'])

@@ -42,33 +42,3 @@ def getLoss(data, txn=None):
                      data['start'], data['penalty'])
 
     return lossDb.get(txn=txn)
-
-
-@retry
-@txnAbortOnError
-def getAllLosses(data, txn=None):
-    output = []
-
-    lossCursor = db.Loss.getCursor(txn=txn, bulk=True)
-
-    current = lossCursor.next()
-
-    while current is not None:
-        key, loss = current
-
-        user, hub, track, ref, start, penalty = key
-
-        loss['user'] = user
-        loss['hub'] = hub
-        loss['track'] = track
-        loss['ref'] = ref
-        loss['start'] = start
-        loss['penalty'] = float(penalty)
-
-        output.append(loss)
-
-        current = lossCursor.next()
-
-    lossCursor.close()
-
-    return pd.concat(output)

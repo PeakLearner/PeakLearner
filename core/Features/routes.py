@@ -50,21 +50,3 @@ def getFeatures(request: Request, user: str, hub: str, track: str, ref: str, sta
         return Response(status_code=204)
 
     return core.dfPotentialSeriesOut(request, out)
-
-
-@core.otherRouter.get('/features',
-                      responses={
-                          200: {
-                              "content": {"text/csv": {}},
-                              "description": "A collection of all the features",
-                          }
-                      },
-                      summary='Get all features',
-                      description='Provides a list of all the features currently generated')
-def getAllFeatures(request: Request):
-    """Get all the feature vecs currently in the db"""
-    out = Features.getAllFeatures({})
-
-    if out is None:
-        return Response(status_code=204)
-    return core.dfPotentialSeriesOut(request, out)

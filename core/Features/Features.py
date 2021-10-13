@@ -30,28 +30,3 @@ def getFeatures(data, txn=None):
     return Prediction.dropBadCols(features, txn=txn)
 
 
-@retry
-@txnAbortOnError
-def getAllFeatures(data, txn=None):
-    """Get all the feature vecs from the db"""
-    output = []
-
-    allFeatures = db.Features.all_dict(txn=txn)
-
-    for key, feature in allFeatures.items():
-
-        user, hub, track, ref, start = key
-
-        feature['user'] = user
-        feature['hub'] = hub
-        feature['track'] = track
-        feature['ref'] = ref
-        feature['start'] = start
-
-        output.append(feature)
-
-    outputdf = pd.concat(output, axis=1).T
-
-    return Prediction.dropBadCols(outputdf, txn=txn)
-
-

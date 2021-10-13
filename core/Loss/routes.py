@@ -40,15 +40,3 @@ def getLoss(request: Request, user: str, hub: str, track: str, ref: str, start: 
         return Response(status_code=204)
 
     return core.dfPotentialSeriesOut(request, out)
-
-
-@core.otherRouter.get('/losses',
-                      summary='Get all losses',
-                      description='Provides information on all the losses for the models')
-def getAllLosses(request: Request):
-    output = Loss.getAllLosses({})
-
-    if output is None:
-        return Response(status_code=204)
-
-    return core.dfPotentialSeriesOut(request, output)
