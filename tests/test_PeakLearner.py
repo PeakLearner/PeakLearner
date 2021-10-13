@@ -264,7 +264,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
                 assert output.status_code == 200
 
-
     def test_modelWithNoPeaksError(self):
         self.test_doSampleJob()
 

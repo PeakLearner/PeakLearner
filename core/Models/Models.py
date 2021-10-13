@@ -298,14 +298,27 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
     labelsIsInProblem = labels.apply(db.checkInBounds, axis=1,
                                      args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
     numPeaks = len(peaks.index)
-    numLabels = len(labelsIsInProblem.index)
-
     labelsInProblem = labels[labelsIsInProblem]
 
     numLabelsInProblem = len(labelsInProblem.index)
 
-    if numPeaks < 1 > numLabels:
-        return getErrorSeries(penalty, numPeaks, numLabelsInProblem)
+    if numPeaks <= 0 < numLabelsInProblem:
+        noPeaks = labelsInProblem['annotation'] == 'noPeaks'
+        noPeak = labelsInProblem['annotation'] == 'noPeak'
+        noPeaksBool = noPeak | noPeaks
+
+        noPeaksDf = labelsInProblem[noPeaksBool]
+
+        noPeakLabels = len(noPeaksDf.index)
+
+        errors = numLabelsInProblem - noPeakLabels
+
+        return getErrorSeries(penalty, numPeaks, numLabelsInProblem,
+                              errors=errors,
+                              fn=errors,
+                              possible_fn=errors,
+                              fp=0,
+                              possible_fp=numLabelsInProblem)
 
     if numLabelsInProblem < 1:
         return getErrorSeries(penalty, numPeaks, numLabelsInProblem)
