@@ -958,3 +958,15 @@ if cfg.testing:
         job.status = 'Queued'
 
         jobDb.put(job.__dict__(), txn=txn)
+
+
+    @retry
+    @txnAbortOnError
+    def makeNoDataJob(data, txn=None):
+        jobDb = db.Job('0')
+        job = jobDb.get(txn=txn, write=True)
+
+        job.lastModified = 0
+        job.status = 'NoData'
+
+        jobDb.put(job.__dict__(), txn=txn)
