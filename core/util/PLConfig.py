@@ -19,16 +19,9 @@ save = False
 # Setup a default config if doesn't exist
 if 'http' not in configSections:
     config.add_section('http')
-    config['http']['path'] = 'jbrowse/jbrowse/'
     config['http']['client_id'] = 'google_client_id'
     config['http']['client_secret'] = 'google_client_secret'
     config['http']['auth_redirect'] = 'http://localhost:8080/auth'
-
-    save = True
-
-if 'data' not in configSections:
-    config.add_section('data')
-    config['data']['path'] = 'data/'
 
     save = True
 
@@ -40,7 +33,6 @@ if 'learning' not in configSections:
     config['learning']['minLabeledRegions'] = '20'
     config['learning']['maxJobsToSpawn'] = '100'
 
-
     save = True
 
 # If a section was missing, save that to the config
@@ -49,9 +41,8 @@ if save:
         config.write(cfg)
 
 # get ports from config
-jbrowsePath = config['http']['path']
-
-dataPath = config['data']['path']
+jbrowsePath = 'jbrowse/jbrowse/'
+dataPath = 'data/'
 timeBetween = int(config['learning']['timeBetween'])
 numChanges = int(config['learning']['numChanges'])
 minLabeledRegions = int(config['learning']['minLabeledRegions'])

@@ -264,6 +264,27 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
                 assert output.status_code == 200
 
+    def test_modelWithNoPeaksError(self):
+        self.test_doSampleJob()
+
+        user = 'Public'
+        hub = 'H3K4me3_TDH_ENCODE'
+        track = 'aorta_ENCFF502AXL'
+        problem = {'ref': 'chr3', 'start': 93504854, 'chromEnd': 194041961}
+
+        testUrl = '/%s' % os.path.join(user, hub, track)
+        testModelSumUrl = os.path.join(testUrl, 'modelSum')
+
+        r = self.testapp.get(testModelSumUrl, params=problem)
+
+        assert r.status_code == 200
+
+        out = r.json()
+
+        for sum in out:
+            if sum['penalty'] == '1000000':
+                assert sum['errors'] > 1
+
     def test_getPeakLearnerModels(self):
         self.test_doSampleJob()
 

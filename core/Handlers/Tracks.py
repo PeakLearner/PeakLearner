@@ -1,3 +1,6 @@
+""" This file's functions are left over from a refactor but they still work and I dont really know a better place to put them"""
+
+
 import os
 import pandas as pd
 from core.Hubs import Hubs
@@ -7,12 +10,14 @@ problemColumns = ['chrom', 'chromStart', 'chromEnd']
 
 
 def getProblemsForChrom(genome, chrom, txn=None):
+    """Get the contigs for a problem given a chrom"""
     problems = db.Problems(genome).get(txn=txn)
 
     return problems[problems['chrom'] == chrom].copy()
 
 
 def getProblems(data, txn=None):
+    """Get all the contigs given a given query"""
     if 'genome' not in data:
         data['genome'] = getGenome(data, txn=txn)
 
@@ -40,14 +45,14 @@ def getProblems(data, txn=None):
 
 
 def getGenome(data, txn=None):
+    """Get the genome for a hub"""
     hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
 
     return hubInfo['genome']
 
 
 def getTrackInfo(data, txn=None):
+    """Returns info about a track in a hub"""
     hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
-
-    print(hubInfo)
 
     return hubInfo['tracks'][data['track']]

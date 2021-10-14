@@ -243,9 +243,6 @@ def updateAllModelLabels(data, labels, txn):
 
 
 def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
-    if modelSum['numPeaks'] < 1:
-        return modelSum
-
     modelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
                      problem['chromStart'], modelSum['penalty'])
 
@@ -301,22 +298,35 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
     labelsIsInProblem = labels.apply(db.checkInBounds, axis=1,
                                      args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
     numPeaks = len(peaks.index)
-    numLabels = len(labelsIsInProblem.index)
-
-    if numPeaks < 1 > numLabels:
-        return getErrorSeries(penalty, numPeaks, numLabels)
-
     labelsInProblem = labels[labelsIsInProblem]
 
     numLabelsInProblem = len(labelsInProblem.index)
 
+    if numPeaks <= 0 < numLabelsInProblem:
+        noPeaks = labelsInProblem['annotation'] == 'noPeaks'
+        noPeak = labelsInProblem['annotation'] == 'noPeak'
+        noPeaksBool = noPeak | noPeaks
+
+        noPeaksDf = labelsInProblem[noPeaksBool]
+
+        noPeakLabels = len(noPeaksDf.index)
+
+        errors = numLabelsInProblem - noPeakLabels
+
+        return getErrorSeries(penalty, numPeaks, numLabelsInProblem,
+                              errors=errors,
+                              fn=errors,
+                              possible_fn=errors,
+                              fp=0,
+                              possible_fp=numLabelsInProblem)
+
     if numLabelsInProblem < 1:
-        return getErrorSeries(penalty, numPeaks, numLabels)
+        return getErrorSeries(penalty, numPeaks, numLabelsInProblem)
 
     error = PeakError.error(peaks, labelsInProblem)
 
     if error is None:
-        return getErrorSeries(penalty, numPeaks, numLabels)
+        return getErrorSeries(penalty, numPeaks, numLabelsInProblem)
 
     summary = PeakError.summarize(error)
     summary.columns = summaryColumns
@@ -328,8 +338,8 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
     return singleRow
 
 
-def getErrorSeries(penalty, numPeaks, regions=0, errors=-1):
-    return pd.Series({'regions': regions, 'fp': 0, 'possible_fp': 0, 'fn': 0, 'possible_fn': 0,
+def getErrorSeries(penalty, numPeaks, regions=0, errors=-1, fp=0, possible_fp=0, fn=0, possible_fn=0):
+    return pd.Series({'regions': regions, 'fp': fp, 'possible_fp': possible_fp, 'fn': fn, 'possible_fn': possible_fn,
                       'errors': errors, 'penalty': penalty, 'numPeaks': numPeaks})
 
 
