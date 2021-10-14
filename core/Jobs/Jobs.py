@@ -609,7 +609,7 @@ def jobsWithCursor(cursor, data, problems):
 @retry
 @txnAbortOnError
 def jobsStats(data, txn=None):
-    numJobs = newJobs = queuedJobs = processingJobs = doneJobs = 0
+    numJobs = newJobs = queuedJobs = processingJobs = doneJobs = noDataJobs = errorJobs = 0
 
     times = []
 
@@ -626,6 +626,10 @@ def jobsStats(data, txn=None):
             processingJobs = processingJobs + 1
         elif status == 'done':
             doneJobs = doneJobs + 1
+        elif status == 'nodata':
+            noDataJobs = noDataJobs + 1
+        elif status == 'error':
+            noDataJobs = noDataJobs + 1
 
             for task in job.tasks.values():
                 if task['status'].lower() == 'done':
@@ -644,6 +648,8 @@ def jobsStats(data, txn=None):
               'queuedJobs': queuedJobs,
               'processingJobs': processingJobs,
               'doneJobs': doneJobs,
+              'noDataJobs': noDataJobs,
+              'errorJobs': errorJobs,
               'jobs': jobs,
               'avgTime': avgTime}
 
