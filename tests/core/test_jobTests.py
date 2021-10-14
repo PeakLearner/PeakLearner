@@ -77,6 +77,33 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
         assert jobAfterRestart['status'].lower() == 'new'
         assert jobAfterRestart['lastModified'] != 0
 
+    @pytest.mark.timeout(300)
+    def test_NoDataNoRestart(self):
+        from core.Jobs import Jobs
+
+        Jobs.makeNoDataJob({})
+
+        jobUrl = os.path.join(self.jobsURL, '0')
+
+        out = self.testapp.get(jobUrl, headers={'Accept': 'application/json'})
+
+        assert out.status_code == 200
+
+        jobToRestart = out.json()
+
+        assert jobToRestart['status'].lower() == 'nodata'
+
+        Jobs.checkRestartJobs({})
+
+        out = self.testapp.get(jobUrl, headers={'Accept': 'application/json'})
+
+        assert out.status_code == 200
+
+        jobAfterRestart = out.json()
+
+        assert jobAfterRestart['status'].lower() == 'nodata'
+        assert jobAfterRestart['lastModified'] != 0
+
     def doPredictionFeatureStep(self):
         # No Prediction Ready
         self.test_JobSpawner()
