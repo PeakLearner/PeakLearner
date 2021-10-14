@@ -170,7 +170,7 @@ class Job(metaclass=JobType):
         for key in self.tasks.keys():
             taskToCheck = self.tasks[key]
             status = taskToCheck['status']
-            if status == 'Error':
+            if status == 'Error' or status == 'NoData':
                 self.status = status
                 return
             statusVal = statuses.index(status)
@@ -205,9 +205,11 @@ class Job(metaclass=JobType):
     def restartUnfinished(self):
         restarted = False
         for task in self.tasks.values():
-            if task['status'].lower() != 'NoData':
+            if 'Done' != task['status'] != 'NoData':
                 task['status'] = 'New'
                 restarted = True
+
+        print(self.tasks)
 
         self.updateJobStatus()
         self.lastModified = time.time()
@@ -968,5 +970,6 @@ if cfg.testing:
 
         job.lastModified = 0
         job.status = 'NoData'
+        job.tasks['0']['status'] = 'NoData'
 
         jobDb.put(job.__dict__(), txn=txn)
