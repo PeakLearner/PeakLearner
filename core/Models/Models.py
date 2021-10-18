@@ -671,9 +671,11 @@ def predictWithFeatures(features, model):
 
 
 def numModels():
-    output = {'numModels': db.Model.length()}
-
     modelSums = db.ModelSummaries.all()
+
+    if len(modelSums) == 0:
+        return {'numModels': 0, 'modelSumModels': 0,
+              'allSumModels': 0, 'errorSums': 0}
 
     allSumsOneDf = pd.concat(modelSums)
 
@@ -681,12 +683,8 @@ def numModels():
     noNegErrors = allSumsOneDf[errors]
     errorSums = allSumsOneDf[~errors]
 
-    output['modelSumModels'] = len(noNegErrors.index)
-    output['allSumModels'] = len(allSumsOneDf.index)
-    output['errorSums'] = len(errorSums.index)
-
-
-    return output
+    return {'numModels': db.Model.length(), 'modelSumModels': len(noNegErrors.index),
+              'allSumModels': len(allSumsOneDf.index), 'errorSums': len(errorSums.index)}
 
 
 def numCorrectModels():
