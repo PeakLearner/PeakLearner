@@ -677,12 +677,14 @@ def numModels():
 
     allSumsOneDf = pd.concat(modelSums)
 
-    noNegErrors = allSumsOneDf[allSumsOneDf['errors'] < 0]
-
-
+    errors = allSumsOneDf['errors'] < 0
+    noNegErrors = allSumsOneDf[errors]
+    errorSums = allSumsOneDf[~errors]
 
     output['modelSumModels'] = len(noNegErrors.index)
     output['allSumModels'] = len(allSumsOneDf.index)
+    output['errorSums'] = len(errorSums.index)
+
 
     return output
 
@@ -827,6 +829,7 @@ def fixModelsToModelSums(data, txn=None):
                         start = int(start)
                         problem = chromProblems[chromProblems['chromStart'] == start].iloc[0]
                         notInSum = []
+
                         for penalty in penalties:
                             if (modelSums['penalty'] == float(penalty)).any():
                                 continue
@@ -851,8 +854,7 @@ def fixModelsToModelSums(data, txn=None):
 
                         if len(notInSum) > 0:
                             notInSums = pd.DataFrame(notInSum)
-                            newSums = modelSums.append(notInSums, ignore_index=True)
-                            sumDb.put(newSums, txn=modelSumTxn)
+                            sumDb.put(notInSums, txn=modelSumTxn)
                             modelSumTxn.commit()
                         else:
                             modelSumTxn.abort()
