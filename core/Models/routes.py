@@ -173,6 +173,9 @@ def getTrackModelSum(request: Request,
     if output is None:
         return Response(status_code=204)
 
+    if output.empty:
+        return Response(status_code=204)
+
     return core.dfPotentialSeriesOut(request, output)
 
 

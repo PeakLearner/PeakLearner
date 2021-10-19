@@ -209,8 +209,6 @@ class Job(metaclass=JobType):
                 task['status'] = 'New'
                 restarted = True
 
-        print(self.tasks)
-
         self.updateJobStatus()
         self.lastModified = time.time()
         return restarted

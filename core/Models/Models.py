@@ -793,6 +793,9 @@ def recalculateModels(data, txn=None):
         except KeyError:
             pass
 
+        if len(modelSum.index) != len(newSum.index):
+            print(user, hub, track)
+
         modelSumCursor.put(key, newSum)
 
         current = modelSumCursor.next()
