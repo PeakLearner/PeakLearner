@@ -293,14 +293,18 @@ def putModel(data, txn=None):
 
 
 def calculateModelLabelError(modelDf, labels, problem, penalty):
-    labels = labels[labels['annotation'] != 'unknown']
     peaks = modelDf[modelDf['annotation'] == 'peak']
-    labelsIsInProblem = labels.apply(db.checkInBounds, axis=1,
-                                     args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
     numPeaks = len(peaks.index)
-    labelsInProblem = labels[labelsIsInProblem]
+    if not labels.empty:
+        labels = labels[labels['annotation'] != 'unknown']
+        labelsIsInProblem = labels.apply(db.checkInBounds, axis=1,
+                                         args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
+        labelsInProblem = labels[labelsIsInProblem]
 
-    numLabelsInProblem = len(labelsInProblem.index)
+        numLabelsInProblem = len(labelsInProblem.index)
+    else:
+        numLabelsInProblem = 0
+        labelsInProblem = labels
 
     if numPeaks <= 0 < numLabelsInProblem:
         noPeaks = labelsInProblem['annotation'] == 'noPeaks'
@@ -667,7 +671,20 @@ def predictWithFeatures(features, model):
 
 
 def numModels():
-    return db.Model.length()
+    modelSums = db.ModelSummaries.all()
+
+    if len(modelSums) == 0:
+        return {'numModels': 0, 'modelSumModels': 0,
+              'allSumModels': 0, 'errorSums': 0}
+
+    allSumsOneDf = pd.concat(modelSums)
+
+    errors = allSumsOneDf['errors'] < 0
+    noNegErrors = allSumsOneDf[errors]
+    errorSums = allSumsOneDf[~errors]
+
+    return {'numModels': db.Model.length(), 'modelSumModels': len(noNegErrors.index),
+              'allSumModels': len(allSumsOneDf.index), 'errorSums': len(errorSums.index)}
 
 
 def numCorrectModels():
@@ -737,31 +754,137 @@ def getTrackModelSummary(data, txn=None):
 
 @retry
 @txnAbortOnError
-def getAllModelSummaries(data, txn=None):
-    output = []
-
+def recalculateModels(data, txn=None):
     modelSumCursor = db.ModelSummaries.getCursor(txn=txn, bulk=True)
 
     current = modelSumCursor.next()
+
+    genomes = {}
 
     while current is not None:
         key, modelSum = current
 
         user, hub, track, ref, start = key
 
-        modelSum['user'] = user
-        modelSum['hub'] = hub
-        modelSum['track'] = track
-        modelSum['ref'] = ref
-        modelSum['start'] = start
+        hubInfo = db.HubInfo(user, hub).get(txn=txn)
 
-        output.append(modelSum)
+        genome = hubInfo['genome']
+
+        if not genome in genomes:
+            problems = db.Problems(genome).get(txn=txn)
+
+            genomes[genome] = problems
+        else:
+            problems = genomes[genome]
+
+        chromProblems = problems[problems['chrom'] == ref]
+
+        problem = chromProblems[chromProblems['chromStart'] == int(start)].iloc[0]
+
+        labels = db.Labels(user, hub, track, ref).get(txn=txn)
+
+        sumData = {'user': user, 'hub': hub, 'track': track, **problem.to_dict()}
+
+        newSum = modelSum.apply(modelSumLabelUpdate, axis=1, args=(labels, sumData, sumData, txn))
+
+        try:
+            toDelete = newSum['delete'] == 1
+            newSum = newSum[~toDelete].drop('delete', axis=1)
+        except KeyError:
+            pass
+
+        if len(modelSum.index) != len(newSum.index):
+            print(user, hub, track)
+
+        modelSumCursor.put(key, newSum)
 
         current = modelSumCursor.next()
 
     modelSumCursor.close()
 
-    return pd.concat(output)
+
+@retry
+@txnAbortOnError
+def fixModelsToModelSums(data, txn=None):
+
+    modelKeys = db.Model.db_key_tuples()
+
+    organizedKeys = {}
+
+    for key in modelKeys:
+        recursiveCheck(organizedKeys, list(key))
+
+    for user, hubs in organizedKeys.items():
+        for hub, tracks in hubs.items():
+            hubInfo = db.HubInfo(user, hub).get(txn=txn)
+            genome = hubInfo['genome']
+            problems = db.Problems(genome).get(txn=txn)
+            for track, chroms in tracks.items():
+                for chrom, starts in chroms.items():
+                    chromProblems = problems[problems['chrom'] == chrom]
+                    labels = db.Labels(user, hub, track, chrom).get(txn=txn)
+                    for start, penalties in starts.items():
+                        sumDb = db.ModelSummaries(user, hub, track, chrom, start)
+                        modelSumTxn = db.getTxn(parent=txn)
+                        modelSums = sumDb.get(txn=modelSumTxn, write=True)
+                        start = int(start)
+                        problem = chromProblems[chromProblems['chromStart'] == start].iloc[0]
+                        notInSum = []
+
+                        for penalty in penalties:
+                            if (modelSums['penalty'] == float(penalty)).any():
+                                continue
+                            else:
+                                modelDb = db.Model(user, hub, track, chrom, start, penalty)
+                                if float(penalty) <= 0:
+                                    modelDb.put(None, txn=modelSumTxn)
+                                    continue
+
+                                model = modelDb.get(txn=modelSumTxn)
+
+                                if model is None:
+                                    print('model is none')
+                                    modelSumTxn.abort()
+                                    raise Exception
+                                elif model.empty:
+                                    print('model is empty')
+                                    modelSumTxn.abort()
+                                    raise Exception
+
+                                notInSum.append(calculateModelLabelError(model, labels, problem, penalty))
+
+                        if len(notInSum) > 0:
+                            notInSums = pd.DataFrame(notInSum)
+                            sumDb.put(notInSums, txn=modelSumTxn)
+                            modelSumTxn.commit()
+                        else:
+                            modelSumTxn.abort()
+
+
+def recursiveCheck(data, key):
+    toCheck = key[0]
+    if toCheck not in data:
+        if len(key) <= 2:
+            data[toCheck] = [key[1]]
+            return
+
+        data[toCheck] = {}
+        key = key[1:]
+        return recursiveCheck(data[toCheck], key)
+
+    else:
+        if len(key) <= 2:
+            try:
+                data[toCheck].append(key[1])
+            except AttributeError:
+                print(data)
+
+                print(toCheck)
+                raise
+            return
+
+        key = key[1:]
+        return recursiveCheck(data[toCheck], key)
 
 
 if cfg.testing:

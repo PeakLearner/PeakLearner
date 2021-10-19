@@ -23,12 +23,16 @@ class Permission:
         """
 
         # https://stackoverflow.com/questions/2168964/how-to-create-a-class-instance-without-calling-initializer
-        self = cls.__new__(cls)
-        self.owner = str(storable['owner'])
-        self.hub = storable['hub']
-        self.users = storable['users']
-        self.groups = storable['groups']
-        return self
+
+        try:
+            self = cls.__new__(cls)
+            self.owner = str(storable['owner'])
+            self.hub = storable['hub']
+            self.users = storable['users']
+            self.groups = storable['groups']
+            return self
+        except TypeError:
+            return storable
 
     def putNewPermissions(self):
         txn = db.getTxn()
@@ -134,6 +138,25 @@ def addUserToHub(request, owner, hubName, newUser, txn=None):
     permDb.put(perms, txn=txn)
 
     # TODO: Perhaps send an email to the user which was added?
+
+
+@retry
+@txnAbortOnError
+def hasAdmin(user, txn=None):
+    if user == 'Public':
+        return False
+    permDb = db.Permission('All', 'Admin')
+    perms = db.db.Resource.get(permDb, txn=txn, write=True)
+
+    if perms is None:
+        db.db.Resource.put(permDb, [user], txn=txn)
+        return True
+
+    if isinstance(perms, list):
+        if user in perms:
+            return True
+
+    return False
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='test')

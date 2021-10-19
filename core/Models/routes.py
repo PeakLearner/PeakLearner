@@ -6,6 +6,7 @@ from pydantic.main import BaseModel
 import core
 from core.Models import Models, PyModels
 from core.util import PLConfig as cfg
+from core.Permissions import Permissions
 
 from fastapi import APIRouter, Request
 from fastapi.responses import Response, HTMLResponse, RedirectResponse
@@ -172,19 +173,36 @@ def getTrackModelSum(request: Request,
     if output is None:
         return Response(status_code=204)
 
-    return core.dfPotentialSeriesOut(request, output)
-
-
-@core.otherRouter.get('/modelSums',
-                      summary='Get all modelSums',
-                      description='Provides a list of all the modelSums.')
-def getAllModelSums(request: Request):
-    output = Models.getAllModelSummaries({})
-
-    if output is None:
+    if output.empty:
         return Response(status_code=204)
 
     return core.dfPotentialSeriesOut(request, output)
+
+
+@core.otherRouter.get('/recalculateModels', include_in_schema=False)
+def recalculateModels(request: Request):
+    authUser = request.session.get('user')
+
+    if authUser is None:
+        authUser = 'Public'
+    else:
+        authUser = authUser['email']
+
+    if Permissions.hasAdmin(authUser):
+        Models.recalculateModels({'authUser': authUser})
+
+
+@core.otherRouter.get('/fixModelsToModelSums', include_in_schema=False)
+def fixModelsToModelSums(request: Request):
+    authUser = request.session.get('user')
+
+    if authUser is None:
+        authUser = 'Public'
+    else:
+        authUser = authUser['email']
+
+    if Permissions.hasAdmin(authUser):
+        Models.fixModelsToModelSums({'authUser': authUser})
 
 
 if cfg.testing:

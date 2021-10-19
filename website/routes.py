@@ -1,10 +1,11 @@
+from core.Permissions import Permissions
 from core.util import PLdb as db, PLConfig as cfg
 from core.Models import Models
 from core.Jobs import Jobs
 from core.Labels import Labels
 from core.Hubs import Hubs
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
@@ -111,15 +112,10 @@ def statsView(request: Request):
     currentJobStats = Jobs.jobsStats({})
 
     return templates.TemplateResponse('stats.html', {'request': request,
-                                                     'numModels': Models.numModels(),
+                                                     **Models.numModels(),
                                                      'numLabeledChroms': numLabeledChroms,
                                                      'numLabels': numLabels,
-                                                     'numJobs': currentJobStats['numJobs'],
-                                                     'newJobs': currentJobStats['newJobs'],
-                                                     'queuedJobs': currentJobStats['queuedJobs'],
-                                                     'processingJobs': currentJobStats['processingJobs'],
-                                                     'doneJobs': currentJobStats['doneJobs'],
-                                                     'avgTime': currentJobStats['avgTime'],
+                                                     **currentJobStats,
                                                      'user': user})
 
 
@@ -135,7 +131,7 @@ def modelStats(request: Request):
         user = user['email']
 
     return templates.TemplateResponse('stats/models.html', {'request': request,
-                                                            'numModels': Models.numModels(),
+                                                            **Models.numModels(),
                                                             'correctModels': Models.numCorrectModels(),
                                                             'user': user})
 
@@ -188,3 +184,21 @@ def getMyHubs(request: Request):
     out['user'] = user
 
     return templates.TemplateResponse('myHubs.html', out)
+
+
+@router.get('/admin', response_class=HTMLResponse, include_in_schema=False)
+def admin(request: Request):
+    user = request.session.get('user')
+
+    if user is None:
+        user = 'Public'
+    else:
+        user = user['email']
+
+    if not Permissions.hasAdmin(user):
+        return Response(status_code=403)
+
+    return templates.TemplateResponse('admin.html', {'request': request, 'user': user})
+
+
+

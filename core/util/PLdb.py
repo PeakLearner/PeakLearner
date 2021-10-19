@@ -343,7 +343,9 @@ class Permission(db.Resource):
     @classmethod
     def toStorable(cls, data):
         if data is not None:
-            if not isinstance(data, dict):
+            if isinstance(data, list):
+                return db.Resource.toStorable(data)
+            elif not isinstance(data, dict):
                 data = data.__dict__()
 
             return db.Resource.toStorable(data)
