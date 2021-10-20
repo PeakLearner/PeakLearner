@@ -45,7 +45,7 @@ def startup():
 
 
 scheduler.add_job(doBackup, 'cron', hour=0)
-# scheduler.add_job(spawnJobs, 'interval', seconds=60)
+scheduler.add_job(spawnJobs, 'interval', seconds=30)
 scheduler.add_job(runPrediction, 'interval', minutes=10)
 scheduler.add_job(checkJobsRestart, 'interval', minutes=60)
 
