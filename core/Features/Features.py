@@ -26,6 +26,8 @@ def getFeatures(data, txn=None):
 
     if isinstance(features, dict):
         return
+    elif isinstance(features, str):
+        return
 
     return Prediction.dropBadCols(features, txn=txn)
 

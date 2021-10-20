@@ -115,9 +115,9 @@ async def resetJob(job_id: int):
 @router.post('/{job_id}/restart', response_model=Models.Job,
              summary='Restarts the job',
              description='Restarts the given job, sets all tasks back to status New')
-async def restartJob(job_id: int):
+async def restartJob(job_id: int, taskId: int = 0):
     """Completely restarts a job like it was fresh"""
-    data = {'jobId': job_id}
+    data = {'jobId': job_id, 'task_id': taskId}
 
     output = Jobs.restartJob(data)
 

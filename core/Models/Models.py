@@ -35,7 +35,8 @@ def getModels(data, txn=None):
     output = pd.DataFrame()
 
     for problem in problems:
-        isInBounds = chromLabels.apply(db.checkInBounds, axis=1, args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
+        isInBounds = chromLabels.apply(db.checkInBounds, axis=1,
+                                       args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
 
         problemLabels = chromLabels[isInBounds]
 
@@ -244,7 +245,7 @@ def updateAllModelLabels(data, labels, txn):
 
 def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
     modelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
-                     problem['chromStart'], modelSum['penalty'])
+                       problem['chromStart'], modelSum['penalty'])
 
     model = modelDb.get(txn=txn)
 
@@ -257,7 +258,6 @@ def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
         return modelSum
 
     return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
-
 
 
 @retry
@@ -303,8 +303,12 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
 
         numLabelsInProblem = len(labelsInProblem.index)
     else:
-        numLabelsInProblem = 0
-        labelsInProblem = labels
+        return getErrorSeries(penalty, numPeaks, 0,
+                              errors=0,
+                              fn=0,
+                              possible_fn=0,
+                              fp=0,
+                              possible_fp=0)
 
     if numPeaks <= 0 < numLabelsInProblem:
         noPeaks = labelsInProblem['annotation'] == 'noPeaks'
@@ -675,16 +679,17 @@ def numModels():
 
     if len(modelSums) == 0:
         return {'numModels': 0, 'modelSumModels': 0,
-              'allSumModels': 0, 'errorSums': 0}
+                'allSumModels': 0, 'errorSums': 0}
 
     allSumsOneDf = pd.concat(modelSums)
 
     errors = allSumsOneDf['errors'] < 0
-    noNegErrors = allSumsOneDf[errors]
-    errorSums = allSumsOneDf[~errors]
+    noNegErrors = allSumsOneDf[~errors]
+    errorSums = allSumsOneDf[errors]
 
     return {'numModels': db.Model.length(), 'modelSumModels': len(noNegErrors.index),
-              'allSumModels': len(allSumsOneDf.index), 'errorSums': len(errorSums.index)}
+            'allSumModels': len(allSumsOneDf.index), 'errorSums': len(errorSums.index),
+            'errorRegions': len(db.NeedMoreModels.db_keys())}
 
 
 def numCorrectModels():
@@ -764,6 +769,14 @@ def recalculateModels(data, txn=None):
     while current is not None:
         key, modelSum = current
 
+        modelSum = modelSum[modelSum['errors'] >= 0]
+
+        if not modelSum['penalty'].is_unique:
+            modelSum = modelSum.drop_duplicates()
+            if not modelSum['penalty'].is_unique:
+                print(modelSum)
+                break
+
         user, hub, track, ref, start = key
 
         hubInfo = db.HubInfo(user, hub).get(txn=txn)
@@ -785,16 +798,13 @@ def recalculateModels(data, txn=None):
 
         sumData = {'user': user, 'hub': hub, 'track': track, **problem.to_dict()}
 
-        newSum = modelSum.apply(modelSumLabelUpdate, axis=1, args=(labels, sumData, sumData, txn))
+        newSum = modelSum.apply(modelSumLabelUpdate, axis=1, args=(labels, sumData, sumData, txn)).reset_index(drop=True)
 
         try:
             toDelete = newSum['delete'] == 1
             newSum = newSum[~toDelete].drop('delete', axis=1)
         except KeyError:
             pass
-
-        if len(modelSum.index) != len(newSum.index):
-            print(user, hub, track)
 
         modelSumCursor.put(key, newSum)
 
@@ -806,7 +816,6 @@ def recalculateModels(data, txn=None):
 @retry
 @txnAbortOnError
 def fixModelsToModelSums(data, txn=None):
-
     modelKeys = db.Model.db_key_tuples()
 
     organizedKeys = {}

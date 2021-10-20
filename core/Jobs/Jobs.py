@@ -198,7 +198,7 @@ class Job(metaclass=JobType):
 
         for key in self.tasks.keys():
             task = self.tasks[key]
-            task['Status'] = 'New'
+            task['status'] = 'New'
 
         self.lastModified = time.time()
 
@@ -360,6 +360,12 @@ def checkRestartJobs(data, txn=None):
         jobDb = db.Job(*key)
         jobToCheck = jobDb.get(txn=jobTxn, write=True)
 
+        if jobToCheck.status.lower() == 'nodata':
+            jobDb.put(None, txn=jobTxn)
+            db.NoDataJob(*key).put(jobToCheck, txn=jobTxn)
+            jobTxn.commit()
+            continue
+
         try:
             timeDiff = currentTime - jobToCheck.lastModified
         except AttributeError:
@@ -418,20 +424,15 @@ def updateTask(data, txn=None):
     if jobToUpdate.status.lower() == 'done':
         jobDb.put(None, txn=txn)
         db.DoneJob(jobId).put(jobToUpdate, txn=txn)
+    elif jobToUpdate.status.lower() == 'nodata':
+        jobDb.put(None, txn=txn)
+        db.NoDataJob(jobId).put(jobToUpdate, txn=txn)
     else:
         jobDb.put(jobToUpdate, txn=txn)
 
     task = jobToUpdate.addJobInfoOnTask(task)
 
     return task
-
-
-@retry
-@txnAbortOnError
-def getJob(data, txn=None):
-    """Gets job by ID"""
-    output = db.Job(data['id']).get(txn=txn).__dict__()
-    return output
 
 
 @retry
@@ -532,6 +533,9 @@ def getJobWithId(data, txn=None):
 
     if isinstance(job, dict):
         job = db.DoneJob(data['jobId']).get(txn=txn)
+
+        if isinstance(job, dict):
+            job = db.NoDataJob(data['jobId']).get(txn=txn)
 
     if isinstance(job, dict):
         return job
@@ -649,7 +653,8 @@ def jobsStats(data, txn=None):
               'noDataJobs': noDataJobs,
               'errorJobs': errorJobs,
               'jobs': jobs,
-              'avgTime': avgTime}
+              'avgTime': avgTime,
+              'errorRegions': len(db.NeedMoreModels.db_keys())}
 
     return output
 
@@ -669,29 +674,30 @@ def spawnJobs(data, txn=None):
 
 
 def getNoCorrectModelsJobs(txn=None):
-    modelSumCursor = db.ModelSummaries.getCursor(txn, bulk=True)
+    needModels = db.NeedMoreModels.db_key_tuples()
 
     numJobs = 0
 
-    currentSum = modelSumCursor.next()
+    for key in needModels:
+        sumDb = db.ModelSummaries(*key)
 
-    while currentSum is not None:
-        key, modelSum = currentSum
+        modelSum = sumDb.get(txn=txn, write=True)
 
         # These values are checked due to how Models::getErrorSeries works
         errorModels = modelSum[modelSum['numPeaks'] == -1]
         processingModels = errorModels[errorModels['errors'] == -1]
 
         if len(processingModels.index) > 0:
-            currentSum = modelSumCursor.next()
             continue
 
         job = jobToRefine(key, modelSum, txn=txn)
 
+        db.NeedMoreModels(*key).put(None, txn=txn)
+
         if job is not None:
             placeHolder = job.getJobModelSumPlaceholder()
 
-            modelSumCursor.put(key, addModelSummaries(modelSum, placeHolder))
+            sumDb.put(addModelSummaries(modelSum, placeHolder), txn=txn)
 
             job.putNewJob(txn=txn)
 
@@ -699,10 +705,6 @@ def getNoCorrectModelsJobs(txn=None):
 
         if numJobs >= cfg.maxJobsToSpawn:
             break
-
-        currentSum = modelSumCursor.next()
-
-    modelSumCursor.close()
 
     return numJobs
 
@@ -724,10 +726,12 @@ def checkForPredictJobs(numJobs, txn=None):
                 featureKey = (user, hub, track, row['chrom'], str(row['chromStart']))
 
                 # If the feature already exists, then make a single model job
-                if db.Features.has_key(featureKey, txn=txn):
+                if db.Features.has_key(featureKey, txn=txn, write=True):
                     if db.ModelSummaries.has_key(featureKey, txn=txn):
                         continue
                     feature = db.Features(*featureKey).get(txn=txn)
+                    if isinstance(feature, str):
+                        continue
                     if len(feature.keys()) < 1:
                         # The feature vec is currently being processed
                         continue
@@ -762,6 +766,8 @@ def checkForPredictJobs(numJobs, txn=None):
                     outputJob = FeatureJob(user, hub, track, row.to_dict())
 
                     outputJob.putNewJob(txn=txn)
+
+                    db.Features(*featureKey).put(pd.Series(), txn)
 
                     numJobs += 1
 

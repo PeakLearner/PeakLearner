@@ -201,4 +201,20 @@ def admin(request: Request):
     return templates.TemplateResponse('admin.html', {'request': request, 'user': user})
 
 
+@router.get('/addAdmin', include_in_schema=False)
+def addAdmin(request: Request, email: str):
+    user = request.session.get('user')
+
+    if user is None:
+        user = 'Public'
+    else:
+        user = user['email']
+
+    if not Permissions.hasAdmin(user):
+        return Response(status_code=403)
+
+    return Permissions.addAdmin(email)
+
+
+
 
