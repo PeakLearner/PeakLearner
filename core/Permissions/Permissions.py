@@ -159,4 +159,25 @@ def hasAdmin(user, txn=None):
     return False
 
 
+@retry
+@txnAbortOnError
+def addAdmin(user, txn=None):
+    if user == 'Public':
+        return 'Can\'t add Public as admin'
+    permDb = db.Permission('All', 'Admin')
+    perms = db.db.Resource.get(permDb, txn=txn, write=True)
+
+    if perms is None:
+        db.db.Resource.put(permDb, [user], txn=txn)
+
+    elif isinstance(perms, list):
+        if user not in perms:
+            perms.append(user)
+            db.db.Resource.put(permDb, perms, txn=txn)
+        else:
+            return '%s is already an admin' % user
+
+    return '%s added as admin' % user
+
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='test')

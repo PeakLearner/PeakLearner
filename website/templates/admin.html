@@ -16,5 +16,18 @@
 
 <button onclick="window.location.href='/recalculateModels'">recalculateModels</button>
 <button onclick="window.location.href='/fixModelsToModelSums'">fixModelsToModelSums</button>
+<button onclick="window.location.href='/runJobSpawn'">runJobSpawn</button>
+<button onclick="window.location.href='/checkRestartJobs'">checkRestartJobs</button>
+<button onclick="window.location.href='/runPrediction'">runPrediction</button>
+<button onclick="window.location.href='/backup'">backup</button>
+
+
+<h2>Add Admin</h2>
+<form action="/addAdmin">
+  <label for="email">Email</label><br>
+  <input type="text" id="email" name="email" value="user@mail.com"><br>
+  <input type="submit" value="Submit">
+</form>
+
 
 {% endblock %}

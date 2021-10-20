@@ -178,6 +178,10 @@ class DoneJob(Job):
     pass
 
 
+class NoDataJob(Job):
+    pass
+
+
 class JobCursor(db.Cursor):
     def __init__(self, cursor, parent):
         super().__init__(cursor.cursor, parent)
@@ -253,6 +257,22 @@ def checkInBounds_new(df, chrom, chromStart, chromEnd):
     return df[df['chrom'] == chrom]
 
 
+class NeedMoreModels(db.Resource):
+    keys = ("user", "hub", "track", "chrom", "problemstart")
+
+    def make_details(self):
+        return 0
+
+    def add(self, txn=None):
+        val = self.get(txn=txn, write=True) + 1
+
+        self.put(val, txn=txn)
+
+        return val
+
+    pass
+
+
 class ModelSummaries(db.PandasDf):
     keys = ("user", "hub", "track", "chrom", "problemstart")
 
@@ -266,9 +286,14 @@ class ModelSummaries(db.PandasDf):
 
         return df.drop(columns='floatPenalty')
 
-    def fileToStorable(self, filePath):
-        df = pd.read_csv(filePath, sep='\t', dtype={'penalty': str})
-        return df
+    def put(self, value, txn=None):
+        # If no 0 error models
+        if not (value['errors'] == 0).any():
+            # If no uncalculated models
+            if not (value['errors'] == -1).any():
+                NeedMoreModels(*self.values).add(txn=txn)
+
+        return db.PandasDf.put(self, value, txn=txn)
 
     pass
 

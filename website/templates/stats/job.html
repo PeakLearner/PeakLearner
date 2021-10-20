@@ -11,15 +11,16 @@
     }
 
     function resetJob(id) {
-        let url = '/jobs/'
-        let query = {'command': 'resetJob', 'args': {'jobId': id}}
+        let url = '/Jobs/' + id + '/reset'
+        let query = {}
 
         sendAjax(url, query, refreshCallback)
     }
 
     function resetTask(id, taskId) {
-        let url = '/jobs/'
-        let query = {'command': 'update', 'args': {'id': id, 'task': {'taskId': taskId, 'status': 'New'}}}
+        let url = '/Jobs/' + id + '/restart'
+        let query = {'task': taskId}
+
         sendAjax(url, query, refreshCallback)
     }
 </script>
