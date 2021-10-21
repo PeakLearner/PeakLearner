@@ -693,8 +693,6 @@ def getNoCorrectModelsJobs(txn=None):
         job = jobToRefine(key, modelSum, txn=txn)
         db.NeedMoreModels(*key).put(None, txn=txn)
         if job is not None:
-            db.NeedMoreModels(*key).put(None, txn=txn)
-
             placeHolder = job.getJobModelSumPlaceholder()
 
             sumDb.put(addModelSummaries(modelSum, placeHolder), txn=txn)
