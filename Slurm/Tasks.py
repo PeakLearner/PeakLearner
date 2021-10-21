@@ -220,7 +220,13 @@ def runTask(task):
 
         funcToRun = getTaskFunc(task)
 
-        status = funcToRun(task, dataPath, coveragePath, trackUrl)
+        try:
+            status = funcToRun(task, dataPath, coveragePath, trackUrl)
+        except:
+            if not cfg.debug:
+                os.remove(coveragePath)
+                shutil.rmtree(dataPath)
+            raise
 
         endTime = time.time()
 
@@ -262,6 +268,9 @@ def runTask(task):
             return False
 
     else:
+        if not cfg.debug:
+            shutil.rmtree(dataPath)
+
         query = {'id': task['id'],
                  'taskId': task['taskId'],
                  'status': 'NoData'}
