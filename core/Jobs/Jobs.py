@@ -875,7 +875,7 @@ def jobToRefine(key, modelSums, txn=None):
         if abs(compare['numPeaks'] - model['numPeaks']) <= 1:
             return
 
-        if compare['penalty'] > model['penalty']:
+        if float(compare['penalty']) > float(model['penalty']):
             top = compare
             bottom = model
         else:
