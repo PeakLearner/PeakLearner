@@ -293,7 +293,7 @@ class ModelSummaries(db.PandasDf):
             if not (value['errors'] == -1).any():
                 NeedMoreModels(*self.values).add(txn=txn)
 
-        return db.PandasDf.put(self, value, txn=txn)
+        return db.PandasDf.put(self, self.sortDf(value), txn=txn)
 
     pass
 
