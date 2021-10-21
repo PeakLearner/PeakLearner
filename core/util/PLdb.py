@@ -292,8 +292,17 @@ class ModelSummaries(db.PandasDf):
             # If no uncalculated models
             if not (value['errors'] == -1).any():
                 NeedMoreModels(*self.values).add(txn=txn)
+            else:
+                if NeedMoreModels.has_key(self.values, txn=txn, write=True):
+                    NeedMoreModels(*self.values).put(None, txn=txn)
 
         return db.PandasDf.put(self, self.sortDf(value), txn=txn)
+
+    def add_item(self, df):
+        out = db.PandasDf.add_item(self, df)
+
+        return self.sortDf(out)
+
 
     pass
 

@@ -691,10 +691,10 @@ def getNoCorrectModelsJobs(txn=None):
             continue
 
         job = jobToRefine(key, modelSum, txn=txn)
-
         db.NeedMoreModels(*key).put(None, txn=txn)
-
         if job is not None:
+            db.NeedMoreModels(*key).put(None, txn=txn)
+
             placeHolder = job.getJobModelSumPlaceholder()
 
             sumDb.put(addModelSummaries(modelSum, placeHolder), txn=txn)
@@ -704,7 +704,7 @@ def getNoCorrectModelsJobs(txn=None):
             numJobs += 1
 
         if numJobs >= cfg.maxJobsToSpawn:
-            break
+            return numJobs
 
     return numJobs
 
@@ -789,7 +789,13 @@ def addModelSummaries(main, toAdd):
 
     notInAdd = main[~main['inAdd']].drop(columns='inAdd')
 
-    return notInAdd.append(toAdd, ignore_index=True)
+    df = notInAdd.append(toAdd, ignore_index=True)
+
+    df['floatPenalty'] = df['penalty'].astype(float)
+
+    df = df.sort_values('floatPenalty', ignore_index=True)
+
+    return df.drop(columns='floatPenalty')
 
 
 def checkForSum(row, df):
