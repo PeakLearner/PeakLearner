@@ -69,11 +69,6 @@ def getDataPoints(txn=None):
     return dropBadCols(X, txn=txn), Y
 
 
-def makePrediction(data):
-    model = db.Prediction('model').get()
-    print(model)
-
-
 def dropBadCols(data, txn=None):
     pd.set_option("display.max_rows", None, "display.max_columns", None)
     noNegatives = data.replace(-np.Inf, np.nan)

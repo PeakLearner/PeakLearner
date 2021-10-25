@@ -16,9 +16,9 @@ db.openEnv()
 
 db.openDBs()
 
-# from fastapi_cprofile.profiler import CProfileMiddleware
+# from fastapi_profiler.profiler_middleware import PyInstrumentProfilerMiddleware
 app = FastAPI()
-# app.add_middleware(CProfileMiddleware, enable=True, print_each_request = True, strip_dirs = False, sort_by='cumulative')
+# app.add_middleware(PyInstrumentProfilerMiddleware)
 
 app.include_router(website.routes.router)
 

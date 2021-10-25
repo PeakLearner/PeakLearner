@@ -179,6 +179,8 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
 
         jobs = out.json()
 
+
+
         # all jobs are done, more jobs should be spawned here because the job spawner was called
         assert len(jobs) != 0
 

@@ -279,15 +279,13 @@ def putModel(data, txn=None):
 
     modelSumsDb = db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart'])
 
-    modelSums = modelSumsDb.get(txn=txn, write=True)
-
     if len(labels.index) > 0:
         errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
-        modelSumsDb.put(modelSums.append(errorSum, ignore_index=True), txn=txn)
+        modelSumsDb.add(errorSum, txn=txn)
     else:
         peaks = modelData[modelData['annotation'] == 'peak']
         errorSum = getErrorSeries(penalty, len(peaks.index), errors=0)
-        modelSumsDb.put(modelSums.append(errorSum, ignore_index=True), txn=txn)
+        modelSumsDb.add(errorSum, txn=txn)
 
     return modelInfo
 

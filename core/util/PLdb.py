@@ -4,6 +4,7 @@ import datetime
 import shutil
 
 import berkeleydb
+import numpy as np
 import pandas as pd
 import simpleBDB as db
 from core.Jobs import Jobs
@@ -277,7 +278,7 @@ class ModelSummaries(db.PandasDf):
     keys = ("user", "hub", "track", "chrom", "problemstart")
 
     def conditional(self, item, df):
-        return item['penalty'] == df['penalty']
+        return np.int64(item['penalty']) == df['penalty'].astype(np.int64)
 
     def sortDf(self, df):
         df['floatPenalty'] = df['penalty'].astype(float)
