@@ -671,43 +671,17 @@ def predictWithFeatures(features, model):
 
     return guess
 
+def profile_wrap(func):
+    import cProfile
 
-def numModels():
-    modelSums = db.ModelSummaries.all()
+    def wrap(*args, **kwargs):
+        with cProfile.Profile() as pr:
+            output = func(*args, **kwargs)
 
-    if len(modelSums) == 0:
-        return {'numModels': 0, 'modelSumModels': 0,
-                'allSumModels': 0, 'errorSums': 0}
+        pr.print_stats(sort='filename')
+        return output
 
-    allSumsOneDf = pd.concat(modelSums)
-
-    errors = allSumsOneDf['errors'] < 0
-    noNegErrors = allSumsOneDf[~errors]
-    errorSums = allSumsOneDf[errors]
-
-    return {'numModels': db.Model.length(), 'modelSumModels': len(noNegErrors.index),
-            'allSumModels': len(allSumsOneDf.index), 'errorSums': len(errorSums.index),
-            'errorRegions': len(db.NeedMoreModels.db_keys())}
-
-
-def numCorrectModels():
-    correct = 0
-
-    for key in db.ModelSummaries.db_key_tuples():
-        modelSum = db.ModelSummaries(*key).get()
-
-        if modelSum.empty:
-            continue
-
-        withRegions = modelSum[modelSum['regions'] > 0]
-
-        withPeaks = withRegions[withRegions['numPeaks'] > 0]
-
-        zeroErrors = withPeaks[withPeaks['errors'] < 1]
-
-        correct = correct + len(zeroErrors.index)
-
-    return correct
+    return wrap
 
 
 @retry

@@ -112,28 +112,11 @@ def statsView(request: Request):
     currentJobStats = Jobs.jobsStats({})
 
     return templates.TemplateResponse('stats.html', {'request': request,
-                                                     **Models.numModels(),
                                                      'numLabeledChroms': numLabeledChroms,
                                                      'numLabels': numLabels,
                                                      **currentJobStats,
                                                      'user': user})
 
-
-# TODO: Maybe make these stats user specific?
-@router.get('/model', response_class=HTMLResponse, include_in_schema=False)
-def modelStats(request: Request):
-    """TODO: Document this view"""
-    user = request.session.get('user')
-
-    if user is None:
-        user = 'Public'
-    else:
-        user = user['email']
-
-    return templates.TemplateResponse('stats/models.html', {'request': request,
-                                                            **Models.numModels(),
-                                                            'correctModels': Models.numCorrectModels(),
-                                                            'user': user})
 
 
 @router.get('/label', response_class=HTMLResponse, include_in_schema=False)

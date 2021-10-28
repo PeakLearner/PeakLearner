@@ -1,9 +1,10 @@
 import logging
+import fastapi
+import pydantic
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
-
 
 import website.routes
 from core.util import PLConfig as cfg, PLdb as db
@@ -16,9 +17,7 @@ db.openEnv()
 
 db.openDBs()
 
-# from fastapi_profiler.profiler_middleware import PyInstrumentProfilerMiddleware
 app = FastAPI()
-# app.add_middleware(PyInstrumentProfilerMiddleware)
 
 app.include_router(website.routes.router)
 
@@ -45,7 +44,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 app.mount("/static", StaticFiles(directory='website/static'), name='static')
 app.mount('/{user}/{hub}', StaticFiles(directory='jbrowse/jbrowse'), name='jbrowseFiles')

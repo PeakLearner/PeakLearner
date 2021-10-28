@@ -42,17 +42,18 @@ def lock_detect(func):
 class PeakLearnerTestBase(unittest.TestCase):
 
     def setUp(self):
-        try:
-            db.closeDBs()
-        except:
-            pass
+        if True:
+            try:
+                db.closeDBs()
+            except:
+                pass
 
-        if os.path.exists(dbDir):
-            shutil.rmtree(dbDir)
-        if os.path.exists(dbLogBackupDir):
-            shutil.rmtree(dbLogBackupDir)
-        with tarfile.open(dbTar) as tar:
-            tar.extractall(dataDir)
+            if os.path.exists(dbDir):
+                shutil.rmtree(dbDir)
+            if os.path.exists(dbLogBackupDir):
+                shutil.rmtree(dbLogBackupDir)
+            with tarfile.open(dbTar) as tar:
+                tar.extractall(dataDir)
 
         db.openEnv()
         db.openDBs()
