@@ -143,6 +143,8 @@ def getCoverageFile(task, dataPath):
 
     coverageUrl = task['trackUrl']
 
+    leading, trailing = coverageUrl.split('://')
+
     # Make num timeouts configurable
     for i in range(1, 5):
         result = subprocess.run(['bin/bigWigToBedGraph',
@@ -159,6 +161,10 @@ def getCoverageFile(task, dataPath):
             continue
 
         try:
+            if not cfg.debug:
+                tmpPath = os.path.join('/tmp', 'udcCache', leading, *trailing.split('/'))
+                if os.path.exists(tmpPath):
+                    shutil.rmtree(tmpPath)
             return fixCoverage(task, coveragePath)
         except pd.errors.EmptyDataError:
             return
