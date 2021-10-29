@@ -28,7 +28,17 @@ def runTask():
     return tasks.runTask(task)
 
 
-if __name__ == '__main__':
+def start():
     if not runTask():
         print('should be sleeping')
         time.sleep(15)
+
+
+if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        while True:
+            start()
+    else:
+        start()
+
+

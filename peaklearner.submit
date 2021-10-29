@@ -1,0 +1,15 @@
+universe = vanilla
+executable = PeakLearnerXSEDE.sh
+
+Requirements = HAS_SINGULARITY == True && OSG_HOST_KERNEL_VERSION >= 31000
++SingularityImage = "/cvmfs/singularity.opensciencegrid.org/opensciencegrid/peaklearner:v1"
+
+output = out
+error = err
+log = log
+
+request_cpus = 1
+request_memory = 4 GB
+request_disk = 10 GB
+
+queue 1
