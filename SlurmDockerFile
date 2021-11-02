@@ -23,4 +23,5 @@ COPY slurmRequirements.txt .
 RUN python3 -m pip install -U pip && \
     python3 -m pip install -r slurmRequirements.txt
 COPY ./Slurm ./Slurm
+COPY ./PeakLearnerSlurmDeploy.cfg ./PeakLearnerSlurm.cfg
 CMD ["./Slurm/run.sh"]
