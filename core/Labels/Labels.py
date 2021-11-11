@@ -302,9 +302,7 @@ def addContigToLabel(row, contig):
     return row
 
 
-@retry
-@txnAbortOnError
-def hubInfoLabels(query, txn=None):
+def hubInfoLabels(db, query):
     """Provides table with user as index row, and chrom as column name. Value is label counts across tracks for that user/chrom"""
     labelKeys = db.Labels.keysWhichMatch(query['user'], query['hub'])
     labels = []

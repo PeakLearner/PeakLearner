@@ -1,19 +1,20 @@
-
 from typing import Optional
 
 from . import Hubs, Models
 
 from core.Labels import Labels
 from core.util import PLConfig as cfg
+from sqlalchemy.orm import Session
 
 from pydantic import BaseModel
-from fastapi import APIRouter, Request, Form, Response
+from fastapi import APIRouter, Request, Form, Response, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory='website/templates')
 
 import core
+from core import models
 
 
 @core.hubRouter.get('/', response_class=HTMLResponse)
@@ -41,11 +42,21 @@ def getJbrowsePage(request: Request, user: str, hub: str):
                     response_model=Models.HubInfo,
                     summary='Get the hubInfo for this hub',
                     description='Gets the hubInfo for this hub. It contains the tracks, urls, the reference genome, and categories for that data')
-def getHubInfo(request: Request, user: str, hub: str):
+def getHubInfo(request: Request, user: str, hub: str, db: Session = Depends(core.get_db)):
     """Retrieves the hub info and serves it as a json or html file"""
-    data = {'user': user, 'hub': hub}
+    owner = db.query(models.User).filter(models.User.name == user).first()
 
-    output = Hubs.getHubInfo(data)
+    if owner is None:
+        return
+
+    hub = owner.hubs.filter(models.Hub.name == hub).first()
+
+    if hub is None:
+        return
+
+    output = Hubs.getHubInfo(db, owner, hub)
+
+    print('get hub info output', output)
 
     if 'accept' in request.headers:
         outputType = request.headers['accept']
@@ -102,7 +113,7 @@ class HubURL(BaseModel):
 @core.otherRouter.put('/uploadHubUrl', tags=['Hubs'],
                       summary='Upload a new hub.txt to the system',
                       description='Route for uploading a new UCSC formatted hub.txt with a genomes.txt and trackList.txt in the same directory')
-async def uploadHubUrl(request: Request, hubUrl: HubURL):
+async def uploadHubUrl(request: Request, hubUrl: HubURL, db: Session = Depends(core.get_db)):
     """How hubs are uploaded to peaklearner"""
     user = request.session.get('user')
 
@@ -111,7 +122,7 @@ async def uploadHubUrl(request: Request, hubUrl: HubURL):
     else:
         userEmail = user['email']
 
-    output = Hubs.parseHub(hubUrl, userEmail)
+    output = Hubs.parseHub(db, hubUrl, userEmail)
 
     return output
 

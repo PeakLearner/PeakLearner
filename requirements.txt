@@ -1,3 +1,5 @@
+sqlalchemy
+pymysql
 httpx<0.18.2
 uvicorn==0.14.0
 asgiref>=3.3.4

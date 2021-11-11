@@ -1,17 +1,23 @@
+import datetime
 import os
 import json
 import gzip
+
+import numpy as np
 import requests
 import tempfile
 import threading
 import pandas as pd
+from sqlalchemy.orm import Session
+
+from core import models
 from core.Jobs import Jobs
 from fastapi import Response
 from core.Labels import Labels
 from core.Models import Models
 from core.Handlers import Tracks
 from core.Permissions import Permissions
-from core.util import PLConfig as cfg, PLdb as db
+from core.util import PLConfig as cfg
 from simpleBDB import retry, txnAbortOnError, AbortTXNException
 
 
@@ -268,25 +274,40 @@ def createTrackListWithHubInfo(info, owner, hub):
     return tracklist
 
 
-def parseHub(data, user):
+def parseHub(db: Session, data, user):
     parsed = parseUCSC(data, user)
     # Add a way to configure hub here somehow instead of just loading everythingS
-    return createHubFromParse(parsed)
+    return createHubFromParse(db, parsed)
 
 
 # All this should probably be done asynchronously
-def createHubFromParse(parsed):
+def createHubFromParse(db: Session, parsed):
     # Will need to add a way to add additional folder depth for userID once authentication is added
-    hub = parsed['hub']
-    user = parsed['user']
+    owner = db.query(models.User).filter(models.User.name == parsed['user']).first()
+    if owner is None:
+        owner = models.User(name=parsed['user'])
+        db.add(owner)
+        db.commit()
+        db.refresh(owner)
+
+
     genomesFile = parsed['genomesFile']
 
     # This will need to be updated if there are multiple genomes in file
-    genome = genomesFile['genome']
+    genome = db.query(models.Genome).filter(models.Genome.name == genomesFile['genome']).first()
+    if genome is None:
+        genome = models.Genome(name=genomesFile['genome'])
+        db.add(genome)
+        db.commit()
+        db.refresh(genome)
 
-    hubInfo = {'genome': genome,
-               'isPublic': parsed['isPublic'],
-               'owner': user}
+    hub = owner.hubs.filter(models.Hub.name == parsed['hub']).first()
+
+    if hub is None:
+        hub = models.Hub(owner=owner.id, name=parsed['hub'], genome=genome.id, public=parsed['isPublic'])
+        db.add(hub)
+        db.commit()
+        db.refresh(hub)
 
     dataPath = os.path.join(cfg.jbrowsePath, cfg.dataPath)
 
@@ -294,9 +315,7 @@ def createHubFromParse(parsed):
 
     # Generate problems for this genome
 
-    txn = db.getTxn()
-    problems = generateProblems(genome, dataPath, txn)
-    txn.commit()
+    problems = generateProblems(db, genome, dataPath)
 
     problemPath = generateProblemTrack(problems)
 
@@ -304,13 +323,12 @@ def createHubFromParse(parsed):
 
     getRefSeq(genome, dataPath, includes)
 
-    path = storeHubInfo(user, hub, genomesFile['trackDb'], hubInfo, genome)
-    Permissions.Permission(user, hub).putNewPermissions()
+    path = storeHubInfo(db, owner, hub, genomesFile['trackDb'], genome)
 
     return path
 
 
-def storeHubInfo(user, hub, tracks, hubInfo, genome):
+def storeHubInfo(db: Session, owner, hub, tracks, genome):
     superList = []
     trackList = []
     hubInfoTracks = {}
@@ -334,7 +352,6 @@ def storeHubInfo(user, hub, tracks, hubInfo, genome):
                     else:
                         parent['children'].append(track)
 
-    txn = db.getTxn()
     for track in trackList:
         # Determine which track is the coverage data
         coverage = None
@@ -349,24 +366,24 @@ def storeHubInfo(user, hub, tracks, hubInfo, genome):
             for category in track['longLabel'].split(' | ')[:-1]:
                 categories = categories + ' / %s' % category
 
-            hubInfoTracks[track['track']] = {'categories': categories,
-                                             'key': track['shortLabel'],
-                                             'url': coverage['bigDataUrl']}
+            trackInDb = hub.tracks.filter(models.Track.name == track['shortLabel']).first()
+            if trackInDb is None:
+                trackInDb = models.Track(
+                    hub=hub.id,
+                    categories=categories,
+                    name=track['shortLabel'],
+                    url=coverage['bigDataUrl'])
 
-            trackTxn = db.getTxn(parent=txn)
-            if not checkForPrexistingLabels(coverage['bigDataUrl'], user, hub, track, genome, trackTxn):
-                trackTxn.abort()
-                continue
-            trackTxn.commit()
+                db.add(trackInDb)
+                db.commit()
+                db.refresh(trackInDb)
+
+            checkForPrexistingLabels(db, coverage['bigDataUrl'], owner, hub, trackInDb, genome)
+
+    return '/%s/' % os.path.join(owner.name, hub.name)
 
 
-    hubInfo['tracks'] = hubInfoTracks
-    db.HubInfo(user, hub).put(hubInfo, txn=txn)
-    txn.commit()
-    return '/%s/' % os.path.join(str(user), hub)
-
-
-def checkForPrexistingLabels(coverageUrl, user, hub, track, genome, txn):
+def checkForPrexistingLabels(db: Session, coverageUrl, user, hub, track, genome):
     trackUrl = coverageUrl.rsplit('/', 1)[0]
     labelUrl = '%s/labels.bed' % trackUrl
     with requests.get(labelUrl, verify=False) as r:
@@ -381,65 +398,72 @@ def checkForPrexistingLabels(coverageUrl, user, hub, track, genome, txn):
             labels.columns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
 
     grouped = labels.groupby(['chrom'], as_index=False)
-    grouped.apply(saveLabelGroup, user, hub, track, genome, coverageUrl, txn)
+
+    def saveLabelGroup(group):
+        group = group.sort_values('chromStart', ignore_index=True)
+
+        chromName = group['chrom'].loc[0]
+
+        chrom = track.chroms.filter(models.Chrom.name == chromName).first()
+
+        if chrom is None:
+            chrom = models.Chrom(track=track.id, name=chromName)
+            db.add(chrom)
+            db.commit()
+            db.refresh(chrom)
+
+        def putLabels(row):
+            asDict = row.to_dict()
+
+            if 'createdBy' in asDict:
+                del asDict['createdBy']
+
+            checkLabel = chrom.labels.filter(models.Label.start == asDict['chromStart']).first()
+
+            if checkLabel is None:
+                lastModifiedBy = None
+                if 'lastModifiedBy' in asDict:
+                    lmb = asDict['lastModifiedBy']
+
+                    if not isinstance(lmb, str):
+                        asDict['lastModifiedBy'] = 'Public'
+
+                    lastModifiedBy = db.query(models.User).filter(
+                        models.User.name == asDict['lastModifiedBy']).first()
+                else:
+                    asDict['lastModifiedBy'] = 'Public'
+                    lastModifiedBy = db.query(models.User).filter(
+                        models.User.name == 'Public').first()
+
+                if 'lastModified' in asDict:
+                    lm = asDict['lastModified']
+                    if lm is None or np.nan:
+                        asDict['lastModified'] = datetime.datetime.now()
+
+                else:
+                    asDict['lastModified'] = datetime.datetime.now()
+
+                if lastModifiedBy is None:
+                    lastModifiedBy = models.User(name=asDict['lastModifiedBy'])
+                    db.add(lastModifiedBy)
+                    db.commit()
+                    db.refresh(lastModifiedBy)
+
+                label = models.Label(chrom=chrom.id,
+                                     start=asDict['chromStart'],
+                                     end=asDict['chromEnd'],
+                                     annotation=asDict['annotation'],
+                                     lastModified=asDict['lastModified'],
+                                     lastModifiedBy=lastModifiedBy.id)
+
+                db.add(label)
+                db.commit()
+
+        group.apply(putLabels, axis=1)
+
+    grouped.apply(saveLabelGroup)
 
     return True
-
-
-def saveLabelGroup(group, user, hub, track, genome, coverageUrl, txn):
-    group = group.sort_values('chromStart', ignore_index=True)
-
-    group['annotation'] = group.apply(fixNoPeaks, axis=1)
-    chrom = group['chrom'].loc[0]
-
-    txn = db.getTxn()
-
-    numLabels = len(group.index)
-
-    changes = db.Prediction('changes').get(write=True, txn=txn)
-
-    changes = changes + numLabels
-
-    db.Prediction('changes').put(changes, txn=txn)
-
-    db.Labels(user, hub, track['track'], chrom).put(group, txn=txn)
-
-    chromProblems = Tracks.getProblemsForChrom(genome, chrom, txn)
-
-    withLabels = chromProblems.apply(checkIfProblemHasLabels, axis=1, args=(group,))
-
-    doPregen = chromProblems[withLabels]
-
-    submitPregenWithData(doPregen, user, hub, track, numLabels, coverageUrl, txn)
-
-    txn.commit()
-
-
-def submitPregenWithData(doPregen, user, hub, track, numLabels, coverageUrl, txn):
-    recs = doPregen.to_dict('records')
-    for problem in recs:
-        problemTxn = db.getTxn(parent=txn)
-        penalties = Models.peakSegDiskPrePenalties
-        job = Jobs.PregenJob(user,
-                             hub,
-                             track['track'],
-                             problem,
-                             penalties,
-                             numLabels,
-                             trackUrl=coverageUrl)
-
-        if job.putNewJob(problemTxn) is None:
-            problemTxn.abort()
-            continue
-
-        placeHolders = job.getJobModelSumPlaceholder()
-
-        modelSummaries = db.ModelSummaries(user, hub, track['track'], problem['chrom'],
-                                           problem['chromStart'])
-
-        modelSummaries.put(placeHolders, txn=problemTxn)
-
-        problemTxn.commit()
 
 
 def checkIfProblemHasLabels(problem, labels):
@@ -452,14 +476,8 @@ def checkIfProblemHasLabels(problem, labels):
     return inBounds.any()
 
 
-def fixNoPeaks(row):
-    if row['annotation'] == 'noPeaks':
-        return 'noPeak'
-    return row['annotation']
-
-
 def getRefSeq(genome, path, includes):
-    genomeRelPath = os.path.join('genomes', genome)
+    genomeRelPath = os.path.join('genomes', genome.name)
 
     genomePath = os.path.join(path, genomeRelPath)
 
@@ -472,8 +490,8 @@ def getRefSeq(genome, path, includes):
             print(genomePath, "does not exist")
             return
 
-    genomeUrl = cfg.geneUrl + genome + '/bigZips/' + genome + '.fa.gz'
-    genomeFaPath = os.path.join(genomePath, genome + '.fa')
+    genomeUrl = cfg.geneUrl + genome.name + '/bigZips/' + genome.name + '.fa.gz'
+    genomeFaPath = os.path.join(genomePath, genome.name + '.fa')
     genomeFaiPath = genomeFaPath + '.fai'
 
     downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath)
@@ -481,7 +499,7 @@ def getRefSeq(genome, path, includes):
     genomeConfigPath = os.path.join(genomePath, 'trackList.json')
 
     with open(genomeConfigPath, 'w') as genomeCfg:
-        genomeFile = genome + '.fa.fai'
+        genomeFile = genome.name + '.fa.fai'
         output = {'refSeqs': genomeFile, 'include': includes}
         json.dump(output, genomeCfg)
 
@@ -507,7 +525,7 @@ def downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath):
 
 
 def getGeneTracks(genome, dataPath):
-    genomePath = os.path.join(dataPath, 'genomes', genome)
+    genomePath = os.path.join(dataPath, 'genomes', genome.name)
 
     genesPath = os.path.join(genomePath, 'genes')
 
@@ -517,7 +535,7 @@ def getGeneTracks(genome, dataPath):
         except OSError:
             return
 
-    genesUrl = "%s%s/database/" % (cfg.geneUrl, genome)
+    genesUrl = "%s%s/database/" % (cfg.geneUrl, genome.name)
 
     genes = ['ensGene', 'knownGene', 'ncbiRefSeq', 'refGene', 'ccdsGene']
 
@@ -714,13 +732,11 @@ def readUCSCLines(lines):
         return output[0]
 
 
-def generateProblems(genome, path, txn=None):
-    genesUrl = "%s%s/database/" % (cfg.geneUrl, genome)
-    genomePath = os.path.join(path, 'genomes', genome)
+def generateProblems(db: Session, genome, path):
+    genesUrl = "%s%s/database/" % (cfg.geneUrl, genome.name)
+    genomePath = os.path.join(path, 'genomes', genome.name)
     outputFile = os.path.join(genomePath, 'problems.bed')
 
-    if db.Problems.has_key(genome):
-        return outputFile
 
     if not os.path.exists(genomePath):
         try:
@@ -760,11 +776,19 @@ def generateProblems(genome, path, txn=None):
     output['chromStart'] = output['chromStart'].astype(int)
     output['chromEnd'] = output['chromEnd'].astype(int)
 
-    problemsTxn = db.getTxn(parent=txn)
+    def putProblems(row):
+        problem = genome.problems.filter(models.Problem.chrom == row['chrom']) \
+            .filter(models.Problem.start == row['chromStart']).first()
+        if problem is None:
+            problem = models.Problem(genome=genome.id,
+                                     chrom=row['chrom'],
+                                     start=row['chromStart'],
+                                     end=row['chromEnd'])
+            db.add(problem)
+            db.commit()
+            db.refresh(problem)
 
-    db.Problems(genome).put(output, txn=problemsTxn)
-
-    problemsTxn.commit()
+    output.apply(putProblems, axis=1)
 
     output.to_csv(outputFile, sep='\t', index=False, header=False)
 
@@ -811,7 +835,21 @@ def downloadAndUnpackFile(url, path):
     return path
 
 
-@retry
-@txnAbortOnError
-def getHubInfo(data, txn=None):
-    return db.HubInfo(data['user'], data['hub']).get(txn=txn)
+def getHubInfo(db, owner, hub):
+    tracks = hub.tracks.all()
+
+    genome = db.query(models.Genome).get(hub.genome)
+
+    hubInfoToReturn = {'owner': owner.name,
+                       'name': hub.name,
+                       'genome': genome.name,
+                       'public': hub.public,
+                       'tracks': {}}
+
+    for track in tracks:
+        trackDict = {'categories': track.categories,
+                     'key': track.name,
+                     'url': track.url}
+        hubInfoToReturn['tracks'][track.name] = trackDict
+
+    return hubInfoToReturn

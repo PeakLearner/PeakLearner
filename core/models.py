@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, PickleType, Column, Float, ForeignKey, Integer, String, ForeignKeyConstraint, Time
+from sqlalchemy import Boolean, PickleType, Column, Float, ForeignKey, DateTime, Integer, String, ForeignKeyConstraint, Time
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -16,10 +16,22 @@ class Hub(Base):
     __tablename__ = 'hubs'
     id = Column(Integer, primary_key=True)
     owner = Column(Integer, ForeignKey('users.id'))
-    hubName = Column(String(255))
+    name = Column(String(255))
     genome = Column(Integer, ForeignKey('genomes.id'))
     public = Column(Boolean)
     tracks = relationship('Track', lazy='dynamic')
+    permissions = relationship('HubPermission', lazy='dynamic')
+
+
+class HubPermission(Base):
+    __tablename__ = 'hubperms'
+    id = Column(Integer, primary_key=True)
+    hubId = Column(Integer, ForeignKey('hubs.id'))
+    user = Column(Integer, ForeignKey('users.id'))
+    label = Column(Boolean)
+    track = Column(Boolean)
+    hub = Column(Boolean)
+    moderator = Column(Boolean)
 
 
 class Genome(Base):
@@ -44,7 +56,7 @@ class Track(Base):
     __tablename__ = 'tracks'
     id = Column(Integer, primary_key=True)
     hub = Column(Integer, ForeignKey('hubs.id'))
-    trackName = Column(String(255))
+    name = Column(String(255))
     categories = Column(String(255))
     url = Column(String(255))
     chroms = relationship('Chrom', lazy='dynamic')
@@ -64,6 +76,7 @@ class Contig(Base):
     id = Column(Integer, primary_key=True)
     chrom = Column(Integer, ForeignKey('chroms.id'))
     start = Column(Integer)
+    features = Column(PickleType)
     problem = Column(Integer, ForeignKey('problems.id'))
     modelSums = relationship('ModelSum', lazy='dynamic')
 
@@ -76,7 +89,7 @@ class Label(Base):
     annotation = Column(String(10))
     start = Column(Integer)
     end = Column(Integer)
-    lastModified = Column(Time)
+    lastModified = Column(DateTime)
     lastModifiedBy = Column(Integer, ForeignKey('users.id'))
 
 
@@ -92,7 +105,4 @@ class ModelSum(Base):
     errors = Column(Integer)
     numPeaks = Column(Integer)
     regions = Column(Integer)
-
-
-
-
+    loss = Column(PickleType)

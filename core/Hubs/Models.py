@@ -12,7 +12,7 @@ class Track(BaseModel):
 
 class HubInfo(BaseModel):
     genome: str
-    isPublic: bool
+    public: bool
     owner: str
     tracks: Dict[str, Track]
 

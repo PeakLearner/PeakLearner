@@ -16,20 +16,20 @@ def getProblemsForChrom(genome, chrom, txn=None):
     return problems[problems['chrom'] == chrom].copy()
 
 
-def getProblems(data, txn=None):
+def getProblems(db, data):
     """Get all the contigs given a given query"""
     if 'genome' not in data:
-        data['genome'] = getGenome(data, txn=txn)
+        data['genome'] = getGenome(db, data)
 
     problems = db.Problems(data['genome'])
 
-    problemsInBounds = problems.getInBounds(data['ref'], data['start'], data['end'], txn=txn)
+    problemsInBounds = problems.getInBounds(data['ref'], data['start'], data['end'])
 
     if problemsInBounds is None:
         problemsPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'genomes', data['genome'], 'problems.bed')
 
         if not os.path.exists(problemsPath):
-            location = Hubs.generateProblems(data['genome'], problemsPath)
+            location = Hubs.generateProblems(db, data['genome'], problemsPath)
             if not location == problemsPath:
                 raise Exception
 

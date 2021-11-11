@@ -1,8 +1,8 @@
 import os
 import pandas as pd
-from fastapi.testclient import TestClient
 from tests import Base
 from core.util import PLConfig as cfg
+from fastapi.testclient import TestClient
 
 testDataPath = os.path.join('tests', 'data')
 
@@ -47,15 +47,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
     noPeakLabel['end'] = 16091959
     noPeakLabel['label'] = 'noPeak'
 
-    def setUp(self):
-        super().setUp()
-
-        import core.main as main
-
-        self.app = main.app
-
-        self.testapp = TestClient(self.app)
-
     def test_serverWorking(self):
         res = self.testapp.get('/')
         assert res.status_code == 200
@@ -98,6 +89,8 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         assert request.status_code == 200
 
         requestOutput = request.json()
+
+        print(requestOutput)
 
         assert requestOutput['genome'] == 'hg19'
 

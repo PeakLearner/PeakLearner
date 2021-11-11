@@ -11,12 +11,23 @@ from core import database, models
 pldb.openEnv()
 pldb.openDBs()
 
-database.do_create()
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
-with database.SessionLocal() as session:
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+
+engine = create_engine(
+            SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+        )
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+database.Base.metadata.create_all(bind=engine)
+
+with SessionLocal() as session:
     session.begin()
 
-    if False:
+    if True:
         print('Migrating HubInfos')
         for key, hub in pldb.HubInfo.all_dict().items():
             tracks = hub['tracks']
@@ -55,20 +66,20 @@ with database.SessionLocal() as session:
 
             problems.apply(putProblems, axis=1)
 
-            hubToInsert = owner.hubs.filter(models.Hub.hubName == hubName).first()
+            hubToInsert = owner.hubs.filter(models.Hub.name == hubName).first()
             if hubToInsert is None:
-                hubToInsert = models.Hub(owner=owner.id, hubName=hubName, genome=genome.id, public=hub['isPublic'])
+                hubToInsert = models.Hub(owner=owner.id, name=hubName, genome=genome.id, public=hub['isPublic'])
                 session.add(hubToInsert)
                 session.commit()
                 session.refresh(hubToInsert)
 
             for trackKey, track in tracks.items():
-                trackToInsert = hubToInsert.tracks.filter(models.Track.trackName == track['key']).first()
+                trackToInsert = hubToInsert.tracks.filter(models.Track.name == track['key']).first()
                 if trackToInsert is None:
                     trackToInsert = models.Track(
                         hub=hubToInsert.id,
                         categories=track['categories'],
-                        trackName=track['key'],
+                        name=track['key'],
                         url=track['url'])
 
                     session.add(trackToInsert)
@@ -78,7 +89,50 @@ with database.SessionLocal() as session:
 
     print('---------------------------')
 
-    if False:
+    if True:
+        print('Migrating permissions')
+        for key, permissions in pldb.Permission.all_dict().items():
+            owner, hubName = key
+            if owner == 'All' and hubName == 'Admin':
+                continue
+
+            owner = session.query(models.User).filter(models.User.name == ownerName).first()
+
+            if owner is None:
+                raise Exception
+
+            hub = owner.hubs.filter(models.Hub.name == hubName).first()
+
+            asDict = permissions.__dict__()
+
+            for userName, perms in asDict['users'].items():
+
+                user = session.query(models.User).filter(models.User.name == userName).first()
+
+                if user is None:
+                    user = models.User(name=userName)
+                    session.add(user)
+                    session.commit()
+                    session.refresh(user)
+
+                permissions = hub.permissions.filter(models.HubPermission.user == user.id).first()
+
+                if permissions is None:
+                    permissions = models.HubPermission(hubId=hub.id,
+                                                       user=user.id,
+                                                       label=perms['Label'],
+                                                       track=perms['Track'],
+                                                       hub=perms['Hub'],
+                                                       moderator=perms['Moderator'])
+
+                    session.add(permissions)
+                    session.commit()
+                    session.refresh(permissions)
+        print('Finished migrating permissions')
+
+    print('---------------------------')
+
+    if True:
         print('Migrating Labels')
         allLabels = pldb.Labels.all_dict()
         totalLabelDfs = len(allLabels.keys())
@@ -91,8 +145,8 @@ with database.SessionLocal() as session:
             if owner is None:
                 raise Exception
 
-            hub = owner.hubs.filter(models.Hub.hubName == hubName).first()
-            track = hub.tracks.filter(models.Track.trackName == trackName).first()
+            hub = owner.hubs.filter(models.Hub.name == hubName).first()
+            track = hub.tracks.filter(models.Track.name == trackName).first()
             chrom = track.chroms.filter(models.Chrom.name == chromname).first()
 
             if chrom is None:
@@ -163,13 +217,13 @@ with database.SessionLocal() as session:
         current = 0
 
         for key in modelKeys:
-            print('Num labels to add left', numModels - current)
+            print('Num models to add left', numModels - current)
             current += 1
             ownerName, hubName, trackName, chromName, start, penalty = key
             owner = session.query(models.User).filter(models.User.name == ownerName).first()
             if owner is None:
                 raise Exception
-            hub = owner.hubs.filter(models.Hub.hubName == hubName).first()
+            hub = owner.hubs.filter(models.Hub.name == hubName).first()
             if hub is None:
                 raise Exception
             genome = session.query(models.Genome).get(hub.genome)
@@ -233,20 +287,29 @@ with database.SessionLocal() as session:
                            'chromStart': problem.start, 'chromEnd': problem.end}
             modelSumOut = calculateModelLabelError(modelDf, labelsDf, problemDict, floatPenalty)
 
-            if len(labelsDf.index) != modelSumOut['regions']:
-                print(len(labelsDf.index))
-                print(modelSumOut['regions'])
-                raise Exception
+            loss = pldb.Loss(*key).get()
 
-            modelSum = models.ModelSum(contig=contig.id,
-                                       fp=modelSumOut['fp'],
-                                       fn=modelSumOut['fn'],
-                                       possible_fp=modelSumOut['possible_fp'],
-                                       possible_fn=modelSumOut['possible_fn'],
-                                       errors=modelSumOut['errors'],
-                                       regions=modelSumOut['regions'],
-                                       numPeaks=modelSumOut['numPeaks'],
-                                       penalty=floatPenalty)
+            if loss is None:
+                modelSum = models.ModelSum(contig=contig.id,
+                                           fp=modelSumOut['fp'],
+                                           fn=modelSumOut['fn'],
+                                           possible_fp=modelSumOut['possible_fp'],
+                                           possible_fn=modelSumOut['possible_fn'],
+                                           errors=modelSumOut['errors'],
+                                           regions=modelSumOut['regions'],
+                                           numPeaks=modelSumOut['numPeaks'],
+                                           penalty=floatPenalty)
+            else:
+                modelSum = models.ModelSum(contig=contig.id,
+                                           fp=modelSumOut['fp'],
+                                           fn=modelSumOut['fn'],
+                                           possible_fp=modelSumOut['possible_fp'],
+                                           possible_fn=modelSumOut['possible_fn'],
+                                           errors=modelSumOut['errors'],
+                                           regions=modelSumOut['regions'],
+                                           numPeaks=modelSumOut['numPeaks'],
+                                           penalty=floatPenalty,
+                                           loss=loss)
 
             session.add(modelSum)
             session.commit()
@@ -254,3 +317,51 @@ with database.SessionLocal() as session:
 
             # TODO: Models out to fs
 
+        print('finished migrating models')
+
+    print('---------------------------')
+
+    if True:
+        print('Migrating Features')
+        featureKeys = pldb.Features.db_key_tuples()
+        numFeatures = len(featureKeys)
+        current = 0
+
+        for key in featureKeys:
+            ownerName, hubName, trackName, chromName, start = key
+            print('Num features to add left', numFeatures - current)
+            current += 1
+            owner = session.query(models.User).filter(models.User.name == ownerName).first()
+            if owner is None:
+                raise Exception
+            hub = owner.hubs.filter(models.Hub.name == hubName).first()
+            if hub is None:
+                raise Exception
+            genome = session.query(models.Genome).get(hub.genome)
+            if genome is None:
+                raise Exception
+            track = hub.tracks.filter(models.Track.trackName == trackName).first()
+            if track is None:
+                raise Exception
+            chrom = track.chroms.filter(models.Chrom.name == chromName).first()
+            if chrom is None:
+                chrom = models.Chrom(track=track.id, name=chromName)
+                session.add(chrom)
+                session.commit()
+                session.refresh(chrom)
+            contigStartInt = int(start)
+
+            contig = chrom.contigs.filter(models.Contig.start == int(contigStartInt)).first()
+
+            features = pldb.Features(*key).get()
+
+            if contig is None:
+                contig = models.Contig(chrom=chrom.id, start=contigStartInt, problem=problem.id, features=features)
+                session.add(contig)
+                session.commit()
+                session.refresh(contig)
+            else:
+                contig.features = features
+                session.commit()
+                session.refresh(contig)
+        print('finished migrating features')
