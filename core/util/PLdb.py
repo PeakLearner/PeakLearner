@@ -24,6 +24,7 @@ def clearLocks():
             filePath = os.path.join(dbPath, file)
             print('deleting lock file', filePath)
             os.remove(filePath)
+            os.remove(filePath)
 
 
 def openEnv():
