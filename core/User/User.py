@@ -1,15 +1,13 @@
 import time
 
+import core
 import numpy as np
 import pandas as pd
-from core.util import PLdb as db
-from core.Models import Models
-from simpleBDB import retry, txnAbortOnError
-from fastapi import Response
+from core import models
+from fastapi import Request, Depends
+from sqlalchemy.orm import Session
 
 
-@retry
-@txnAbortOnError
 def populateUserProfile(authUser, txn=None):
     hubsToShow = []
     allHubs = db.HubInfo.all_dict(txn)
@@ -58,4 +56,18 @@ def populateUserProfile(authUser, txn=None):
         output.append(hubOutput.copy())
 
     return output
+
+
+def getAuthUser(request: Request, db: Session = Depends(core.get_db)):
+    authUser = request.session.get('user')
+
+    if authUser is None:
+        authUser = 'Public'
+    else:
+        authUser = authUser['email']
+
+    owner = db.query(models.User).filter(models.User.name == authUser).first()
+
+    if owner is None:
+        return
 

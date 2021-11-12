@@ -90,8 +90,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         requestOutput = request.json()
 
-        print(requestOutput)
-
         assert requestOutput['genome'] == 'hg19'
 
         assert len(requestOutput['tracks']) == 28

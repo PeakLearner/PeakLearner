@@ -8,8 +8,6 @@ import shutil
 import unittest
 import requests
 import threading
-from pyramid import testing
-from pyramid.paster import get_app
 
 dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
 dbDir = os.path.join(dataDir, 'db')

@@ -1,3 +1,4 @@
+import pandas as pd
 from sqlalchemy import Boolean, PickleType, Column, Float, ForeignKey, DateTime, Integer, String, ForeignKeyConstraint, Time
 from sqlalchemy.orm import relationship
 
@@ -22,6 +23,13 @@ class Hub(Base):
     tracks = relationship('Track', lazy='dynamic')
     permissions = relationship('HubPermission', lazy='dynamic')
 
+    def checkPermission(self, user, permStr):
+        perm = self.permissions.filter(HubPermission.user == user.id).first()
+
+        if perm is None:
+            return False
+        return perm.checkPerm(permStr)
+
 
 class HubPermission(Base):
     __tablename__ = 'hubperms'
@@ -32,6 +40,14 @@ class HubPermission(Base):
     track = Column(Boolean)
     hub = Column(Boolean)
     moderator = Column(Boolean)
+
+    permsDict = {'label': label,
+                  'track': track,
+                  'hub': hub,
+                  'moderator': moderator}
+
+    def checkPerm(self, permStr):
+        return self.permsDict[permStr.lower()]
 
 
 class Genome(Base):
@@ -61,6 +77,20 @@ class Track(Base):
     url = Column(String(255))
     chroms = relationship('Chrom', lazy='dynamic')
 
+    def getLabels(self, queryFilter=None, **kwargs):
+        chromLabels = []
+        chroms = self.chroms.all()
+
+        for chrom in chroms:
+            chromOut = chrom.getLabels(queryFilter=queryFilter[1:], **kwargs)
+            if chromOut is not None:
+                chromLabels.append(chromOut)
+
+        if chromLabels:
+            if queryFilter:
+                return queryFilter[0](pd.concat(chromLabels), **kwargs)
+            return pd.concat(chromLabels)
+
 
 class Chrom(Base):
     __tablename__ = 'chroms'
@@ -70,12 +100,31 @@ class Chrom(Base):
     labels = relationship('Label', lazy='dynamic')
     contigs = relationship('Contig', lazy='dynamic')
 
+    def getLabels(self, queryFilter=None, **kwargs):
+        # Get all labels as list of dicts to turn into a df
+        labels = self.labels.all()
+        labelsOut = []
+
+        for label in labels:
+            labelDict = label.__dict__.copy()
+            if 'id' in labelDict:
+                del labelDict['id']
+            labelDict['chrom'] = self.name
+            labelsOut.append(labelDict)
+
+        if labelsOut:
+            if queryFilter:
+                if isinstance(queryFilter, list):
+                    return queryFilter[0](labelsOut, **kwargs)
+                return queryFilter(labelsOut, **kwargs)
+            else:
+                return labelsOut
+
 
 class Contig(Base):
     __tablename__ = 'contigs'
     id = Column(Integer, primary_key=True)
     chrom = Column(Integer, ForeignKey('chroms.id'))
-    start = Column(Integer)
     features = Column(PickleType)
     problem = Column(Integer, ForeignKey('problems.id'))
     modelSums = relationship('ModelSum', lazy='dynamic')
@@ -91,6 +140,11 @@ class Label(Base):
     end = Column(Integer)
     lastModified = Column(DateTime)
     lastModifiedBy = Column(Integer, ForeignKey('users.id'))
+    __dict__ = {'annotation': annotation,
+                'start': start,
+                'end': end,
+                'lastModified': lastModified,
+                'lastModifiedBy': lastModifiedBy}
 
 
 class ModelSum(Base):

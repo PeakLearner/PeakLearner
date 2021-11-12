@@ -1,11 +1,16 @@
 import json
 from typing import Optional, List
 
+import pandas as pd
 from pydantic.main import BaseModel
+from sqlalchemy.orm import Session
 
 import core
+from core import models, dbutil
+from core.User import User
 from core.Labels import Labels, Models
-from fastapi import APIRouter, Request
+from core.Permissions import Permissions
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import Response, HTMLResponse, RedirectResponse
 
 csvResponse = {
@@ -15,33 +20,51 @@ csvResponse = {
 }
 
 
+def onlyInBoundsAsDf(toCheck, start=None, end=None):
+    return pd.DataFrame(onlyInBounds(toCheck, start, end))
+
+
+def onlyInBounds(toCheck, start=None, end=None):
+    output = []
+
+    for checking in toCheck:
+        if start and not end:
+            if checking['start'] >= start:
+                output.append(checking)
+        elif end and not start:
+            if checking['end'] <= end:
+                output.append(checking)
+        elif start and end:
+            if start <= checking['start'] <= end:
+                output.append(checking)
+            elif start <= checking['end'] <= end:
+                output.append(checking)
+            else:
+                output.append(checking)
+
+    return output
+
+
 @core.trackRouter.get('/labels',
                       responses=csvResponse,
                       summary='Get the labels for a given track',
                       description='Gets the labels for a given track, with parameters for limiting the query')
-async def getLabels(request: Request, user: str, hub: str, track: str, ref: str = None, start: int = None,
-                    end: int = None, contig: bool = False):
-    authUser = request.session.get('user')
+def getLabels(request: Request, user: str, hub: str, track: str, ref: str = None, start: int = None,
+              end: int = None, db: Session = Depends(core.get_db)):
+    user, hub, track = dbutil.getTrack(db, user, hub, track)
 
-    if authUser is None:
-        authUser = 'Public'
+    if ref:
+        user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, ref)
+        output = chrom.getLabels(queryFilter=onlyInBoundsAsDf, start=start, end=end)
     else:
-        authUser = authUser['email']
+        output = track.getLabels(start=start, end=end)
 
-    query = {'user': user,
-             'hub': hub,
-             'track': track,
-             'ref': ref,
-             'start': start,
-             'end': end,
-             'contig': contig,
-             'authUser': authUser}
-
-    output = Labels.getLabels(data=query)
-
-    if isinstance(output, list):
-        return Response(status_code=204)
-    elif isinstance(output, Response):
+    try:
+        if not output:
+            return Response(status_code=204)
+    except ValueError:
+        pass
+    if isinstance(output, Response):
         return output
 
     if 'Accept' in request.headers:
@@ -224,4 +247,3 @@ async def deleteHubLabel(request: Request, user: str, hub: str, hubLabelData: Hu
         return output
 
     return Response(json.dumps(output), media_type='application/json')
-

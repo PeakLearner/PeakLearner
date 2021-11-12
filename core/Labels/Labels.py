@@ -2,18 +2,17 @@ import time
 
 import numpy as np
 import pandas as pd
-from core.util import PLdb as db
+from requests import Session
+
 from core.Models import Models
-from simpleBDB import retry, txnAbortOnError
 from fastapi import Response
+from core import models
 
 labelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
 jbrowseLabelColumns = ['ref', 'start', 'end', 'label']
 jbrowseContigLabelColumns = ['ref', 'start', 'end', 'label', 'contigStart', 'contigEnd']
 
 
-@retry
-@txnAbortOnError
 def addLabel(data, txn=None):
     # Duplicated because calls from updateLabel are causing freezing
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
@@ -46,8 +45,6 @@ def addLabel(data, txn=None):
     return data
 
 
-@retry
-@txnAbortOnError
 def addHubLabels(data, txn=None):
     # Duplicated because calls from updateLabel are causing freezing
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
@@ -91,8 +88,6 @@ def addHubLabels(data, txn=None):
     return data
 
 
-@retry
-@txnAbortOnError
 def deleteLabel(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
     if perms is None:
@@ -111,9 +106,6 @@ def deleteLabel(data, txn=None):
         return Response(status_code=401)
 
 
-
-@retry
-@txnAbortOnError
 def deleteHubLabels(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
     if perms is None:
@@ -145,8 +137,6 @@ def deleteHubLabels(data, txn=None):
         return Response(status_code=401)
 
 
-@retry
-@txnAbortOnError
 def updateLabel(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
     if perms is None:
@@ -168,8 +158,6 @@ def updateLabel(data, txn=None):
         return Response(status_code=401)
 
 
-@retry
-@txnAbortOnError
 def updateHubLabels(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
     if perms is None:
@@ -205,9 +193,7 @@ def updateHubLabels(data, txn=None):
         return Response(status_code=401)
 
 
-@retry
-@txnAbortOnError
-def getLabels(data, txn=None):
+def getLabels(db, data):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
 
     if perms is None:
@@ -242,8 +228,6 @@ def getLabels(data, txn=None):
         return Response(status_code=401)
 
 
-@retry
-@txnAbortOnError
 def getHubLabels(data, txn=None):
     output = []
 
@@ -302,11 +286,17 @@ def addContigToLabel(row, contig):
     return row
 
 
-def hubInfoLabels(db, query):
+def hubInfoLabels(db: Session, hub):
     """Provides table with user as index row, and chrom as column name. Value is label counts across tracks for that user/chrom"""
-    labelKeys = db.Labels.keysWhichMatch(query['user'], query['hub'])
+    tracks = hub.join(models.Hub.tracks)
+    print(tracks)
     labels = []
-    for key in labelKeys:
+    for track in tracks:
+        chroms = track.chroms.all()
+
+        for chrom in chroms:
+            print(chrom)
+            raise Exception
         labelsDf = db.Labels(*key).get(txn=txn)
         labels.append(labelsDf)
 
@@ -351,8 +341,6 @@ def checkUserTotal(row):
     return out
 
 
-@retry
-@txnAbortOnError
 def labelsStats(data, txn=None):
     chroms = labels = 0
 

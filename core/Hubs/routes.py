@@ -3,6 +3,7 @@ from typing import Optional
 from . import Hubs, Models
 
 from core.Labels import Labels
+from core.User import User
 from core.util import PLConfig as cfg
 from sqlalchemy.orm import Session
 
@@ -64,7 +65,7 @@ def getHubInfo(request: Request, user: str, hub: str, db: Session = Depends(core
         outputType = 'json'
 
     if 'text/html' in outputType:
-        labelTable = Labels.hubInfoLabels(data)
+        labelTable = Labels.hubInfoLabels(db, data)
         output = {'request': request, 'hubInfo': output, **labelTable, 'hubName': hub, 'user': 'user'}
         return templates.TemplateResponse('hubInfo.html', output)
     elif outputType == 'json' or outputType == 'application/json' or outputType == '*/*':
