@@ -66,8 +66,5 @@ def getAuthUser(request: Request, db: Session = Depends(core.get_db)):
     else:
         authUser = authUser['email']
 
-    owner = db.query(models.User).filter(models.User.name == authUser).first()
-
-    if owner is None:
-        return
+    return db.query(models.User).filter(models.User.name == authUser).first()
 

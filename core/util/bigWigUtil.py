@@ -26,3 +26,12 @@ def bigWigSummary(url, chrom, start, end, bins):
 
 def anscombeApply(val):
     return math.sqrt(val + 3/8)
+
+
+def checkInBounds(row, start, end):
+    if start <= row['start'] <= end:
+        return True
+    elif start <= row['end'] <= end:
+        return True
+    else:
+        return (row['start'] < end) and (row['end'] > end)

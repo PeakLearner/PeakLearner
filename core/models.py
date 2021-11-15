@@ -1,5 +1,6 @@
 import pandas as pd
-from sqlalchemy import Boolean, PickleType, Column, Float, ForeignKey, DateTime, Integer, String, ForeignKeyConstraint, Time
+from sqlalchemy import Boolean, PickleType, Column, Float, ForeignKey, DateTime, Integer, String, ForeignKeyConstraint, \
+    Time
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -24,6 +25,12 @@ class Hub(Base):
     permissions = relationship('HubPermission', lazy='dynamic')
 
     def checkPermission(self, user, permStr):
+        permStr = permStr.lower()
+
+        # Everyone can label a public hub
+        if permStr == 'label' and self.public:
+            return True
+
         perm = self.permissions.filter(HubPermission.user == user.id).first()
 
         if perm is None:
@@ -42,12 +49,12 @@ class HubPermission(Base):
     moderator = Column(Boolean)
 
     permsDict = {'label': label,
-                  'track': track,
-                  'hub': hub,
-                  'moderator': moderator}
+                 'track': track,
+                 'hub': hub,
+                 'moderator': moderator}
 
     def checkPerm(self, permStr):
-        return self.permsDict[permStr.lower()]
+        return self.permsDict[permStr]
 
 
 class Genome(Base):

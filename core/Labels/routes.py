@@ -1,3 +1,4 @@
+import datetime
 import json
 from typing import Optional, List
 
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 import core
 from core import models, dbutil
 from core.User import User
+from core.util.bigWigUtil import checkInBounds
 from core.Labels import Labels, Models
 from core.Permissions import Permissions
 from fastapi import APIRouter, Request, Depends
@@ -92,17 +94,37 @@ class LabelQuery(BaseModel):
 @core.trackRouter.put('/labels',
                       summary='Add label for a given track',
                       description='Adds the label at the given position to the current args')
-async def putLabel(request: Request, user: str, hub: str, track: str, label: LabelQuery):
-    authUser = request.session.get('user')
+async def putLabel(request: Request, user: str, hub: str, track: str,
+                   label: LabelQuery, db: Session = Depends(core.get_db)):
+    authUser = User.getAuthUser(request, db)
 
-    if authUser is None:
-        authUser = 'Public'
-    else:
-        authUser = authUser['email']
+    user, hub = dbutil.getHub(db, user, hub)
 
-    query = {'user': user, 'hub': hub, 'track': track, 'authUser': authUser, **dict(label)}
+    if not hub.checkPermission(authUser, 'Label'):
+        if authUser.name == 'Public':
+            return Response(status_code=401)
+        return Response(status_code=403)
 
-    return Labels.addLabel(query)
+    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, label.ref)
+
+    labelsDf = pd.DataFrame(chrom.getLabels())
+
+    inBounds = labelsDf.apply(checkInBounds, axis=1, args=(label.start, label.end))
+
+    if inBounds.any():
+        return Response(status_code=406)
+
+    newLabel = models.Label(chrom=chrom.id,
+                            annotation=label.label,
+                            start=label.start,
+                            end=label.end,
+                            lastModified=datetime.datetime.now(),
+                            lastModifiedBy=authUser.id)
+
+    chrom.labels.append(newLabel)
+    db.commit()
+
+    return Response(status_code=200)
 
 
 @core.trackRouter.post('/labels',

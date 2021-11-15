@@ -201,7 +201,7 @@ def getLabels(db, data):
 
     if perms.hasPermission(data['authUser'], 'Label'):
         labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-        labelsDf = labels.getInBounds(data['ref'], data['start'], data['end'], txn=txn)
+        labelsDf = labels.getInBounds(data['ref'], data['start'], data['end'])
         if len(labelsDf.index) < 1:
             return []
 
