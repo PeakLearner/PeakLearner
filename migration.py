@@ -229,7 +229,7 @@ with SessionLocal() as session:
             genome = session.query(models.Genome).get(hub.genome)
             if genome is None:
                 raise Exception
-            track = hub.tracks.filter(models.Track.trackName == trackName).first()
+            track = hub.tracks.filter(models.Track.name == trackName).first()
             if track is None:
                 raise Exception
             chrom = track.chroms.filter(models.Chrom.name == chromName).first()

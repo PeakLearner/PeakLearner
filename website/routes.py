@@ -1,13 +1,16 @@
 from core.Permissions import Permissions
-from core.util import PLdb as db, PLConfig as cfg
+from core.util import PLConfig as cfg
 from core.Models import Models
 from core.Jobs import Jobs
 from core.Labels import Labels
 from core.Hubs import Hubs
+from core.User import User
 
-from fastapi import APIRouter, Request, Response
+from sqlalchemy.orm import Session
+from fastapi import APIRouter, Request, Response, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+import core
 
 router = APIRouter()
 
@@ -137,7 +140,7 @@ def labelStats(request: Request):
 
 
 @router.get('/myHubs', response_class=HTMLResponse, include_in_schema=False)
-def getMyHubs(request: Request):
+def getMyHubs(request: Request, db: Session = Depends(core.get_db)):
     """My Hubs page renderer
 
     Loops through each db.HubInfo item in the database in which the current authenticated user is either the owner or
@@ -155,16 +158,11 @@ def getMyHubs(request: Request):
 
     # TODO: Authentication
 
-    user = request.session.get('user')
+    authUser = User.getAuthUser(request, db)
 
-    if user is None:
-        user = 'Public'
-    else:
-        user = user['email']
-
-    out = Hubs.getHubInfosForMyHubs(user)
+    out = Hubs.getHubInfosForMyHubs(db, authUser)
     out['request'] = request
-    out['user'] = user
+    out['user'] = authUser.name
 
     return templates.TemplateResponse('myHubs.html', out)
 

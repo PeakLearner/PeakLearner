@@ -2,6 +2,8 @@ from simpleBDB import retry, txnAbortOnError, AbortTXNException
 from core.util import PLdb as db
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Response
+from core import models
+from sqlalchemy.orm import Session
 
 
 defaultPerms = {'Label': True, 'Track': False, 'Hub': False, 'Moderator': False}
@@ -41,20 +43,6 @@ class Permission:
 
     def putPermissionsWithTxn(self, txn=None):
         db.Permission(self.owner, self.hub).put(self.__dict__(), txn=txn)
-
-    def hasViewPermission(self, userToCheck, hubInfo):
-        if hubInfo['isPublic']:
-            return True
-
-        if 'Public' != userToCheck in self.users:
-            return True
-
-        if self.owner == userToCheck:
-            return True
-
-        # TODO: Add a way to check if a user is in a group which has permission
-
-        return False
 
     def hasPermission(self, userToCheck, perm):
         if self.owner == userToCheck:
@@ -97,8 +85,29 @@ class Permission:
         return output
 
 
-@retry
-@txnAbortOnError
+def hasViewPermission(hub, authUser):
+    if hub.public:
+        return True
+
+    userPerms = hub.permissions.filter(models.HubPermission.user == authUser.id).first()
+
+    if userPerms is None:
+        if hub.owner == authUser.id:
+            return True
+        return False
+    return True
+
+
+def getHubPermissions(db: Session, hub):
+    perms = hub.permissions.all()
+    output = {}
+
+    for perm in perms:
+        permUser = db.query(models.User).filter(models.User.id == perm.user).first()
+        print(permUser)
+    return output
+
+
 def adjustPermissions(owner, hub, userid, args, txn=None):
     # create authorization
     permDb = db.Permission(owner, hub)

@@ -43,7 +43,9 @@ def getModel(request: Request,
 
     data = {**locals(), 'authUser': authUser}
 
-    output = Models.getModels(data=data)
+    # output = Models.getModels(data=data)
+
+    output = []
 
     if output is None:
         return Response(status_code=204)

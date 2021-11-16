@@ -1,3 +1,4 @@
+import datetime
 import time
 
 import numpy as np
@@ -7,13 +8,79 @@ from requests import Session
 from core.Models import Models
 from fastapi import Response
 from core import models
+from core import dbutil
+from core.util.bigWigUtil import checkInBounds
 
 labelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
 jbrowseLabelColumns = ['ref', 'start', 'end', 'label']
 jbrowseContigLabelColumns = ['ref', 'start', 'end', 'label', 'contigStart', 'contigEnd']
 
 
-def addLabel(data, txn=None):
+def onlyInBoundsAsDf(toCheck, start=None, end=None):
+    return pd.DataFrame(onlyInBounds(toCheck, start, end))
+
+
+def onlyInBounds(toCheck, start=None, end=None):
+    output = []
+
+    for checking in toCheck:
+        if start and not end:
+            if checking['start'] >= start:
+                output.append(checking)
+        elif end and not start:
+            if checking['end'] <= end:
+                output.append(checking)
+        elif start and end:
+            if start <= checking['start'] <= end:
+                output.append(checking)
+            elif start <= checking['end'] <= end:
+                output.append(checking)
+            else:
+                output.append(checking)
+
+    return output
+
+
+def getLabels(db, user, hub, track, ref: str = None, start: int = None,
+              end: int = None):
+    user, hub, track = dbutil.getTrack(db, user, hub, track)
+
+    if ref:
+        user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, ref)
+        return chrom.getLabels(queryFilter=onlyInBoundsAsDf, start=start, end=end)
+    else:
+        return track.getLabels(start=start, end=end)
+
+
+def putLabel(db, authUser, user, hub, track, label):
+    user, hub = dbutil.getHub(db, user, hub)
+
+    if not hub.checkPermission(authUser, 'Label'):
+        if authUser.name == 'Public':
+            return Response(status_code=401)
+        return Response(status_code=403)
+
+    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, label.ref)
+
+    labelsDf = pd.DataFrame(chrom.getLabels())
+
+    inBounds = labelsDf.apply(checkInBounds, axis=1, args=(label.start, label.end))
+
+    if inBounds.any():
+        return Response(status_code=406)
+
+    newLabel = models.Label(chrom=chrom.id,
+                            annotation=label.label,
+                            start=label.start,
+                            end=label.end,
+                            lastModified=datetime.datetime.now(),
+                            lastModifiedBy=authUser.id)
+
+    chrom.labels.append(newLabel)
+
+
+
+def zaddLabel(data, txn=None):
     # Duplicated because calls from updateLabel are causing freezing
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
     if perms is None:
@@ -45,7 +112,7 @@ def addLabel(data, txn=None):
     return data
 
 
-def addHubLabels(data, txn=None):
+def zaddHubLabels(data, txn=None):
     # Duplicated because calls from updateLabel are causing freezing
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
     if perms is None:
@@ -88,7 +155,7 @@ def addHubLabels(data, txn=None):
     return data
 
 
-def deleteLabel(data, txn=None):
+def zdeleteLabel(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
     if perms is None:
         return Response(status_code=404)
@@ -106,7 +173,7 @@ def deleteLabel(data, txn=None):
         return Response(status_code=401)
 
 
-def deleteHubLabels(data, txn=None):
+def zdeleteHubLabels(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
     if perms is None:
         return Response(status_code=404)
@@ -137,7 +204,7 @@ def deleteHubLabels(data, txn=None):
         return Response(status_code=401)
 
 
-def updateLabel(data, txn=None):
+def zupdateLabel(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
     if perms is None:
         return Response(status_code=404)
@@ -158,7 +225,7 @@ def updateLabel(data, txn=None):
         return Response(status_code=401)
 
 
-def updateHubLabels(data, txn=None):
+def zupdateHubLabels(data, txn=None):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
     if perms is None:
         return Response(status_code=404)
@@ -193,7 +260,7 @@ def updateHubLabels(data, txn=None):
         return Response(status_code=401)
 
 
-def getLabels(db, data):
+def zgetLabels(db, data):
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
 
     if perms is None:
@@ -228,7 +295,7 @@ def getLabels(db, data):
         return Response(status_code=401)
 
 
-def getHubLabels(data, txn=None):
+def zgetHubLabels(data, txn=None):
     output = []
 
     perms = db.Permission(data['user'], data['hub']).get(txn=txn)
@@ -273,7 +340,7 @@ def getHubLabels(data, txn=None):
     return output
 
 
-def addContigToLabel(row, contig):
+def zaddContigToLabel(row, contig):
     inBounds = contig.apply(db.checkInBounds, axis=1, args=(row['chrom'], row['chromStart'], row['chromEnd']))
 
     contigInBounds = contig[inBounds]
@@ -286,7 +353,7 @@ def addContigToLabel(row, contig):
     return row
 
 
-def hubInfoLabels(db: Session, hub):
+def zhubInfoLabels(db: Session, hub):
     """Provides table with user as index row, and chrom as column name. Value is label counts across tracks for that user/chrom"""
     tracks = hub.join(models.Hub.tracks)
     print(tracks)
@@ -309,7 +376,7 @@ def hubInfoLabels(db: Session, hub):
     return {'labelTable': labelTable.replace('dataframe', 'table'), 'numLabels': len(allLabels.index)}
 
 
-def checkUserTotal(row):
+def zcheckUserTotal(row):
     """Calculates the total number of labels for each unique user given a chrom"""
     unique = row['lastModifiedBy'].unique()
 
@@ -341,7 +408,7 @@ def checkUserTotal(row):
     return out
 
 
-def labelsStats(data, txn=None):
+def zlabelsStats(data, txn=None):
     chroms = labels = 0
 
     for key in db.Labels.db_key_tuples():

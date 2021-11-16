@@ -73,12 +73,20 @@ def getHubInfo(request: Request, user: str, hub: str, db: Session = Depends(core
 
 
 @core.hubRouter.get('/data/{handler}', include_in_schema=False)
-async def getJbrowseJsons(user: str, hub: str, handler: str):
+async def getJbrowseJsons(user: str, hub: str, handler: str, db: Session = Depends(core.get_db)):
     """Responsible for parsing the hub info into something jbrowse can use"""
     # Only really used for parsing the hubInfo into a form which JBrowse can work with
-    data = {'user': user, 'hub': hub}
+    owner = db.query(models.User).filter(models.User.name == user).first()
 
-    return Hubs.getHubJsons(data, handler)
+    if owner is None:
+        return
+
+    hub = owner.hubs.filter(models.Hub.name == hub).first()
+
+    if hub is None:
+        return
+
+    return Hubs.getHubJsons(db, owner, hub, handler)
 
 
 @core.hubRouter.delete('',

@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 import core
 from core import models, dbutil
 from core.User import User
-from core.util.bigWigUtil import checkInBounds
 from core.Labels import Labels, Models
 from core.Permissions import Permissions
 from fastapi import APIRouter, Request, Depends
@@ -22,44 +21,13 @@ csvResponse = {
 }
 
 
-def onlyInBoundsAsDf(toCheck, start=None, end=None):
-    return pd.DataFrame(onlyInBounds(toCheck, start, end))
-
-
-def onlyInBounds(toCheck, start=None, end=None):
-    output = []
-
-    for checking in toCheck:
-        if start and not end:
-            if checking['start'] >= start:
-                output.append(checking)
-        elif end and not start:
-            if checking['end'] <= end:
-                output.append(checking)
-        elif start and end:
-            if start <= checking['start'] <= end:
-                output.append(checking)
-            elif start <= checking['end'] <= end:
-                output.append(checking)
-            else:
-                output.append(checking)
-
-    return output
-
-
 @core.trackRouter.get('/labels',
                       responses=csvResponse,
                       summary='Get the labels for a given track',
                       description='Gets the labels for a given track, with parameters for limiting the query')
 def getLabels(request: Request, user: str, hub: str, track: str, ref: str = None, start: int = None,
               end: int = None, db: Session = Depends(core.get_db)):
-    user, hub, track = dbutil.getTrack(db, user, hub, track)
-
-    if ref:
-        user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, ref)
-        output = chrom.getLabels(queryFilter=onlyInBoundsAsDf, start=start, end=end)
-    else:
-        output = track.getLabels(start=start, end=end)
+    output = Labels.getLabels(db, user, hub, track, ref=ref, start=start, end=end)
 
     try:
         if not output:
@@ -96,35 +64,10 @@ class LabelQuery(BaseModel):
                       description='Adds the label at the given position to the current args')
 async def putLabel(request: Request, user: str, hub: str, track: str,
                    label: LabelQuery, db: Session = Depends(core.get_db)):
-    authUser = User.getAuthUser(request, db)
+    with db.begin() as db:
+        authUser = User.getAuthUser(request, db)
 
-    user, hub = dbutil.getHub(db, user, hub)
-
-    if not hub.checkPermission(authUser, 'Label'):
-        if authUser.name == 'Public':
-            return Response(status_code=401)
-        return Response(status_code=403)
-
-    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, label.ref)
-
-    labelsDf = pd.DataFrame(chrom.getLabels())
-
-    inBounds = labelsDf.apply(checkInBounds, axis=1, args=(label.start, label.end))
-
-    if inBounds.any():
-        return Response(status_code=406)
-
-    newLabel = models.Label(chrom=chrom.id,
-                            annotation=label.label,
-                            start=label.start,
-                            end=label.end,
-                            lastModified=datetime.datetime.now(),
-                            lastModifiedBy=authUser.id)
-
-    chrom.labels.append(newLabel)
-    db.commit()
-
-    return Response(status_code=200)
+        return Labels.putLabels(db, authUser, user, hub, track, label)
 
 
 @core.trackRouter.post('/labels',
@@ -214,13 +157,48 @@ class HubLabelWithLabel(HubLabelData):
 @core.hubRouter.put('/labels',
                     summary='Add label for a given hub/tracks',
                     description='Adds the label at the given position to the current args')
-async def putHubLabel(request: Request, user: str, hub: str, hubLabelData: HubLabelWithLabel):
-    authUser = request.session.get('user')
+def putHubLabel(request: Request, user: str, hub: str,
+                hubLabelData: HubLabelWithLabel, db: Session = Depends(core.get_db)):
 
-    if authUser is None:
-        authUser = 'Public'
-    else:
-        authUser = authUser['email']
+    authUser = User.getAuthUser(request, db)
+
+    for track in hubLabelData.tracks:
+        label = LabelQuery(ref=hubLabelData.ref, start=hubLabelData.start, end=hubLabelData.end,
+                           label=hubLabelData.label)
+
+        output = Labels.putLabel(db, authUser, user, hub, track, label)
+
+        if output is not None:
+            db.rollback()
+            return output
+
+    db.commit()
+    return Response(status_code=200)
+
+
+
+def dont():
+    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, label.ref)
+
+    labelsDf = pd.DataFrame(chrom.getLabels())
+
+    inBounds = labelsDf.apply(checkInBounds, axis=1, args=(label.start, label.end))
+
+    if inBounds.any():
+        return Response(status_code=406)
+
+    newLabel = models.Label(chrom=chrom.id,
+                            annotation=label.label,
+                            start=label.start,
+                            end=label.end,
+                            lastModified=datetime.datetime.now(),
+                            lastModifiedBy=authUser.id)
+
+    chrom.labels.append(newLabel)
+    db.commit()
+
+    return Response(status_code=200)
+
     data = {'user': user, 'hub': hub, **dict(hubLabelData), 'authUser': authUser}
 
     output = Labels.addHubLabels(data)

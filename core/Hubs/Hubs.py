@@ -21,15 +21,13 @@ from core.util import PLConfig as cfg
 from simpleBDB import retry, txnAbortOnError, AbortTXNException
 
 
-@retry
-@txnAbortOnError
-def getHubJsons(query, handler, txn=None):
+def getHubJsons(db, owner, hub, handler):
     """Return the hub info in a way which JBrowse can understand"""
     if handler == 'trackList.json':
 
-        hubInfo = db.HubInfo(query['user'], query['hub']).get(txn=txn)
+        hubInfo = getHubInfo(db, owner, hub)
 
-        return createTrackListWithHubInfo(hubInfo, query['user'], query['hub'])
+        return createTrackListWithHubInfo(hubInfo, owner, hub)
     else:
         print('no handler for %s' % handler)
 
@@ -179,47 +177,32 @@ def deleteHub(owner, hub, userid, txn=None):
     db.HubInfo(userid, hub).put(hub_info, txn=txn)
 
 
-@retry
-@txnAbortOnError
-def getHubInfosForMyHubs(userid, txn=None):
+def getHubInfosForMyHubs(db: Session, authUser):
     hubInfos = {}
     usersdict = {}
     permissions = {}
 
-    cursor = db.HubInfo.getCursor(txn=txn, bulk=True)
+    for hub in db.query(models.Hub).all():
 
-    current = cursor.next()
-    while current is not None:
-        key, currHubInfo = current
+        owner = db.query(models.User).filter(models.User.id == hub.owner).first()
+        hubName = hub.name
 
-        owner = key[0]
-        hubName = key[1]
+        hubInfo = getHubInfo(db, owner, hub)
 
-        perms = db.Permission(owner, hubName).get(txn=txn)
+        print(hubInfo)
 
-        if not perms.hasViewPermission(userid, currHubInfo):
-            current = cursor.next()
+        if not Permissions.hasViewPermission(hub, authUser):
             continue
 
-        permissions[(owner, hubName)] = perms.users
-
-        usersdict[(owner, hubName)] = perms.groups
-
-        everyLabelKey = db.Labels.keysWhichMatch(owner, hubName)
+        permissions[(owner, hubName)] = Permissions.getHubPermissions(db, hub)
 
         num_labels = 0
-        for key in everyLabelKey:
-            num_labels += len(db.Labels(*key).get(txn=txn).index)
 
-        currHubInfo['numLabels'] = num_labels
+        hubInfo['numLabels'] = num_labels
 
-        hubInfos[(owner, hubName)] = currHubInfo
+        hubInfos[(owner, hubName)] = hubInfo
 
-        current = cursor.next()
-
-    cursor.close()
-
-    return {"user": userid,
+    return {"user": authUser.name,
             "hubInfos": hubInfos,
             "usersdict": usersdict,
             "permissions": permissions}
@@ -331,7 +314,6 @@ def createHubFromParse(db: Session, parsed):
 def storeHubInfo(db: Session, owner, hub, tracks, genome):
     superList = []
     trackList = []
-    hubInfoTracks = {}
 
     # Load the track list into something which can be converted
     for track in tracks:
@@ -408,7 +390,7 @@ def checkForPrexistingLabels(db: Session, coverageUrl, user, hub, track, genome)
 
         if chrom is None:
             chrom = models.Chrom(track=track.id, name=chromName)
-            db.add(chrom)
+            track.chroms.append(chrom)
             db.commit()
             db.refresh(chrom)
 
@@ -456,7 +438,7 @@ def checkForPrexistingLabels(db: Session, coverageUrl, user, hub, track, genome)
                                      lastModified=asDict['lastModified'],
                                      lastModifiedBy=lastModifiedBy.id)
 
-                db.add(label)
+                chrom.labels.append(label)
                 db.commit()
 
         group.apply(putLabels, axis=1)
