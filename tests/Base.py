@@ -42,7 +42,7 @@ class PeakLearnerTestBase(unittest.TestCase):
         engine = create_engine(
             SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
         )
-        TestingSessionLocal = sessionmaker(bind=engine)
+        TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
         database.Base.metadata.create_all(bind=engine)
 

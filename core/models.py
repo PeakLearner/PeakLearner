@@ -1,14 +1,13 @@
 import pandas as pd
-from sqlalchemy import Boolean, PickleType, Column, Float, ForeignKey, DateTime, Integer, String, ForeignKeyConstraint, \
-    Time
-from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, PickleType, Column, Float, ForeignKey, DateTime, Integer, String
+from sqlalchemy.orm import relationship, Session
 
 from .database import Base
 
 
 class User(Base):
     __tablename__ = 'users'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255))
     hubs = relationship('Hub', lazy='dynamic')
     labels = relationship('Label', lazy='dynamic')
@@ -16,7 +15,7 @@ class User(Base):
 
 class Hub(Base):
     __tablename__ = 'hubs'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     owner = Column(Integer, ForeignKey('users.id'))
     name = Column(String(255))
     genome = Column(Integer, ForeignKey('genomes.id'))
@@ -40,7 +39,7 @@ class Hub(Base):
 
 class HubPermission(Base):
     __tablename__ = 'hubperms'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     hubId = Column(Integer, ForeignKey('hubs.id'))
     user = Column(Integer, ForeignKey('users.id'))
     label = Column(Boolean)
@@ -59,7 +58,7 @@ class HubPermission(Base):
 
 class Genome(Base):
     __tablename__ = 'genomes'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255))
     problems = relationship('Problem', lazy='dynamic')
     hubs = relationship('Hub', lazy='dynamic')
@@ -67,7 +66,7 @@ class Genome(Base):
 
 class Problem(Base):
     __tablename__ = 'problems'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     genome = Column(Integer, ForeignKey('genomes.id'))
     chrom = Column(String(45))
     start = Column(Integer)
@@ -77,60 +76,45 @@ class Problem(Base):
 
 class Track(Base):
     __tablename__ = 'tracks'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     hub = Column(Integer, ForeignKey('hubs.id'))
     name = Column(String(255))
     categories = Column(String(255))
     url = Column(String(255))
     chroms = relationship('Chrom', lazy='dynamic')
 
-    def getLabels(self, queryFilter=None, **kwargs):
+    def getLabels(self, db):
         chromLabels = []
         chroms = self.chroms.all()
 
         for chrom in chroms:
-            chromOut = chrom.getLabels(queryFilter=queryFilter[1:], **kwargs)
+            chromOut = chrom.getLabels(db)
             if chromOut is not None:
                 chromLabels.append(chromOut)
 
         if chromLabels:
-            if queryFilter:
-                return queryFilter[0](pd.concat(chromLabels), **kwargs)
             return pd.concat(chromLabels)
 
 
 class Chrom(Base):
     __tablename__ = 'chroms'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     track = Column(Integer, ForeignKey('tracks.id'))
     name = Column(String(45))
     labels = relationship('Label', lazy='dynamic')
     contigs = relationship('Contig', lazy='dynamic')
 
-    def getLabels(self, queryFilter=None, **kwargs):
+    def getLabels(self, db: Session):
         # Get all labels as list of dicts to turn into a df
-        labels = self.labels.all()
-        labelsOut = []
-
-        for label in labels:
-            labelDict = label.__dict__.copy()
-            if 'id' in labelDict:
-                del labelDict['id']
-            labelDict['chrom'] = self.name
-            labelsOut.append(labelDict)
-
-        if labelsOut:
-            if queryFilter:
-                if isinstance(queryFilter, list):
-                    return queryFilter[0](labelsOut, **kwargs)
-                return queryFilter(labelsOut, **kwargs)
-            else:
-                return labelsOut
+        labels = pd.read_sql(self.labels.statement, db.bind)
+        labels['label_id'] = labels['id']
+        labels['chrom'] = self.name
+        return labels.set_index(['id'])
 
 
 class Contig(Base):
     __tablename__ = 'contigs'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     chrom = Column(Integer, ForeignKey('chroms.id'))
     features = Column(PickleType)
     problem = Column(Integer, ForeignKey('problems.id'))
@@ -139,7 +123,7 @@ class Contig(Base):
 
 class Label(Base):
     __tablename__ = 'labels'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, unique=True, index=True)
     chrom = Column(Integer, ForeignKey('chroms.id'))
 
     annotation = Column(String(10))
@@ -156,7 +140,7 @@ class Label(Base):
 
 class ModelSum(Base):
     __tablename__ = 'modelsums'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     contig = Column(Integer, ForeignKey('contigs.id'))
     penalty = Column(Float)
     fp = Column(Integer)

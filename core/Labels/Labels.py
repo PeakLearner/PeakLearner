@@ -43,13 +43,18 @@ def onlyInBounds(toCheck, start=None, end=None):
 
 def getLabels(db, user, hub, track, ref: str = None, start: int = None,
               end: int = None):
+
     user, hub, track = dbutil.getTrack(db, user, hub, track)
 
     if ref:
         user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, ref)
-        return chrom.getLabels(queryFilter=onlyInBoundsAsDf, start=start, end=end)
+        if chrom is None:
+            return
+        out = chrom.getLabels(db)
+        return out
     else:
-        return track.getLabels(start=start, end=end)
+        out = track.getLabels(db)
+        return out
 
 
 def putLabel(db, authUser, user, hub, track, label):
@@ -62,12 +67,20 @@ def putLabel(db, authUser, user, hub, track, label):
 
     user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, label.ref)
 
-    labelsDf = pd.DataFrame(chrom.getLabels())
+    if chrom is None:
+        chrom = models.Chrom(track=track.id, name=label.ref)
+        db.add(chrom)
+        db.commit()
+        db.refresh(chrom)
 
-    inBounds = labelsDf.apply(checkInBounds, axis=1, args=(label.start, label.end))
+    labelsDf = chrom.getLabels(db)
 
-    if inBounds.any():
-        return Response(status_code=406)
+    if not labelsDf.empty:
+
+        inBounds = labelsDf.apply(checkInBounds, axis=1, args=(label.start, label.end))
+
+        if inBounds.any():
+            return Response(status_code=406)
 
     newLabel = models.Label(chrom=chrom.id,
                             annotation=label.label,
@@ -77,7 +90,41 @@ def putLabel(db, authUser, user, hub, track, label):
                             lastModifiedBy=authUser.id)
 
     chrom.labels.append(newLabel)
+    db.flush()
+    db.refresh(chrom)
+    db.refresh(newLabel)
 
+    return newLabel
+
+
+def updateLabel(db, authUser, user, hub, track, label):
+    user, hub = dbutil.getHub(db, user, hub)
+
+    if not hub.checkPermission(authUser, 'Label'):
+        if authUser.name == 'Public':
+            return Response(status_code=401)
+        return Response(status_code=403)
+
+    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, label.ref)
+
+    if chrom is None:
+        return Response(status_code=404)
+
+    labelToUpdate = chrom.labels.filter(models.Label.start == label.start and models.Label.end == label.end).first()
+
+    if labelToUpdate is None:
+        return Response(status_code=404)
+    else:
+        labelToUpdate.lastModifiedBy = authUser.id
+        labelToUpdate.lastModified = datetime.datetime.now()
+        labelToUpdate.annotation = label.label
+
+        chrom.labels.append(labelToUpdate)
+        db.flush()
+        db.refresh(chrom)
+        db.refresh(labelToUpdate)
+
+        return labelToUpdate
 
 
 def zaddLabel(data, txn=None):

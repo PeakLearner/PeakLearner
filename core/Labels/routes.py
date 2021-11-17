@@ -11,6 +11,7 @@ from core import models, dbutil
 from core.User import User
 from core.Labels import Labels, Models
 from core.Permissions import Permissions
+from core.util.bigWigUtil import checkInBounds
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import Response, HTMLResponse, RedirectResponse
 
@@ -20,6 +21,8 @@ csvResponse = {
     }
 }
 
+jbrowseMapper = {'chrom': 'ref', 'annotation': 'label'}
+
 
 @core.trackRouter.get('/labels',
                       responses=csvResponse,
@@ -27,7 +30,8 @@ csvResponse = {
                       description='Gets the labels for a given track, with parameters for limiting the query')
 def getLabels(request: Request, user: str, hub: str, track: str, ref: str = None, start: int = None,
               end: int = None, db: Session = Depends(core.get_db)):
-    output = Labels.getLabels(db, user, hub, track, ref=ref, start=start, end=end)
+    output = Labels.getLabels(db, user, hub, track, ref=ref)
+    db.commit()
 
     try:
         if not output:
@@ -36,6 +40,10 @@ def getLabels(request: Request, user: str, hub: str, track: str, ref: str = None
         pass
     if isinstance(output, Response):
         return output
+
+    if end is not None is not start:
+        inBounds = output.apply(checkInBounds, axis=1, args=(start, end))
+        output = output[inBounds].rename(jbrowseMapper, axis=1)
 
     if 'Accept' in request.headers:
         outputType = request.headers['Accept']
@@ -64,31 +72,33 @@ class LabelQuery(BaseModel):
                       description='Adds the label at the given position to the current args')
 async def putLabel(request: Request, user: str, hub: str, track: str,
                    label: LabelQuery, db: Session = Depends(core.get_db)):
-    with db.begin() as db:
-        authUser = User.getAuthUser(request, db)
+    authUser = User.getAuthUser(request, db)
 
-        return Labels.putLabels(db, authUser, user, hub, track, label)
+    out = Labels.putLabel(db, authUser, user, hub, track, label)
+
+    if isinstance(out, Response):
+        db.rollback()
+        return out
+    if out:
+        db.commit()
+        return out.id
 
 
 @core.trackRouter.post('/labels',
                        summary='Update labels for a given track',
                        description='Updates the label at the given position to the current args')
-async def postLabel(request: Request, user: str, hub: str, track: str, label: LabelQuery):
-    authUser = request.session.get('user')
+async def postLabel(request: Request, user: str, hub: str, track: str, label: LabelQuery,
+                    db: Session = Depends(core.get_db)):
+    authUser = User.getAuthUser(request, db)
 
-    if authUser is None:
-        authUser = 'Public'
-    else:
-        authUser = authUser['email']
-
-    query = {'user': user, 'hub': hub, 'track': track, 'authUser': authUser, **dict(label)}
-
-    out = Labels.updateLabel(query)
+    out = Labels.updateLabel(db, authUser, user, hub, track, label)
 
     if isinstance(out, Response):
+        db.rollback()
         return out
-
-    return out
+    else:
+        db.commit()
+        return out
 
 
 @core.trackRouter.delete('/labels',
@@ -159,7 +169,6 @@ class HubLabelWithLabel(HubLabelData):
                     description='Adds the label at the given position to the current args')
 def putHubLabel(request: Request, user: str, hub: str,
                 hubLabelData: HubLabelWithLabel, db: Session = Depends(core.get_db)):
-
     authUser = User.getAuthUser(request, db)
 
     for track in hubLabelData.tracks:
@@ -168,45 +177,13 @@ def putHubLabel(request: Request, user: str, hub: str,
 
         output = Labels.putLabel(db, authUser, user, hub, track, label)
 
-        if output is not None:
+        if isinstance(output, Response):
             db.rollback()
             return output
 
     db.commit()
-    return Response(status_code=200)
-
-
-
-def dont():
-    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, label.ref)
-
-    labelsDf = pd.DataFrame(chrom.getLabels())
-
-    inBounds = labelsDf.apply(checkInBounds, axis=1, args=(label.start, label.end))
-
-    if inBounds.any():
-        return Response(status_code=406)
-
-    newLabel = models.Label(chrom=chrom.id,
-                            annotation=label.label,
-                            start=label.start,
-                            end=label.end,
-                            lastModified=datetime.datetime.now(),
-                            lastModifiedBy=authUser.id)
-
-    chrom.labels.append(newLabel)
-    db.commit()
 
     return Response(status_code=200)
-
-    data = {'user': user, 'hub': hub, **dict(hubLabelData), 'authUser': authUser}
-
-    output = Labels.addHubLabels(data)
-
-    if isinstance(output, Response):
-        return output
-
-    return Response(json.dumps(output), media_type='application/json')
 
 
 @core.hubRouter.post('/labels',

@@ -66,5 +66,13 @@ def getAuthUser(request: Request, db: Session = Depends(core.get_db)):
     else:
         authUser = authUser['email']
 
-    return db.query(models.User).filter(models.User.name == authUser).first()
+    user = db.query(models.User).filter(models.User.name == authUser).first()
+
+    if user is None and authUser == 'Public':
+        user = models.User(name=authUser)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    return user
 

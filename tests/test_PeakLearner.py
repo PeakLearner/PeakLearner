@@ -102,7 +102,18 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
     def getLabels(self, params):
         return self.testapp.get(self.labelURL, params=params, headers={'Accept': 'application/json'})
 
-    def test_labels(self):
+    def test_get_label(self):
+        # Blank Label Test
+        rangeQuery = self.rangeArgs.copy()
+        del rangeQuery['label']
+
+        request = self.getLabels(params=rangeQuery)
+
+        assert request.status_code == 200
+
+        assert len(request.json()) != 0
+
+    def test_put_label(self):
         # Blank Label Test
         rangeQuery = self.rangeArgs.copy()
         del rangeQuery['label']
@@ -118,6 +129,8 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert request.status_code == 200
 
+        labelId = request.json()
+
         # Check Label Added
         request = self.getLabels(params={**self.rangeArgs, 'contig': True})
 
@@ -125,52 +138,50 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert len(request.json()) == numLabelsBefore + 1
 
-        numLabelsBefore = len(request.json())
+        serverLabels = request.json()
 
-        serverLabel = request.json()[0]
+        matches = False
 
-        assert serverLabel['ref'] == self.startLabel['ref']
-        assert serverLabel['start'] == self.startLabel['start']
-        assert serverLabel['end'] == self.startLabel['end']
-        assert serverLabel['label'] == 'peakStart'
+        for label in serverLabels:
+            if label['label_id'] == labelId:
+                assert label['ref'] == self.startLabel['ref']
+                assert label['start'] == self.startLabel['start']
+                assert label['end'] == self.startLabel['end']
+                assert label['label'] == 'peakStart'
 
-        # Try adding another label
-        request = self.testapp.put(self.labelURL, json=self.endLabel)
+                matches = True
 
-        assert request.status_code == 200
+        assert matches
 
-        request = self.getLabels(params=self.rangeArgs)
-
-        assert request.status_code == 200
-
-        assert len(request.json()) == numLabelsBefore + 1
-
-        # Update second label
-        updateAnother = self.endLabel.copy()
-        updateAnother['label'] = 'peakEnd'
-
-        request = self.testapp.post(self.labelURL, json=updateAnother)
+    def test_update_label(self):
+        rangeQuery = self.rangeArgs.copy()
+        del rangeQuery['label']
+        request = self.getLabels(params=rangeQuery)
 
         assert request.status_code == 200
 
-        request = self.getLabels(params=self.rangeArgs)
+        toUpdate = request.json()[0]
+        oldLabel = toUpdate['label']
+        oldId = toUpdate['label_id']
+
+        del toUpdate['lastModified']
+        del toUpdate['lastModifiedBy']
+        del toUpdate['label_id']
+
+
+        toUpdate['label'] = 'peakStart'
+
+        request = self.testapp.post(self.labelURL, json=toUpdate)
 
         assert request.status_code == 200
 
-        assert len(request.json()) == numLabelsBefore + 1
+        request = self.getLabels(params=rangeQuery)
 
         assert request.status_code == 200
 
-        # Remove Labels
         for label in request.json():
-            request = self.testapp.delete(self.labelURL, json=label)
-
-            assert request.status_code == 200
-
-        request = self.getLabels(params=self.rangeArgs)
-
-        # No Content, No Body
-        assert request.status_code == 204
+            if label['label_id'] == oldId:
+                assert label['label'] != oldLabel
 
     def test_doSampleJob(self):
         modelsPath = os.path.join(testDataPath, 'Models')

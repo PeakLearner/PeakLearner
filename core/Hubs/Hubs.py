@@ -260,7 +260,8 @@ def createTrackListWithHubInfo(info, owner, hub):
 def parseHub(db: Session, data, user):
     parsed = parseUCSC(data, user)
     # Add a way to configure hub here somehow instead of just loading everythingS
-    return createHubFromParse(db, parsed)
+    with db.begin():
+        return createHubFromParse(db, parsed)
 
 
 # All this should probably be done asynchronously
@@ -270,7 +271,7 @@ def createHubFromParse(db: Session, parsed):
     if owner is None:
         owner = models.User(name=parsed['user'])
         db.add(owner)
-        db.commit()
+        db.flush()
         db.refresh(owner)
 
 
@@ -281,7 +282,7 @@ def createHubFromParse(db: Session, parsed):
     if genome is None:
         genome = models.Genome(name=genomesFile['genome'])
         db.add(genome)
-        db.commit()
+        db.flush()
         db.refresh(genome)
 
     hub = owner.hubs.filter(models.Hub.name == parsed['hub']).first()
@@ -289,7 +290,7 @@ def createHubFromParse(db: Session, parsed):
     if hub is None:
         hub = models.Hub(owner=owner.id, name=parsed['hub'], genome=genome.id, public=parsed['isPublic'])
         db.add(hub)
-        db.commit()
+        db.flush()
         db.refresh(hub)
 
     dataPath = os.path.join(cfg.jbrowsePath, cfg.dataPath)
@@ -357,7 +358,7 @@ def storeHubInfo(db: Session, owner, hub, tracks, genome):
                     url=coverage['bigDataUrl'])
 
                 db.add(trackInDb)
-                db.commit()
+                db.flush()
                 db.refresh(trackInDb)
 
             checkForPrexistingLabels(db, coverage['bigDataUrl'], owner, hub, trackInDb, genome)
@@ -391,7 +392,7 @@ def checkForPrexistingLabels(db: Session, coverageUrl, user, hub, track, genome)
         if chrom is None:
             chrom = models.Chrom(track=track.id, name=chromName)
             track.chroms.append(chrom)
-            db.commit()
+            db.flush()
             db.refresh(chrom)
 
         def putLabels(row):
@@ -428,7 +429,7 @@ def checkForPrexistingLabels(db: Session, coverageUrl, user, hub, track, genome)
                 if lastModifiedBy is None:
                     lastModifiedBy = models.User(name=asDict['lastModifiedBy'])
                     db.add(lastModifiedBy)
-                    db.commit()
+                    db.flush()
                     db.refresh(lastModifiedBy)
 
                 label = models.Label(chrom=chrom.id,
@@ -439,7 +440,7 @@ def checkForPrexistingLabels(db: Session, coverageUrl, user, hub, track, genome)
                                      lastModifiedBy=lastModifiedBy.id)
 
                 chrom.labels.append(label)
-                db.commit()
+                db.flush()
 
         group.apply(putLabels, axis=1)
 
