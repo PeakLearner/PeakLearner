@@ -183,6 +183,37 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
             if label['label_id'] == oldId:
                 assert label['label'] != oldLabel
 
+    def test_delete_label(self):
+        rangeQuery = self.rangeArgs.copy()
+        del rangeQuery['label']
+        request = self.getLabels(params=rangeQuery)
+
+        assert request.status_code == 200
+
+        labelsBefore = len(request.json())
+
+        toDelete = request.json()[0]
+        oldId = toDelete['label_id']
+
+        del toDelete['lastModified']
+        del toDelete['lastModifiedBy']
+        del toDelete['label_id']
+
+        request = self.testapp.delete(self.labelURL, json=toDelete)
+
+        assert request.status_code == 200
+
+        request = self.getLabels(params=rangeQuery)
+
+        assert request.status_code == 200
+
+        labels = request.json()
+
+        assert labelsBefore == len(labels) + 1
+
+        for label in labels:
+            assert label['label_id'] != oldId
+
     def test_doSampleJob(self):
         modelsPath = os.path.join(testDataPath, 'Models')
         dirs = os.listdir(modelsPath)
@@ -524,51 +555,10 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert len(modelOut.json()) != 0
 
-    def test_flopart_model(self):
-        data = {'ref': 'chr3',
-                'start': 128660000,
-                'end': 165420000,
-                'modelType': 'FLOPART',
-                'scale': 5e-05,
-                'visibleStart': 134540000,
-                'visibleEnd': 152920000}
-
-        labels = [{'ref': 'chr3', 'start': 143679399, 'end': 143691199, 'label': 'peakStart'},
-                  {'ref': 'chr3', 'start': 143691399, 'end': 143703399, 'label': 'peakEnd'},
-                  {'ref': 'chr3', 'start': 143704399, 'end': 143707399, 'label': 'noPeaks'}]
-        trackUrl = '/%s' % os.path.join('Public', 'H3K4me3_TDH_ENCODE', 'aorta_ENCFF115HTK')
-        labelUrl = os.path.join(trackUrl, 'labels')
-        modelUrl = os.path.join(trackUrl, 'models')
-
-        for label in labels:
-            request = self.testapp.put(labelUrl, json=label)
-
-            assert request.status_code == 200
-
-        request = self.testapp.get(modelUrl, params=data)
-
-        if not request.status_code == 200:
-            print(request.content)
-
-        assert request.status_code == 200
-
-
-
-
     def test_stats_page(self):
         output = self.testapp.get('/stats/')
 
         assert output.status_code == 200
-
-    def test_log_file_clean(self):
-
-        assert not os.path.exists(Base.dbLogBackupDir)
-
-        from core.util import PLdb as db
-
-        db.cleanLogs()
-
-        assert os.path.exists(Base.dbLogBackupDir)
 
     def test_model_stats_page(self):
         output = self.testapp.get('/stats/model/')

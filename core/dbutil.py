@@ -1,5 +1,6 @@
 from . import models
 from sqlalchemy.orm import Session
+from fastapi import Response
 
 
 def getUser(db: Session, user: str):
@@ -33,3 +34,12 @@ def getChrom(db: Session, user, hub, track, chrom: str):
     return None
 
 
+def getChromAndCheckPerm(db: Session, authUser, user, hub, track, chrom, perm):
+    user, hub = getHub(db, user, hub)
+
+    if not hub.checkPermission(authUser, perm):
+        if authUser.name == 'Public':
+            return Response(status_code=401)
+        return Response(status_code=403)
+
+    return getChrom(db, user, hub, track, chrom)

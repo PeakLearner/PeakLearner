@@ -18,8 +18,7 @@ from core.Models import Models
 from core.Handlers import Tracks
 from core.Permissions import Permissions
 from core.util import PLConfig as cfg
-from simpleBDB import retry, txnAbortOnError, AbortTXNException
-
+from sqlalchemy import inspect
 
 def getHubJsons(db, owner, hub, handler):
     """Return the hub info in a way which JBrowse can understand"""
@@ -31,8 +30,7 @@ def getHubJsons(db, owner, hub, handler):
     else:
         print('no handler for %s' % handler)
 
-@retry
-@txnAbortOnError
+
 def goToRegion(data, txn=None):
     user = data['user']
     hub = data['hub']
@@ -99,8 +97,6 @@ def checkLabelsInBoundsOnChrom(row, labels):
     return inBounds.any()
 
 
-@retry
-@txnAbortOnError
 def removeUserFromHub(request, owner, hubName, delUser, txn=None):
     """Removes a user from a hub given the hub name, owner userid, and the userid of the user to be removed
     Adjusts the db.HubInfo object by calling the remove() function on the removed userid from the ['users'] item of the
@@ -131,8 +127,6 @@ def removeUserFromHub(request, owner, hubName, delUser, txn=None):
     txn.commit()
 
 
-@retry
-@txnAbortOnError
 def addTrack(owner, hubName, userid, category, trackName, url, txn=None):
     hub = db.HubInfo(owner, hubName).get(txn=txn)
 
@@ -149,8 +143,6 @@ def addTrack(owner, hubName, userid, category, trackName, url, txn=None):
         return Response(status_code=401)
 
 
-@retry
-@txnAbortOnError
 def removeTrack(owner, hubName, userid, trackName, txn=None):
     hub = db.HubInfo(owner, hubName).get(txn=txn)
 
@@ -167,8 +159,6 @@ def removeTrack(owner, hubName, userid, trackName, txn=None):
     db.HubInfo(owner, hubName).put(hub, txn=txn)
 
 
-@retry
-@txnAbortOnError
 def deleteHub(owner, hub, userid, txn=None):
     if userid != owner:
         raise AbortTXNException
@@ -189,8 +179,6 @@ def getHubInfosForMyHubs(db: Session, authUser):
 
         hubInfo = getHubInfo(db, owner, hub)
 
-        print(hubInfo)
-
         if not Permissions.hasViewPermission(hub, authUser):
             continue
 
@@ -208,8 +196,6 @@ def getHubInfosForMyHubs(db: Session, authUser):
             "permissions": permissions}
 
 
-@retry
-@txnAbortOnError
 def makeHubPublic(data, txn=None):
     userid = data['currentUser']
     owner = data['user']
@@ -259,9 +245,8 @@ def createTrackListWithHubInfo(info, owner, hub):
 
 def parseHub(db: Session, data, user):
     parsed = parseUCSC(data, user)
-    # Add a way to configure hub here somehow instead of just loading everythingS
-    with db.begin():
-        return createHubFromParse(db, parsed)
+    # Add a way to configure hub here somehow instead of just loading everything
+    return createHubFromParse(db, parsed)
 
 
 # All this should probably be done asynchronously
@@ -271,9 +256,8 @@ def createHubFromParse(db: Session, parsed):
     if owner is None:
         owner = models.User(name=parsed['user'])
         db.add(owner)
-        db.flush()
+        db.commit()
         db.refresh(owner)
-
 
     genomesFile = parsed['genomesFile']
 
@@ -282,7 +266,7 @@ def createHubFromParse(db: Session, parsed):
     if genome is None:
         genome = models.Genome(name=genomesFile['genome'])
         db.add(genome)
-        db.flush()
+        db.commit()
         db.refresh(genome)
 
     hub = owner.hubs.filter(models.Hub.name == parsed['hub']).first()
@@ -307,12 +291,12 @@ def createHubFromParse(db: Session, parsed):
 
     getRefSeq(genome, dataPath, includes)
 
-    path = storeHubInfo(db, owner, hub, genomesFile['trackDb'], genome)
+    path = storeHubInfo(db, owner, hub, genomesFile['trackDb'])
 
     return path
 
 
-def storeHubInfo(db: Session, owner, hub, tracks, genome):
+def storeHubInfo(db: Session, owner, hub, tracks):
     superList = []
     trackList = []
 
@@ -361,12 +345,12 @@ def storeHubInfo(db: Session, owner, hub, tracks, genome):
                 db.flush()
                 db.refresh(trackInDb)
 
-            checkForPrexistingLabels(db, coverage['bigDataUrl'], owner, hub, trackInDb, genome)
+            checkForPrexistingLabels(db, coverage['bigDataUrl'], trackInDb)
 
     return '/%s/' % os.path.join(owner.name, hub.name)
 
 
-def checkForPrexistingLabels(db: Session, coverageUrl, user, hub, track, genome):
+def checkForPrexistingLabels(db: Session, coverageUrl, track):
     trackUrl = coverageUrl.rsplit('/', 1)[0]
     labelUrl = '%s/labels.bed' % trackUrl
     with requests.get(labelUrl, verify=False) as r:
@@ -382,20 +366,19 @@ def checkForPrexistingLabels(db: Session, coverageUrl, user, hub, track, genome)
 
     grouped = labels.groupby(['chrom'], as_index=False)
 
-    def saveLabelGroup(group):
+    for chromName, group in grouped:
         group = group.sort_values('chromStart', ignore_index=True)
-
-        chromName = group['chrom'].loc[0]
 
         chrom = track.chroms.filter(models.Chrom.name == chromName).first()
 
         if chrom is None:
             chrom = models.Chrom(track=track.id, name=chromName)
-            track.chroms.append(chrom)
+            db.add(chrom)
             db.flush()
             db.refresh(chrom)
+            db.refresh(track)
 
-        def putLabels(row):
+        for _, row in group.iterrows():
             asDict = row.to_dict()
 
             if 'createdBy' in asDict:
@@ -404,7 +387,6 @@ def checkForPrexistingLabels(db: Session, coverageUrl, user, hub, track, genome)
             checkLabel = chrom.labels.filter(models.Label.start == asDict['chromStart']).first()
 
             if checkLabel is None:
-                lastModifiedBy = None
                 if 'lastModifiedBy' in asDict:
                     lmb = asDict['lastModifiedBy']
 
@@ -422,7 +404,6 @@ def checkForPrexistingLabels(db: Session, coverageUrl, user, hub, track, genome)
                     lm = asDict['lastModified']
                     if lm is None or np.nan:
                         asDict['lastModified'] = datetime.datetime.now()
-
                 else:
                     asDict['lastModified'] = datetime.datetime.now()
 
@@ -440,23 +421,9 @@ def checkForPrexistingLabels(db: Session, coverageUrl, user, hub, track, genome)
                                      lastModifiedBy=lastModifiedBy.id)
 
                 chrom.labels.append(label)
-                db.flush()
-
-        group.apply(putLabels, axis=1)
-
-    grouped.apply(saveLabelGroup)
+                db.commit()
 
     return True
-
-
-def checkIfProblemHasLabels(problem, labels):
-    inBounds = labels.apply(db.checkInBounds,
-                            axis=1,
-                            args=(problem['chrom'],
-                                  problem['chromStart'],
-                                  problem['chromEnd']))
-
-    return inBounds.any()
 
 
 def getRefSeq(genome, path, includes):
@@ -768,7 +735,7 @@ def generateProblems(db: Session, genome, path):
                                      start=row['chromStart'],
                                      end=row['chromEnd'])
             db.add(problem)
-            db.commit()
+            db.flush()
             db.refresh(problem)
 
     output.apply(putProblems, axis=1)

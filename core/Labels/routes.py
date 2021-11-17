@@ -104,52 +104,23 @@ async def postLabel(request: Request, user: str, hub: str, track: str, label: La
 @core.trackRouter.delete('/labels',
                          summary='Delete a label at this location',
                          description='Removes the label at the given position to the current args')
-async def deleteLabel(request: Request, user: str, hub: str, track: str, label: LabelQuery):
-    authUser = request.session.get('user')
+async def deleteLabel(request: Request, user: str, hub: str, track: str, label: LabelQuery,
+                      db: Session = Depends(core.get_db)):
+    authUser = User.getAuthUser(request, db)
 
-    if authUser is None:
-        authUser = 'Public'
-    else:
-        authUser = authUser['email']
-
-    query = {'user': user, 'hub': hub, 'track': track, 'authUser': authUser, **dict(label)}
-
-    out = Labels.deleteLabel(query)
+    out = Labels.deleteLabel(db, authUser, user, hub, track, label)
 
     if isinstance(out, Response):
+        db.rollback()
         return out
     if out:
-        return Response(status_code=200)
-    return Response(status_code=404)
+        db.commit()
+        return out.id
 
 
 # ---- HUB LABELS ---- #
 
 keysToInt = ['start', 'end']
-
-
-@core.hubRouter.get('/labels',
-                    response_model=List[Models.LabelValues],
-                    responses=csvResponse,
-                    summary='Get the labels for a given hub/tracks',
-                    description='Gets the labels for a given track, with parameters for limiting the query')
-async def getHubLabels(request: Request, user: str, hub: str, contig: bool = False):
-    authUser = request.session.get('user')
-
-    if authUser is None:
-        authUser = 'Public'
-    else:
-        authUser = authUser['email']
-    data = {'user': user, 'hub': hub, 'authUser': authUser, 'contig': contig}
-
-    output = Labels.getHubLabels(data)
-
-    if isinstance(output, list):
-        return Response(status_code=204)
-    elif isinstance(output, Response):
-        return output
-
-    return core.dfOut(request, output)
 
 
 class HubLabelData(BaseModel):
@@ -169,9 +140,11 @@ class HubLabelWithLabel(HubLabelData):
                     description='Adds the label at the given position to the current args')
 def putHubLabel(request: Request, user: str, hub: str,
                 hubLabelData: HubLabelWithLabel, db: Session = Depends(core.get_db)):
+
     authUser = User.getAuthUser(request, db)
 
     for track in hubLabelData.tracks:
+        db.commit()
         label = LabelQuery(ref=hubLabelData.ref, start=hubLabelData.start, end=hubLabelData.end,
                            label=hubLabelData.label)
 
@@ -189,38 +162,41 @@ def putHubLabel(request: Request, user: str, hub: str,
 @core.hubRouter.post('/labels',
                      summary='Update labels for a given hub/tracks',
                      description='Updates the label at the given position to the current args')
-async def postHubLabel(request: Request, user: str, hub: str, hubLabelData: HubLabelWithLabel):
-    authUser = request.session.get('user')
+async def postHubLabel(request: Request, user: str, hub: str, hubLabelData: HubLabelWithLabel,
+                       db: Session = Depends(core.get_db)):
+    authUser = User.getAuthUser(request, db)
 
-    if authUser is None:
-        authUser = 'Public'
-    else:
-        authUser = authUser['email']
-    data = {'user': user, 'hub': hub, **dict(hubLabelData), 'authUser': authUser}
+    for track in hubLabelData.tracks:
+        label = LabelQuery(ref=hubLabelData.ref, start=hubLabelData.start, end=hubLabelData.end,
+                           label=hubLabelData.label)
 
-    output = Labels.updateHubLabels(data)
+        output = Labels.updateLabel(db, authUser, user, hub, track, label)
 
-    if isinstance(output, Response):
-        return output
+        if isinstance(output, Response):
+            db.rollback()
+            return output
 
-    return Response(json.dumps(output), media_type='application/json')
+    db.commit()
+
+    return Response(status_code=200)
 
 
 @core.hubRouter.delete('/labels',
                        summary='Delete a label at this location',
                        description='Removes the label at the given position to the current args')
-async def deleteHubLabel(request: Request, user: str, hub: str, hubLabelData: HubLabelData):
-    authUser = request.session.get('user')
+async def deleteHubLabel(request: Request, user: str, hub: str, hubLabelData: HubLabelData,
+                         db: Session = Depends(core.get_db)):
+    authUser = User.getAuthUser(request, db)
 
-    if authUser is None:
-        authUser = 'Public'
-    else:
-        authUser = authUser['email']
-    data = {'user': user, 'hub': hub, **dict(hubLabelData), 'authUser': authUser}
+    for track in hubLabelData.tracks:
+        label = LabelQuery(ref=hubLabelData.ref, start=hubLabelData.start, end=hubLabelData.end)
 
-    output = Labels.deleteHubLabels(data)
+        output = Labels.deleteLabel(db, authUser, user, hub, track, label)
 
-    if isinstance(output, Response):
-        return output
+        if isinstance(output, Response):
+            db.rollback()
+            return output
 
-    return Response(json.dumps(output), media_type='application/json')
+    db.commit()
+
+    return Response(status_code=200)

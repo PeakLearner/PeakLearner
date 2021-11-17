@@ -43,7 +43,6 @@ def onlyInBounds(toCheck, start=None, end=None):
 
 def getLabels(db, user, hub, track, ref: str = None, start: int = None,
               end: int = None):
-
     user, hub, track = dbutil.getTrack(db, user, hub, track)
 
     if ref:
@@ -58,14 +57,12 @@ def getLabels(db, user, hub, track, ref: str = None, start: int = None,
 
 
 def putLabel(db, authUser, user, hub, track, label):
-    user, hub = dbutil.getHub(db, user, hub)
+    out = dbutil.getChromAndCheckPerm(db, authUser, user, hub, track, label.ref, 'Label')
 
-    if not hub.checkPermission(authUser, 'Label'):
-        if authUser.name == 'Public':
-            return Response(status_code=401)
-        return Response(status_code=403)
+    if isinstance(out, Response):
+        return out
 
-    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, label.ref)
+    user, hub, track, chrom = out
 
     if chrom is None:
         chrom = models.Chrom(track=track.id, name=label.ref)
@@ -98,14 +95,12 @@ def putLabel(db, authUser, user, hub, track, label):
 
 
 def updateLabel(db, authUser, user, hub, track, label):
-    user, hub = dbutil.getHub(db, user, hub)
+    out = dbutil.getChromAndCheckPerm(db, authUser, user, hub, track, label.ref, 'Label')
 
-    if not hub.checkPermission(authUser, 'Label'):
-        if authUser.name == 'Public':
-            return Response(status_code=401)
-        return Response(status_code=403)
+    if isinstance(out, Response):
+        return out
 
-    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, label.ref)
+    user, hub, track, chrom = out
 
     if chrom is None:
         return Response(status_code=404)
@@ -127,264 +122,28 @@ def updateLabel(db, authUser, user, hub, track, label):
         return labelToUpdate
 
 
-def zaddLabel(data, txn=None):
-    # Duplicated because calls from updateLabel are causing freezing
-    perms = db.Permission(data['user'], data['hub']).get(txn=txn)
-    if perms is None:
-        return Response(status_code=404)
-    if perms.hasPermission(data['authUser'], 'Label'):
-        newLabel = pd.Series({'chrom': data['ref'],
-                              'chromStart': data['start'],
-                              'chromEnd': data['end'],
-                              'annotation': data['label'],
-                              'createdBy': data['authUser'],
-                              'lastModifiedBy': data['authUser'],
-                              'lastModified': time.time()})
-        labelsDb = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-        labels = labelsDb.get(txn=txn, write=True)
+def deleteLabel(db, authUser, user, hub, track, label):
+    out = dbutil.getChromAndCheckPerm(db, authUser, user, hub, track, label.ref, 'Label')
 
-        if not labels.empty:
-            inBounds = labels.apply(db.checkInBounds, axis=1, args=(data['ref'], data['start'], data['end']))
-            # If there are any labels currently stored within the region which the new label is being added
-            if inBounds.any():
-                raise db.AbortTXNException
+    if isinstance(out, Response):
+        return out
 
-        labels = labels.append(newLabel, ignore_index=True).sort_values('chromStart', ignore_index=True)
+    user, hub, track, chrom = out
 
-        labelsDb.put(labels, txn=txn)
-        db.Prediction('changes').increment(txn=txn)
-        Models.updateAllModelLabels(data, labels, txn)
-    else:
-        return Response(status_code=401)
-    return data
-
-
-def zaddHubLabels(data, txn=None):
-    # Duplicated because calls from updateLabel are causing freezing
-    perms = db.Permission(data['user'], data['hub']).get(txn=txn)
-    if perms is None:
-        return Response(status_code=404)
-    if perms.hasPermission(data['authUser'], 'Label'):
-        newLabel = pd.Series({'chrom': data['ref'],
-                              'chromStart': data['start'],
-                              'chromEnd': data['end'],
-                              'annotation': data['label'],
-                              'createdBy': data['authUser'],
-                              'lastModifiedBy': data['authUser'],
-                              'lastModified': time.time()})
-
-        if 'tracks' in data and data['tracks'] is not None:
-            tracks = data['tracks']
-        else:
-            hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
-            tracks = list(hubInfo['tracks'].keys())
-
-        for track in tracks:
-            data['track'] = track
-            trackTxn = db.getTxn(parent=txn)
-            labelsDb = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-            labels = labelsDb.get(txn=trackTxn, write=True)
-            if not labels.empty:
-                inBounds = labels.apply(db.checkInBounds, axis=1, args=(data['ref'], data['start'], data['end']))
-                # If there are any labels currently stored within the region which the new label is being added
-                if inBounds.any():
-                    trackTxn.abort()
-                    raise db.AbortTXNException
-
-            labels = labels.append(newLabel, ignore_index=True).sort_values('chromStart', ignore_index=True)
-
-            labelsDb.put(labels, txn=trackTxn)
-            db.Prediction('changes').increment(txn=trackTxn)
-            Models.updateAllModelLabels(data, labels, trackTxn)
-            trackTxn.commit()
-    else:
-        return Response(status_code=401)
-    return data
-
-
-def zdeleteLabel(data, txn=None):
-    perms = db.Permission(data['user'], data['hub']).get(txn=txn)
-    if perms is None:
-        return Response(status_code=404)
-    if perms.hasPermission(data['authUser'], 'Label'):
-        toRemove = pd.Series({'chrom': data['ref'],
-                              'chromStart': data['start'],
-                              'chromEnd': data['end']})
-
-        labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-        removed, after = labels.remove(toRemove, txn=txn)
-        db.Prediction('changes').increment(txn=txn)
-        Models.updateAllModelLabels(data, after, txn)
-        return True
-    else:
-        return Response(status_code=401)
-
-
-def zdeleteHubLabels(data, txn=None):
-    perms = db.Permission(data['user'], data['hub']).get(txn=txn)
-    if perms is None:
-        return Response(status_code=404)
-    if perms.hasPermission(data['authUser'], 'Label'):
-        labelToRemove = pd.Series({'chrom': data['ref'],
-                                   'chromStart': data['start'],
-                                   'chromEnd': data['end']})
-
-        user = data['user']
-        hub = data['hub']
-
-        if 'tracks' in data and data['tracks'] is not None:
-            tracks = data['tracks']
-        else:
-            hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
-            tracks = list(hubInfo['tracks'].keys())
-
-        for track in tracks:
-            data['track'] = track
-            trackTxn = db.getTxn(parent=txn)
-            labelDb = db.Labels(user, hub, track, data['ref'])
-            item, labels = labelDb.remove(labelToRemove, txn=trackTxn)
-            db.Prediction('changes').increment(txn=trackTxn)
-            Models.updateAllModelLabels(data, labels, trackTxn)
-            trackTxn.commit()
-
-    else:
-        return Response(status_code=401)
-
-
-def zupdateLabel(data, txn=None):
-    perms = db.Permission(data['user'], data['hub']).get(txn=txn)
-    if perms is None:
-        return Response(status_code=404)
-    if perms.hasPermission(data['authUser'], 'Label'):
-        label = data['label']
-
-        labelToUpdate = pd.Series({'chrom': data['ref'],
-                                   'chromStart': data['start'],
-                                   'chromEnd': data['end'],
-                                   'annotation': label,
-                                   'lastModifiedBy': data['authUser'],
-                                   'lastModified': time.time()})
-        labelDb = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-        db.Prediction('changes').increment(txn=txn)
-        item, labels = labelDb.add(labelToUpdate, txn=txn)
-        Models.updateAllModelLabels(data, labels, txn)
-    else:
-        return Response(status_code=401)
-
-
-def zupdateHubLabels(data, txn=None):
-    perms = db.Permission(data['user'], data['hub']).get(txn=txn)
-    if perms is None:
-        return Response(status_code=404)
-    if perms.hasPermission(data['authUser'], 'Label'):
-        labelToUpdate = pd.Series({'chrom': data['ref'],
-                                   'chromStart': data['start'],
-                                   'chromEnd': data['end'],
-                                   'annotation': data['label'],
-                                   'lastModifiedBy': data['authUser'],
-                                   'lastModified': time.time()})
-
-        user = data['user']
-        hub = data['hub']
-
-        if 'tracks' in data and data['tracks'] is not None:
-            tracks = data['tracks']
-        else:
-            hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
-            tracks = list(hubInfo['tracks'].keys())
-
-        for track in tracks:
-            data['track'] = track
-            trackTxn = db.getTxn(parent=txn)
-            labelDb = db.Labels(user, hub, track, data['ref'])
-            db.Prediction('changes').increment(txn=trackTxn)
-            item, labels = labelDb.add(labelToUpdate, txn=trackTxn)
-            Models.updateAllModelLabels(data, labels, trackTxn)
-            trackTxn.commit()
-
-        return item.to_dict()
-    else:
-        return Response(status_code=401)
-
-
-def zgetLabels(db, data):
-    perms = db.Permission(data['user'], data['hub']).get(txn=txn)
-
-    if perms is None:
+    if chrom is None:
         return Response(status_code=404)
 
-    if perms.hasPermission(data['authUser'], 'Label'):
-        labels = db.Labels(data['user'], data['hub'], data['track'], data['ref'])
-        labelsDf = labels.getInBounds(data['ref'], data['start'], data['end'])
-        if len(labelsDf.index) < 1:
-            return []
+    labelToDelete = chrom.labels.filter(models.Label.start == label.start and models.Label.end == label.end).first()
 
-        if data['contig']:
-            labelsOut = labelsDf[labelColumns]
-            hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
-            contigs = db.Problems(hubInfo['genome']).get(txn=txn)
-            labelsOut = labelsOut.apply(addContigToLabel, axis=1, args=(contigs,))
-            labelsOut.columns = jbrowseContigLabelColumns
-        else:
-            labelsOut = labelsDf[labelColumns]
-            labelsOut.columns = jbrowseLabelColumns
-        try:
-            labelsOut['lastModifiedBy'] = labelsDf['lastModifiedBy']
-            labelsOut['lastModified'] = labelsDf['lastModifiedBy']
-        except KeyError:
-            pass
-
-        # https://stackoverflow.com/a/14163209/14396857
-        labelsOut = labelsOut.where(pd.notnull(labelsOut), None)
-
-        return labelsOut
-    else:
-        return Response(status_code=401)
-
-
-def zgetHubLabels(data, txn=None):
-    output = []
-
-    perms = db.Permission(data['user'], data['hub']).get(txn=txn)
-
-    if perms is None:
+    if labelToDelete is None:
         return Response(status_code=404)
-
-    if perms.hasPermission(data['authUser'], 'Label'):
-        if 'tracks' in data and data['tracks'] is not None:
-            tracks = data['tracks']
-        else:
-            hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
-            tracks = list(hubInfo['tracks'].keys())
-
-        for track in tracks:
-            if 'ref' in data:
-                labelsDb = db.Labels(data['user'], data['hub'], track, data['ref'])
-                if 'start' in data and 'end' in data:
-                    labels = labelsDb.getInBounds(data['ref'], data['start'], data['end'], txn=txn)
-                else:
-                    labels = labelsDb.get(txn=txn)
-            else:
-                availableRefs = db.Labels.keysWhichMatch(data['user'], data['hub'], track)
-
-                labels = pd.DataFrame()
-
-                for refKey in availableRefs:
-                    labels = labels.append(db.Labels(*refKey).get(txn=txn))
-
-            labels['track'] = track
-
-            output.append(labels)
     else:
-        return Response(status_code=401)
 
-    output = pd.concat(output)
+        db.delete(labelToDelete)
+        db.flush()
+        db.refresh(chrom)
 
-    if data['contig']:
-        hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
-        contigs = db.Problems(hubInfo['genome']).get(txn=txn)
-        output = output.apply(addContigToLabel, axis=1, args=(contigs,))
-    return output
+        return labelToDelete
 
 
 def zaddContigToLabel(row, contig):
