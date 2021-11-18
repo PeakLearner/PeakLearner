@@ -277,7 +277,7 @@ def createHubFromParse(db: Session, parsed):
         db.flush()
         db.refresh(hub)
 
-    dataPath = os.path.join(cfg.jbrowsePath, cfg.dataPath)
+    dataPath = cfg.dataPath
 
     includes = getGeneTracks(genome, dataPath)
 

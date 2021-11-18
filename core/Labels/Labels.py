@@ -68,12 +68,12 @@ def putLabel(db, authUser, user, hub, track, label):
         chrom = models.Chrom(track=track.id, name=label.ref)
         db.add(chrom)
         db.commit()
-        db.refresh(chrom)
+
+    db.commit()
 
     labelsDf = chrom.getLabels(db)
 
     if not labelsDf.empty:
-
         inBounds = labelsDf.apply(checkInBounds, axis=1, args=(label.start, label.end))
 
         if inBounds.any():

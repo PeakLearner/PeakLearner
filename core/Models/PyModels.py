@@ -28,3 +28,10 @@ class ModelSum(BaseModel):
     errors: int
     penalty: str
     numPeaks: int
+
+
+class ModelData(BaseModel):
+    problem: dict
+    penalty: str
+    modelData: str
+    lossData: str

@@ -116,8 +116,8 @@ class Contig(Base):
     __tablename__ = 'contigs'
     id = Column(Integer, primary_key=True, index=True)
     chrom = Column(Integer, ForeignKey('chroms.id'))
-    features = Column(PickleType)
     problem = Column(Integer, ForeignKey('problems.id'))
+    features = Column(PickleType)
     modelSums = relationship('ModelSum', lazy='dynamic')
 
 
@@ -142,7 +142,7 @@ class ModelSum(Base):
     __tablename__ = 'modelsums'
     id = Column(Integer, primary_key=True, index=True)
     contig = Column(Integer, ForeignKey('contigs.id'))
-    penalty = Column(Float)
+    penalty = Column(String(50))
     fp = Column(Integer)
     fn = Column(Integer)
     possible_fp = Column(Integer)

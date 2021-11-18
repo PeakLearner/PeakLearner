@@ -13,7 +13,7 @@ import core.util.PLConfig as cfg
 from simpleBDB import AbortTXNException
 from core.Permissions import Permissions
 
-dbPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'db')
+dbPath = os.path.join(cfg.dataPath, 'db')
 
 
 def clearLocks():
@@ -55,7 +55,7 @@ from datetime import datetime
 
 
 def doBackup():
-    backupDir = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'backup')
+    backupDir = os.path.join(cfg.dataPath, 'backup')
 
     if not os.path.exists(backupDir):
         os.makedirs(backupDir)
@@ -71,7 +71,7 @@ def doBackup():
 def cleanLogs():
     filesToBackup = db.getLogArchive()
 
-    logBackupDir = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'db_log_backup')
+    logBackupDir = os.path.join(cfg.dataPath, 'db_log_backup')
 
     if not os.path.exists(logBackupDir):
         os.makedirs(logBackupDir)

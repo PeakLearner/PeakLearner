@@ -22,14 +22,8 @@ def model(task, dataPath, coveragePath, trackUrl):
     except FileNotFoundError:
         pass
 
-    if os.path.exists(lossPath):
-        if not sendLoss(lossPath, task, trackUrl):
-            return False
-    else:
-        return False
-
-    if os.path.exists(segmentsPath):
-        if not sendSegments(segmentsPath, task, trackUrl):
+    if os.path.exists(segmentsPath) or os.path.exists(lossPath):
+        if not sendModel(segmentsPath, lossPath, task, trackUrl):
             return False
     else:
         return False
@@ -73,7 +67,7 @@ def feature(task, dataPath, coveragePath, trackUrl):
     return True
 
 
-def sendSegments(segmentsFile, task, trackUrl):
+def sendModel(segmentsFile, lossFile, task, trackUrl):
     modelData = pd.read_csv(segmentsFile, sep='\t', header=None)
     modelData.columns = ['chrom', 'start', 'end', 'annotation', 'mean']
     sortedModel = modelData.sort_values('start', ignore_index=True)
@@ -93,9 +87,9 @@ def sendSegments(segmentsFile, task, trackUrl):
     except requests.exceptions.ConnectionError:
         raise Exception(query)
 
-    if r.status_code == 200:
+    if not r.status_code == 200:
         print('model successfully sent with penalty', task['penalty'], 'and with modelInfo:\n', modelInfo, '\n')
-        return True
+        return False
 
     return False
 

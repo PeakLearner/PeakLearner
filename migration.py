@@ -250,7 +250,7 @@ with SessionLocal() as session:
 
             contig = chrom.contigs.filter(models.Contig.start == int(contigStartInt)).first()
             if contig is None:
-                contig = models.Contig(chrom=chrom.id, start=contigStartInt, problem=problem.id)
+                contig = models.Contig(chrom=chrom.id, problem=problem.id)
                 session.add(contig)
                 session.commit()
                 session.refresh(contig)
@@ -260,7 +260,7 @@ with SessionLocal() as session:
             if floatPenalty == 0:
                 continue
 
-            modelSum = contig.modelSums.filter(models.ModelSum.penalty == floatPenalty).first()
+            modelSum = contig.modelSums.filter(models.ModelSum.penalty == penalty).first()
             if modelSum is not None:
                 continue
 
@@ -285,7 +285,7 @@ with SessionLocal() as session:
 
             problemDict = {'chrom': problem.chrom,
                            'chromStart': problem.start, 'chromEnd': problem.end}
-            modelSumOut = calculateModelLabelError(modelDf, labelsDf, problemDict, floatPenalty)
+            modelSumOut = calculateModelLabelError(modelDf, labelsDf, problemDict, penalty)
 
             loss = pldb.Loss(*key).get()
 

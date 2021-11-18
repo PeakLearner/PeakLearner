@@ -1,4 +1,5 @@
 import configparser
+import os
 
 minScale = 0.5
 gridSearchSize = 10
@@ -42,7 +43,8 @@ if save:
 
 # get ports from config
 jbrowsePath = 'jbrowse/jbrowse/'
-dataPath = 'data/'
+dataPath = os.path.join(jbrowsePath, 'data/')
+
 timeBetween = int(config['learning']['timeBetween'])
 numChanges = int(config['learning']['numChanges'])
 minLabeledRegions = int(config['learning']['minLabeledRegions'])

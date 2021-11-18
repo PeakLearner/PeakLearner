@@ -26,7 +26,7 @@ def getProblems(db, data):
     problemsInBounds = problems.getInBounds(data['ref'], data['start'], data['end'])
 
     if problemsInBounds is None:
-        problemsPath = os.path.join(cfg.jbrowsePath, cfg.dataPath, 'genomes', data['genome'], 'problems.bed')
+        problemsPath = os.path.join(cfg.dataPath, 'genomes', data['genome'], 'problems.bed')
 
         if not os.path.exists(problemsPath):
             location = Hubs.generateProblems(db, data['genome'], problemsPath)

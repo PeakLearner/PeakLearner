@@ -73,7 +73,7 @@ class LabelQuery(BaseModel):
 async def putLabel(request: Request, user: str, hub: str, track: str,
                    label: LabelQuery, db: Session = Depends(core.get_db)):
     authUser = User.getAuthUser(request, db)
-
+    db.commit()
     out = Labels.putLabel(db, authUser, user, hub, track, label)
 
     if isinstance(out, Response):

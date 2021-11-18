@@ -1,16 +1,20 @@
+import os
+
 import LOPART
 import FLOPART
 import logging
 import PeakError
 import numpy as np
 import pandas as pd
-from simpleBDB import retry, txnAbortOnError
 
 log = logging.getLogger(__name__)
 from glmnet_python import cvglmnetPredict
-from core.util import PLConfig as cfg, PLdb as db, bigWigUtil as bw
+from core.util import PLConfig as cfg, bigWigUtil as bw
 from core.Handlers import Tracks
 from core.Jobs import Jobs
+from . import PyModels
+from core import dbutil, models
+from core.Loss.Models import LossData
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
@@ -23,10 +27,9 @@ flopartLabels = {'noPeak': 0,
                  'unknown': -2}
 modelTypes = ['lopart', 'flopart']
 pd.set_option('mode.chained_assignment', None)
+modelsPath = os.path.join(cfg.dataPath, 'Models')
 
 
-@retry
-@txnAbortOnError
 def getModels(data, txn=None):
     chromLabels = db.Labels(data['user'], data['hub'], data['track'], data['ref']).get(txn=txn)
 
@@ -143,8 +146,6 @@ def getModels(data, txn=None):
         return []
 
 
-@retry
-@txnAbortOnError
 def getHubModels(data, txn=None):
     modelSumKeys = db.ModelSummaries.keysWhichMatch(data['user'], data['hub'])
 
@@ -260,43 +261,79 @@ def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
     return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
 
 
-@retry
-@txnAbortOnError
-def putModel(data, txn=None):
-    modelData = pd.read_json(data['modelData'])
+def putModel(db, user, hub, track, data: PyModels.ModelData):
+    modelData = pd.read_json(data.modelData)
     modelData.columns = modelColumns
-    modelInfo = data['modelInfo']
-    problem = modelInfo['problem']
-    penalty = data['penalty']
-    user = modelInfo['user']
-    hub = modelInfo['hub']
-    track = modelInfo['track']
+    problem = data.problem
+    penalty = data.penalty
 
-    db.Model(user, hub, track, problem['chrom'], problem['chromStart'], penalty).put(modelData, txn=txn)
-    labels = db.Labels(user, hub, track, problem['chrom']).getInBounds(problem['chrom'],
-                                                                       problem['chromStart'],
-                                                                       problem['chromEnd'], txn=txn)
+    contigPath = os.path.join(modelsPath, user, hub, track, problem['chrom'], str(problem['start']))
 
-    modelSumsDb = db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart'])
+    if not os.path.exists(contigPath):
+        os.makedirs(contigPath)
 
-    if len(labels.index) > 0:
-        errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
-        modelSumsDb.add(errorSum, txn=txn)
-    else:
-        peaks = modelData[modelData['annotation'] == 'peak']
-        errorSum = getErrorSeries(penalty, len(peaks.index), errors=0)
-        modelSumsDb.add(errorSum, txn=txn)
+    modelWithBGFile = '%s_withBG.bed' % penalty
 
-    return modelInfo
+    modelData.to_csv(os.path.join(contigPath, modelWithBGFile), sep='\t', index=False, header=False)
+
+    modelFile = '%s_.bed' % penalty
+
+    justPeaks = modelData[modelData.annotation == 'peak']
+
+    toBedGraph = justPeaks.drop('annotation', axis=1)
+
+    toBedGraph.to_csv(os.path.join(contigPath, modelFile), sep='\t', index=False, header=False)
+
+    db.commit()
+
+    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, problem['chrom'])
+    genome = db.query(models.Genome).get(hub.genome)
+    problem = genome.problems.filter(models.Problem.chrom == problem['chrom'] and models.Problem.start == problem['start']).first()
+
+    if problem is None:
+        raise Exception
+
+    if chrom is None:
+        chrom = models.Chrom(track=track.id, name=problem['chrom'])
+        db.add(chrom)
+        db.flush()
+        db.refresh(chrom)
+
+    contig = chrom.contigs.filter(models.Contig.problem == problem.id).first()
+
+    if contig is None:
+        contig = models.Contig(chrom=chrom.id, problem=problem.id)
+        db.add(contig)
+        db.flush()
+        db.refresh(contig)
+
+    labelsDf = chrom.getLabels(db)
+
+    modelSumOut = calculateModelLabelError(justPeaks, labelsDf, problem, penalty)
+
+    modelSum = models.ModelSum(contig=contig.id,
+                               fp=modelSumOut['fp'],
+                               fn=modelSumOut['fn'],
+                               possible_fp=modelSumOut['possible_fp'],
+                               possible_fn=modelSumOut['possible_fn'],
+                               errors=modelSumOut['errors'],
+                               regions=modelSumOut['regions'],
+                               numPeaks=modelSumOut['numPeaks'],
+                               loss=pd.read_json(data.lossData),
+                               penalty=penalty)
+
+    contig.modelSums.append(modelSum)
+    db.commit()
+
+    return True
 
 
 def calculateModelLabelError(modelDf, labels, problem, penalty):
-    peaks = modelDf[modelDf['annotation'] == 'peak']
-    numPeaks = len(peaks.index)
+    numPeaks = len(modelDf.index)
     if not labels.empty:
         labels = labels[labels['annotation'] != 'unknown']
-        labelsIsInProblem = labels.apply(db.checkInBounds, axis=1,
-                                         args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
+        labelsIsInProblem = labels.apply(bw.checkInBounds, axis=1,
+                                         args=(problem.start, problem.end))
         labelsInProblem = labels[labelsIsInProblem]
 
         numLabelsInProblem = len(labelsInProblem.index)
@@ -326,10 +363,10 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
                               fp=0,
                               possible_fp=numLabelsInProblem)
 
-    if numLabelsInProblem < 1:
-        return getErrorSeries(penalty, numPeaks, numLabelsInProblem)
+    elif numLabelsInProblem == 0:
+        return getErrorSeries(penalty, numPeaks, numLabelsInProblem, errors=0)
 
-    error = PeakError.error(peaks, labelsInProblem)
+    error = PeakError.error(modelDf, labelsInProblem)
 
     if error is None:
         return getErrorSeries(penalty, numPeaks, numLabelsInProblem)
@@ -671,6 +708,7 @@ def predictWithFeatures(features, model):
 
     return guess
 
+
 def profile_wrap(func):
     import cProfile
 
@@ -684,8 +722,6 @@ def profile_wrap(func):
     return wrap
 
 
-@retry
-@txnAbortOnError
 def getTrackModelSummaries(data, txn=None):
     problems = Tracks.getProblems(data, txn=txn)
 
@@ -707,8 +743,6 @@ def getTrackModelSummaries(data, txn=None):
     return output
 
 
-@retry
-@txnAbortOnError
 def getTrackModelSummary(data, txn=None):
     hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
 
@@ -729,8 +763,6 @@ def getTrackModelSummary(data, txn=None):
     return modelSummaries
 
 
-@retry
-@txnAbortOnError
 def recalculateModels(data, txn=None):
     modelSumCursor = db.ModelSummaries.getCursor(txn=txn, bulk=True)
 
@@ -785,8 +817,6 @@ def recalculateModels(data, txn=None):
     modelSumCursor.close()
 
 
-@retry
-@txnAbortOnError
 def fixModelsToModelSums(data, txn=None):
     modelKeys = db.Model.db_key_tuples()
 
@@ -869,8 +899,6 @@ def recursiveCheck(data, key):
 
 
 if cfg.testing:
-    @retry
-    @txnAbortOnError
     def modelSumUpload(data, txn=None):
         user = data['user']
         hub = data['hub']

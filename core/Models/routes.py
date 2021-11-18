@@ -4,12 +4,16 @@ from typing import List
 from pydantic.main import BaseModel
 
 import core
+from . import PyModels
+from core.Loss.Models import LossData
 from core.Models import Models, PyModels
 from core.util import PLConfig as cfg
 from core.Permissions import Permissions
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import Response, HTMLResponse, RedirectResponse
+from sqlalchemy.orm import Session
+
 
 csvResponse = {
     200: {
@@ -59,18 +63,14 @@ def getModel(request: Request,
     return core.dfOut(request, output)
 
 
-class ModelData(BaseModel):
-    modelInfo: dict
-    penalty: str
-    modelData: str
+
 
 
 @core.trackRouter.put('/models',
                       summary='Put new PeakSegDiskModel',
                       description='Allows HPC clusters to upload the models which they create')
-async def putModel(request: Request, user: str, hub: str, track: str, modelData: ModelData):
-    data = {'user': user, 'hub': hub, 'track': track, **dict(modelData)}
-    output = Models.putModel(data)
+async def putModel(request: Request, user: str, hub: str, track: str, modelData: PyModels.ModelData, db: Session = Depends(core.get_db)):
+    output = Models.putModel(db, user, hub, track, modelData)
 
     if output is not None:
         return output

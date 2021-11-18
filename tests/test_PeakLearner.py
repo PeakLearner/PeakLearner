@@ -58,7 +58,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert request.status_code == 200
 
-        dataPath = os.path.join(cfg.jbrowsePath, cfg.dataPath)
+        dataPath = cfg.dataPath
 
         assert os.path.exists(dataPath)
 
@@ -213,6 +213,39 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         for label in labels:
             assert label['label_id'] != oldId
+
+    def test_put_model(self):
+        sampleDir = os.path.join('tests', 'data', 'Models', 'PeakLearner-7-1')
+        modelPath = os.path.join(sampleDir, 'coverage.bedGraph_penalty=1000_segments.bed')
+        modelData = pd.read_csv(modelPath, sep='\t', header=None)
+        modelData.columns = ['chrom', 'start', 'end', 'annotation', 'mean']
+        sortedModel = modelData.sort_values('start', ignore_index=True)
+        problem = {'chrom': 'chr3', 'start': 93504854, 'end': 194041961}
+        trackUrl = '/%s/%s/%s/' % (self.user, self.hub, self.track)
+        modelUrl = '%smodels' % trackUrl
+
+        lossPath = os.path.join(sampleDir, 'coverage.bedGraph_penalty=1000_loss.tsv')
+        lossData = pd.read_csv(lossPath, sep='\t', header=None)
+        lossData.columns = ['penalty',
+                            'segments',
+                            'peaks',
+                            'totalBases',
+                            'bedGraphLines',
+                            'meanPenalizedCost',
+                            'totalUnpenalizedCost',
+                            'numConstraints',
+                            'meanIntervals',
+                            'maxIntervals']
+
+        query = {'problem': problem, 'penalty': '1000',
+                 'modelData': sortedModel.to_json(),
+                 'lossData': lossData.to_json()}
+        output = self.testapp.put(modelUrl, json=query)
+
+        if output.status_code != 200:
+            print(output.content)
+        assert output.status_code == 200
+
 
     def test_doSampleJob(self):
         modelsPath = os.path.join(testDataPath, 'Models')
