@@ -9,6 +9,7 @@ from core.Loss.Models import LossData
 from core.Models import Models, PyModels
 from core.util import PLConfig as cfg
 from core.Permissions import Permissions
+from core.User import User
 
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import Response, HTMLResponse, RedirectResponse
@@ -37,19 +38,16 @@ def getModel(request: Request,
              modelType: str = 'NONE',
              scale: float = None,
              visibleStart: int = None,
-             visibleEnd: int = None):
-    authUser = request.session.get('user')
+             visibleEnd: int = None,
+             db: Session = Depends(core.get_db)):
 
-    if authUser is None:
-        authUser = 'Public'
-    else:
-        authUser = authUser['email']
-
-    data = {**locals(), 'authUser': authUser}
-
-    # output = Models.getModels(data=data)
-
-    output = []
+    authUser = User.getAuthUser(request, db)
+    db.commit()
+    output = Models.getModels(db, authUser, user, hub, track, ref, start, end,
+                              modelType=modelType,
+                              scale=scale,
+                              visibleStart=visibleStart,
+                              visibleEnd=visibleEnd)
 
     if output is None:
         return Response(status_code=204)
@@ -69,7 +67,8 @@ def getModel(request: Request,
 @core.trackRouter.put('/models',
                       summary='Put new PeakSegDiskModel',
                       description='Allows HPC clusters to upload the models which they create')
-async def putModel(request: Request, user: str, hub: str, track: str, modelData: PyModels.ModelData, db: Session = Depends(core.get_db)):
+async def putModel(request: Request, user: str, hub: str, track: str, modelData: PyModels.ModelData,
+                   db: Session = Depends(core.get_db)):
     output = Models.putModel(db, user, hub, track, modelData)
 
     if output is not None:

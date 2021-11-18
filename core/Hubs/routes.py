@@ -240,19 +240,17 @@ async def removeTrack(request: Request, user: str, hub: str, trackName: str = Fo
 @core.hubRouter.get('/unlabeled',
                     summary='Gets an unlabeled region for the hub',
                     description='Gets an unlabeled region for the hub, and returns what is needed to navigate to that')
-async def getUnlabeledRegion(request: Request, user: str, hub: str):
-    query = {'user': user, 'hub': hub, 'type': 'unlabeled'}
-
-    return Hubs.goToRegion(query)
+async def getUnlabeledRegion(request: Request, user: str, hub: str, db: Session = Depends(core.get_db)):
+    db.commit()
+    return Hubs.goToRegion(db, user, hub, 'unlabeled')
 
 
 @core.hubRouter.get('/labeled',
                     summary='Gets a labeled region for the hub',
                     description='Gets a labeled region for the hub, and returns what is needed to navigate to that')
-async def getLabeledRegion(request: Request, user: str, hub: str):
-    query = {'user': user, 'hub': hub, 'type': 'labeled'}
-
-    return Hubs.goToRegion(query)
+async def getLabeledRegion(request: Request, user: str, hub: str, db: Session = Depends(core.get_db)):
+    db.commit()
+    return Hubs.goToRegion(db, user, hub, 'labeled')
 
 
 

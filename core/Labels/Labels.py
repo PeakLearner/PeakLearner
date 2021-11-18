@@ -69,8 +69,6 @@ def putLabel(db, authUser, user, hub, track, label):
         db.add(chrom)
         db.commit()
 
-    db.commit()
-
     labelsDf = chrom.getLabels(db)
 
     if not labelsDf.empty:

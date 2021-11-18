@@ -30,8 +30,8 @@ jbrowseMapper = {'chrom': 'ref', 'annotation': 'label'}
                       description='Gets the labels for a given track, with parameters for limiting the query')
 def getLabels(request: Request, user: str, hub: str, track: str, ref: str = None, start: int = None,
               end: int = None, db: Session = Depends(core.get_db)):
-    output = Labels.getLabels(db, user, hub, track, ref=ref)
     db.commit()
+    output = Labels.getLabels(db, user, hub, track, ref=ref)
 
     try:
         if not output:
@@ -73,7 +73,6 @@ class LabelQuery(BaseModel):
 async def putLabel(request: Request, user: str, hub: str, track: str,
                    label: LabelQuery, db: Session = Depends(core.get_db)):
     authUser = User.getAuthUser(request, db)
-    db.commit()
     out = Labels.putLabel(db, authUser, user, hub, track, label)
 
     if isinstance(out, Response):

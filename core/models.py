@@ -1,7 +1,7 @@
 import pandas as pd
 from sqlalchemy import Boolean, PickleType, Column, Float, ForeignKey, DateTime, Integer, String
 from sqlalchemy.orm import relationship, Session
-
+from core.util import bigWigUtil
 from .database import Base
 
 
@@ -35,6 +35,24 @@ class Hub(Base):
         if perm is None:
             return False
         return perm.checkPerm(permStr)
+
+    def getProblems(self, db: Session, ref=None, start: int = None, end: int = None):
+        genome = db.query(Genome).filter(Genome.id == self.genome).first()
+        problems = pd.read_sql(genome.problems.statement, db.bind)
+
+        if ref is None:
+            return problems
+        elif isinstance(ref, str):
+            refCheck = ref
+        else:
+            refCheck = ref.name
+        chrom = problems[problems.chrom == refCheck]
+
+        if start is not None is not end:
+            inBounds = chrom.apply(bigWigUtil.checkInBounds, axis=1, args=(start, end))
+            return chrom[inBounds]
+        else:
+            return chrom
 
 
 class HubPermission(Base):
@@ -104,12 +122,15 @@ class Chrom(Base):
     labels = relationship('Label', lazy='dynamic')
     contigs = relationship('Contig', lazy='dynamic')
 
-    def getLabels(self, db: Session):
+    def getLabels(self, db):
         # Get all labels as list of dicts to turn into a df
         labels = pd.read_sql(self.labels.statement, db.bind)
         labels['label_id'] = labels['id']
         labels['chrom'] = self.name
         return labels.set_index(['id'])
+
+
+summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors', 'numPeaks', 'penalty']
 
 
 class Contig(Base):
@@ -119,6 +140,15 @@ class Contig(Base):
     problem = Column(Integer, ForeignKey('problems.id'))
     features = Column(PickleType)
     modelSums = relationship('ModelSum', lazy='dynamic')
+
+    def getModelSums(self, db, withLoss=False):
+        # Get all labels as list of dicts to turn into a df
+        sums = pd.read_sql(self.modelSums.statement, db.bind).set_index(['id'])
+
+        if withLoss:
+            return sums
+
+        return sums.drop('loss', axis=1)
 
 
 class Label(Base):
@@ -142,7 +172,8 @@ class ModelSum(Base):
     __tablename__ = 'modelsums'
     id = Column(Integer, primary_key=True, index=True)
     contig = Column(Integer, ForeignKey('contigs.id'))
-    penalty = Column(String(50))
+    # PickleType because for some reason it was casting String(50) to float??
+    penalty = Column(PickleType)
     fp = Column(Integer)
     fn = Column(Integer)
     possible_fp = Column(Integer)

@@ -246,121 +246,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
             print(output.content)
         assert output.status_code == 200
 
-
-    def test_doSampleJob(self):
-        modelsPath = os.path.join(testDataPath, 'Models')
-        dirs = os.listdir(modelsPath)
-
-        for jobDir in dirs:
-            a, jobId, taskId = jobDir.split('-')
-
-            jobDir = os.path.join(modelsPath, jobDir)
-
-            jobUrl = os.path.join(self.jobsURL, jobId)
-
-            output = self.testapp.get(jobUrl, headers={'Accept': 'application/json'})
-
-            job = output.json()
-
-            task = job['tasks'][taskId]
-
-            trackUrl = '/%s/%s/%s/' % (job['user'], job['hub'], job['track'])
-
-            if task['type'] == 'model':
-                fileBase = os.path.join(jobDir, 'coverage.bedGraph_penalty=%s_' % task['penalty'])
-                segmentsFile = fileBase + 'segments.bed'
-                lossFile = fileBase + 'loss.tsv'
-
-                # Upload Model
-
-                modelData = pd.read_csv(segmentsFile, sep='\t', header=None)
-                modelData.columns = ['chrom', 'start', 'end', 'annotation', 'mean']
-                sortedModel = modelData.sort_values('start', ignore_index=True)
-
-                modelInfo = {'user': job['user'],
-                             'hub': job['hub'],
-                             'track': job['track'],
-                             'problem': job['problem'],
-                             'jobId': job['id']}
-
-                modelUrl = '%smodels' % trackUrl
-
-                query = {'modelInfo': modelInfo, 'penalty': task['penalty'], 'modelData': sortedModel.to_json()}
-                output = self.testapp.put(modelUrl, json=query)
-                assert output.status_code == 200
-
-                # Upload Loss
-
-                strPenalty = str(task['penalty'])
-                lossUrl = '%sloss' % trackUrl
-
-                lossData = pd.read_csv(lossFile, sep='\t', header=None)
-                lossData.columns = ['penalty',
-                                    'segments',
-                                    'peaks',
-                                    'totalBases',
-                                    'bedGraphLines',
-                                    'meanPenalizedCost',
-                                    'totalUnpenalizedCost',
-                                    'numConstraints',
-                                    'meanIntervals',
-                                    'maxIntervals']
-
-                lossInfo = {'user': job['user'],
-                            'hub': job['hub'],
-                            'track': job['track'],
-                            'problem': job['problem'],
-                            'jobId': job['id']}
-
-                query = {'lossInfo': lossInfo, 'penalty': strPenalty, 'lossData': lossData.to_json()}
-
-                output = self.testapp.put(lossUrl, json=query)
-
-                assert output.status_code == 200
-            if task['type'] == 'feature':
-                featurePath = os.path.join(jobDir, 'features.tsv')
-                featureDf = pd.read_csv(featurePath, sep='\t')
-
-                featureQuery = {'data': featureDf.to_dict('records'),
-                                'problem': job['problem']}
-
-                featureUrl = '%sfeatures' % trackUrl
-
-                output = self.testapp.put(featureUrl, json=featureQuery)
-
-                assert output.status_code == 200
-
-    def test_modelWithNoPeaksError(self):
-        self.test_doSampleJob()
-
-        user = 'Public'
-        hub = 'H3K4me3_TDH_ENCODE'
-        track = 'aorta_ENCFF502AXL'
-        problem = {'ref': 'chr3', 'start': 93504854, 'chromEnd': 194041961}
-
-        testUrl = '/%s' % os.path.join(user, hub, track)
-        testModelSumUrl = os.path.join(testUrl, 'modelSum')
-
-        r = self.testapp.get(testModelSumUrl, params=problem)
-
-        assert r.status_code == 200
-
-        out = r.json()
-
-        for sum in out:
-            if sum['penalty'] == '1000000':
-                assert sum['errors'] > 1
-
-    def test_getPeakLearnerModels(self):
-        self.test_doSampleJob()
-
-        params = {'ref': 'chr3', 'start': 0,
-                  'end': 396044860}
-
-        output = self.testapp.get(self.sampleModelsUrl, params=params, headers={'Accept': '*/*'})
-
-        assert output.status_code == 200
-
     def test_labelsWithAcceptAnyHeader(self):
         params = {'ref': 'chr3', 'start': 0,
                   'end': 396044860}
@@ -369,29 +254,12 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert output.status_code == 200
 
-    def test_get_features(self):
-        self.test_doSampleJob()
-        params = {'ref': 'chr3', 'start': 93504854}
-
-        featureUrl = os.path.join(self.axlTrackURL, 'features')
-
-        out = self.testapp.get(featureUrl, params=params)
-
-        assert out.status_code == 200
-
-        assert len(out.json().keys()) > 1
-
-        otherParams = params.copy()
-
-        otherParams['start'] += 1
-
-        out = self.testapp.get(featureUrl, params=otherParams)
-
-        assert out.status_code == 204
-
     def test_getPredictionModel(self):
         # Put test model
-        testProblem = {'chrom': 'chr17', 'chromStart': 62460760, 'chromEnd': 77546461}
+        testProblem = {'chrom': 'chr17', 'start': 62460760, 'end': 77546461}
+        sampleDir = os.path.join('tests', 'data', 'Models', 'PeakLearner-7-1')
+        lossPath = os.path.join(sampleDir, 'coverage.bedGraph_penalty=1000_loss.tsv')
+        lossData = pd.read_csv(lossPath, sep='\t', header=None)
         modelData = pd.DataFrame([{'chrom': 'chr17',
                                    'start': 62500000,
                                    'end': 62550000,
@@ -412,51 +280,20 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         modelData.columns = ['chrom', 'start', 'end', 'annotation', 'mean']
         sortedModel = modelData.sort_values('start', ignore_index=True)
 
-        modelInfo = {'user': self.user,
-                     'hub': self.hub,
-                     'track': self.track,
-                     'problem': testProblem}
-
-        query = {'modelInfo': modelInfo, 'penalty': 57094.997295, 'modelData': sortedModel.to_json()}
+        query = {'problem': testProblem, 'penalty': '1000',
+                 'modelData': sortedModel.to_json(),
+                 'lossData': lossData.to_json()}
         output = self.testapp.put(self.modelsUrl, json=query)
         assert output.status_code == 200
 
         # Get test model
 
-        getQuery = {'ref': testProblem['chrom'], 'start': testProblem['chromStart'], 'end': testProblem['chromEnd']}
+        getQuery = {'ref': testProblem['chrom'], 'start': testProblem['start'], 'end': testProblem['end']}
         output = self.testapp.get(self.modelsUrl, params=getQuery)
 
         assert output.status_code == 200
 
         assert len(output.json()) > 0
-
-    def test_get_loss(self):
-        self.test_doSampleJob()
-        params = {'ref': 'chr3', 'start': 93504854, 'penalty': '10000'}
-
-        lossUrl = os.path.join(self.axlTrackURL, 'loss')
-
-        out = self.testapp.get(lossUrl, params=params)
-
-        assert out.status_code == 200
-
-        loss = out.json()
-
-        assert len(loss.keys()) > 1
-
-        assert int(params['penalty']) == loss['penalty']
-
-    def test_get_modelSum(self):
-        self.test_doSampleJob()
-        params = {'ref': 'chr3', 'start': 93504854}
-
-        modelSumsUrl = os.path.join(self.axlTrackURL, 'modelSum')
-
-        out = self.testapp.get(modelSumsUrl, params=params)
-
-        assert out.status_code == 200
-
-        assert len(out.json()) != 0
 
     def test_unlabeledRegion(self):
         unlabeledUrl = os.path.join(self.hubURL, 'unlabeled')
@@ -516,36 +353,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert labelsExist
 
-    def test_getTrackJob(self):
-        jobsUrl = os.path.join(self.trackURL, 'jobs')
-
-        output = self.testapp.get(jobsUrl, params=self.rangeArgs)
-
-        assert output.status_code == 200
-
-        assert len(output.json()) != 0
-
-    def test_GetTrackModelSums(self):
-
-        modelSumUrl = os.path.join(self.axlTrackURL, 'modelSums')
-
-        modelRegion = {'ref': 'chr3', 'start': 93504854, 'end': 194041961}
-
-        output = self.testapp.get(modelSumUrl, params=modelRegion)
-
-        # No Models at this point
-        assert output.status_code == 204
-
-        self.test_doSampleJob()
-
-        output = self.testapp.get(modelSumUrl, params=modelRegion)
-
-        assert output.status_code == 200
-
-        # There should be models at this point
-
-        assert len(output.json()) != 0
-
     def test_predictionModel(self):
         modelsPath = os.path.join(testDataPath, 'Models')
 
@@ -557,8 +364,11 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         fileBase = os.path.join(jobDir, 'coverage.bedGraph_penalty=%s_' % penalty)
         segmentsFile = fileBase + 'segments.bed'
+        lossFile = fileBase + 'loss.tsv'
 
         # Upload Model
+
+        lossData = pd.read_csv(lossFile, sep='\t', header=None)
 
         modelData = pd.read_csv(segmentsFile, sep='\t', header=None)
         modelData.columns = ['chrom', 'start', 'end', 'annotation', 'mean']
@@ -566,21 +376,18 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         sortedModel['chrom'] = 'chr2'
 
-        problemWithNoLabels = {'chrom': 'chr2', 'chromStart': 149790582, 'chromEnd': 234003741}
-
-        modelInfo = {'user': self.user,
-                     'hub': self.hub,
-                     'track': self.track,
-                     'problem': problemWithNoLabels}
+        problemWithNoLabels = {'chrom': 'chr2', 'start': 149790582, 'end': 234003741}
 
         modelUrl = os.path.join(self.trackURL, 'models')
 
-        query = {'modelInfo': modelInfo, 'penalty': penalty, 'modelData': sortedModel.to_json()}
+        query = {'problem': problemWithNoLabels, 'penalty': '1000',
+                 'modelData': sortedModel.to_json(),
+                 'lossData': lossData.to_json()}
         output = self.testapp.put(modelUrl, json=query)
         assert output.status_code == 200
 
         params = {'ref': problemWithNoLabels['chrom'],
-                  'start': problemWithNoLabels['chromStart'], 'end': problemWithNoLabels['chromEnd']}
+                  'start': problemWithNoLabels['start'], 'end': problemWithNoLabels['start']}
 
         modelOut = self.testapp.get(modelUrl, params=params, headers={'Accept': 'application/json'})
 
