@@ -165,60 +165,64 @@ def noPredictGuess(summary):
     return summary[summary['numPeaks'] == summary['numPeaks'].min()]
 
 
-def updateAllModelLabels(data, labels, txn):
+def updateAllModelLabels(db: Session, authUser, user, hub, track, chrom, labelsDf, label):
     # This is the problems that the label update is in
+    problems = hub.getProblems(db, chrom, label.start, label.end)
 
-    problems = Tracks.getProblems(data)
+    for _, problem in problems.iterrows():
+        user, hub, track, chrom, contig, problem = dbutil.getContig(db,
+                                                                    user,
+                                                                    hub,
+                                                                    track,
+                                                                    chrom,
+                                                                    problem['start'])
 
-    for problem in problems:
-        modelTxn = db.getTxn(parent=txn)
 
-        problemKey = (data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'])
+        if contig is None:
+            # TODO: Pregen job
+            continue
 
-        modelSummaries = db.ModelSummaries(*problemKey)
+        modelSummaries = contig.getModelSums(db)
 
-        modelsums = modelSummaries.get(txn=modelTxn, write=True)
+        print(modelSummaries)
 
-        if len(modelsums.index) < 1:
-            out = Jobs.PregenJob(data['user'],
+        if len(modelSummaries.index) < 1:
+            # TODO: Pregen Job
+            """out = Jobs.PregenJob(data['user'],
                                  data['hub'],
                                  data['track'],
                                  problem,
                                  peakSegDiskPrePenalties,
-                                 len(labels.index))
-
-            out.putNewJob(txn=modelTxn)
-            placeHolders = out.getJobModelSumPlaceholder()
-            modelSummaries.put(placeHolders, txn=modelTxn)
-            modelTxn.commit()
+                                 len(labels.index))"""
             continue
 
-        newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem, modelTxn))
+        contigModelsPath = os.path.join(modelsPath, user.name, hub.name, track.name, chrom.name, str(problem.start))
+        newSums = modelSummaries.apply(modelSumLabelUpdate, axis=1, args=(labelsDf, problem, contigModelsPath))
 
-        try:
-            toDelete = newSum['delete'] == 1
-            newSum = newSum[~toDelete].drop('delete', axis=1)
-        except KeyError:
-            pass
+        for index, newSum in newSums.iterrows():
+            print(index)
+            print(type(index))
+            toUpdate = contig.modelSums.get(index.item())
 
-        modelSummaries.put(newSum, txn=modelTxn)
+            toUpdate.fp = newSum.fp
+            toUpdate.fn = newSum.fn
+            toUpdate.possible_fp = newSum.possible_fp
+            toUpdate.possible_fn = newSum.possible_fn
+            toUpdate.errors = newSum.errors
+            toUpdate.numPeaks = newSum.numPeaks
+            toUpdate.regions = newSum.regions
 
-        modelTxn.commit()
+            db.flush()
+            db.refresh(toUpdate)
 
 
-def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
-    modelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
-                       problem['chromStart'], modelSum['penalty'])
+def modelSumLabelUpdate(modelSum, labels, problem, contigModelsPath):
+    modelPath = os.path.join(contigModelsPath, '%s.bed' % modelSum['penalty'])
 
-    model = modelDb.get(txn=txn)
-
-    if model is None:
-        modelSum['delete'] = True
+    if not os.path.exists(modelPath):
         return modelSum
-    elif model.empty:
-        modelSum['delete'] = True
-        modelDb.put(None, txn=txn)
-        return modelSum
+
+    model = pd.read_csv(modelPath, sep='\t', header=None)
 
     return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
 

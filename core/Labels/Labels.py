@@ -65,8 +65,6 @@ def putLabel(db, authUser, user, hub, track, label):
 
     labelsDf = chrom.getLabels(db)
 
-    print(labelsDf)
-
     if not labelsDf.empty:
         inBounds = labelsDf.apply(checkInBounds, axis=1, args=(label.start, label.end))
 
@@ -84,6 +82,18 @@ def putLabel(db, authUser, user, hub, track, label):
     db.flush()
     db.refresh(chrom)
     db.refresh(newLabel)
+
+    labelAsSeries = pd.Series({'label_id': newLabel.id,
+                               'chrom': label.ref,
+                               'annotation': newLabel.annotation,
+                               'start': newLabel.start,
+                               'end': newLabel.end,
+                               'lastModified': newLabel.lastModified,
+                               'lastModifiedBy': newLabel.lastModifiedBy})
+
+    labelsDf = labelsDf.append(labelAsSeries, ignore_index=True).sort_values('start', ignore_index=True)
+
+    Models.updateAllModelLabels(db, authUser, user, hub, track, chrom, labelsDf, label)
 
     return newLabel
 

@@ -300,6 +300,9 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
             out = self.testapp.get(trackLabelsUrl, params=output.json(), headers={'Accept': 'application/json'})
 
             # No Content
+            if out.status_code == 200:
+                print(output.json())
+                print(out.json())
             assert out.status_code == 204
 
     def test_labeledRegion(self):
