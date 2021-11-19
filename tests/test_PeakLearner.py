@@ -92,7 +92,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert requestOutput['genome'] == 'hg19'
 
-        assert len(requestOutput['tracks']) == 28
+        assert len(requestOutput['tracks']) == 24
         for trackKey in requestOutput['tracks']:
             assert trackKey in expectedTrackKeys
 
@@ -113,45 +113,10 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         assert len(request.json()) != 0
 
-    def test_put_label(self):
-        # Blank Label Test
-        rangeQuery = self.rangeArgs.copy()
-        del rangeQuery['label']
-
-        request = self.getLabels(params=rangeQuery)
-
-        assert request.status_code == 200
-
-        numLabelsBefore = len(request.json())
-
-        # Add label
+    def test_a_put_label(self):
         request = self.testapp.put(self.labelURL, json=self.startLabel)
 
         assert request.status_code == 200
-
-        labelId = request.json()
-
-        # Check Label Added
-        request = self.getLabels(params={**self.rangeArgs, 'contig': True})
-
-        assert request.status_code == 200
-
-        assert len(request.json()) == numLabelsBefore + 1
-
-        serverLabels = request.json()
-
-        matches = False
-
-        for label in serverLabels:
-            if label['label_id'] == labelId:
-                assert label['ref'] == self.startLabel['ref']
-                assert label['start'] == self.startLabel['start']
-                assert label['end'] == self.startLabel['end']
-                assert label['label'] == 'peakStart'
-
-                matches = True
-
-        assert matches
 
     def test_update_label(self):
         rangeQuery = self.rangeArgs.copy()
@@ -167,7 +132,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         del toUpdate['lastModified']
         del toUpdate['lastModifiedBy']
         del toUpdate['label_id']
-
 
         toUpdate['label'] = 'peakStart'
 
@@ -241,6 +205,22 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
                  'modelData': sortedModel.to_json(),
                  'lossData': lossData.to_json()}
         output = self.testapp.put(modelUrl, json=query)
+
+        if output.status_code != 200:
+            print(output.content)
+        assert output.status_code == 200
+
+    def test_put_features(self):
+        sampleDir = os.path.join('tests', 'data', 'Models', 'PeakLearner-7-0')
+        featurePath = os.path.join(sampleDir, 'features.tsv')
+        featureDf = pd.read_csv(featurePath, sep='\t')
+        problem = {'chrom': 'chr3', 'start': 93504854, 'end': 194041961}
+        trackUrl = '/%s/%s/%s/' % (self.user, self.hub, self.track)
+        featuresUrl = '%sfeatures' % trackUrl
+
+        query = {'data': featureDf.to_json(),
+                 'problem': problem}
+        output = self.testapp.put(featuresUrl, json=query)
 
         if output.status_code != 200:
             print(output.content)
@@ -352,48 +332,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
                     labelsExist = True
 
         assert labelsExist
-
-    def test_predictionModel(self):
-        modelsPath = os.path.join(testDataPath, 'Models')
-
-        jobDir = 'PeakLearner-7-1'
-
-        jobDir = os.path.join(modelsPath, jobDir)
-
-        penalty = 1000
-
-        fileBase = os.path.join(jobDir, 'coverage.bedGraph_penalty=%s_' % penalty)
-        segmentsFile = fileBase + 'segments.bed'
-        lossFile = fileBase + 'loss.tsv'
-
-        # Upload Model
-
-        lossData = pd.read_csv(lossFile, sep='\t', header=None)
-
-        modelData = pd.read_csv(segmentsFile, sep='\t', header=None)
-        modelData.columns = ['chrom', 'start', 'end', 'annotation', 'mean']
-        sortedModel = modelData.sort_values('start', ignore_index=True)
-
-        sortedModel['chrom'] = 'chr2'
-
-        problemWithNoLabels = {'chrom': 'chr2', 'start': 149790582, 'end': 234003741}
-
-        modelUrl = os.path.join(self.trackURL, 'models')
-
-        query = {'problem': problemWithNoLabels, 'penalty': '1000',
-                 'modelData': sortedModel.to_json(),
-                 'lossData': lossData.to_json()}
-        output = self.testapp.put(modelUrl, json=query)
-        assert output.status_code == 200
-
-        params = {'ref': problemWithNoLabels['chrom'],
-                  'start': problemWithNoLabels['start'], 'end': problemWithNoLabels['start']}
-
-        modelOut = self.testapp.get(modelUrl, params=params, headers={'Accept': 'application/json'})
-
-        assert modelOut.status_code == 200
-
-        assert len(modelOut.json()) != 0
 
     def test_stats_page(self):
         output = self.testapp.get('/stats/')

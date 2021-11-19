@@ -43,8 +43,7 @@ class PeakLearnerTestBase(unittest.TestCase):
             SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
         )
 
-        TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        self.session = TestingSessionLocal
+        TestingSessionLocal = sessionmaker(bind=engine)
 
         database.Base.metadata.create_all(bind=engine)
 
@@ -65,4 +64,3 @@ class PeakLearnerTestBase(unittest.TestCase):
         if not os.path.exists(testDbsPath):
             os.makedirs(testDbsPath)
         shutil.move('test.db', os.path.join(testDbsPath, self._testMethodName + '.db'))
-        self.session.close_all()

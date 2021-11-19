@@ -137,35 +137,6 @@ def getModels(db: Session,
         return []
 
 
-def getHubModels(data, txn=None):
-    modelSumKeys = db.ModelSummaries.keysWhichMatch(data['user'], data['hub'])
-
-    output = pd.DataFrame()
-
-    for key in modelSumKeys:
-        user, hub, track, ref, start = key
-        currentSum = db.ModelSummaries(*key).get(txn=txn)
-
-        whichModel = noPredictGuess(currentSum)
-
-        if len(whichModel.index) > 1:
-            whichModel = whichModel[whichModel['penalty'] == whichModel['penalty'].min()]
-
-        penalty = whichModel['penalty'].values[0]
-
-        model = db.Model(user, hub, track, ref, start, penalty).get(txn=txn)
-
-        model['track'] = track
-        model['penalty'] = penalty
-
-        output = output.append(model, ignore_index=True)
-
-    if len(output.index) < 1:
-        return []
-
-    return output
-
-
 # Called but using pandas.apply, coverage this isn't picked up in coverage
 def whichModelToDisplay(data, problem, summary):  # pragma: no cover
     try:
@@ -277,29 +248,13 @@ def putModel(db, user, hub, track, data: PyModels.ModelData):
 
     db.commit()
 
-    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, problem['chrom'])
-
-    if chrom is None:
-        chrom = models.Chrom(track=track.id, name=problem['chrom'])
-        db.add(chrom)
-        db.commit()
-
-    problem = hub.getProblems(db, problem['chrom'], problem['start'], problem['end'])
-
-    if len(problem.index) != 1:
-        raise Exception
-
-    problem = problem.iloc[0]
-
-    problemId = problem.id.item()
-
-    contig = chrom.contigs.filter(models.Contig.problem == problemId).first()
-
-    if contig is None:
-        contig = models.Contig(chrom=chrom.id, problem=problemId)
-        db.add(contig)
-        db.flush()
-        db.refresh(contig)
+    user, hub, track, chrom, contig, problem = dbutil.getContig(db,
+                                                       user,
+                                                       hub,
+                                                       track,
+                                                       problem['chrom'],
+                                                       problem['start'],
+                                                       make=True)
 
     labelsDf = chrom.getLabels(db)
 

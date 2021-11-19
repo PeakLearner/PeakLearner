@@ -57,8 +57,6 @@ def getHubInfo(request: Request, user: str, hub: str, db: Session = Depends(core
 
     output = Hubs.getHubInfo(db, owner, hub)
 
-    print('get hub info output', output)
-
     if 'accept' in request.headers:
         outputType = request.headers['accept']
     else:

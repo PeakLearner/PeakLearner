@@ -42,11 +42,11 @@ def onlyInBounds(toCheck, start=None, end=None):
 
 
 def getLabels(db, user, hub, track, ref: str = None, start: int = None,
-              end: int = None):
+              end: int = None, make=False):
     user, hub, track = dbutil.getTrack(db, user, hub, track)
 
     if ref:
-        user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, ref)
+        user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, ref, make=make)
         if chrom is None:
             return
         out = chrom.getLabels(db)
@@ -57,19 +57,15 @@ def getLabels(db, user, hub, track, ref: str = None, start: int = None,
 
 
 def putLabel(db, authUser, user, hub, track, label):
-    out = dbutil.getChromAndCheckPerm(db, authUser, user, hub, track, label.ref, 'Label')
-
+    out = dbutil.getChromAndCheckPerm(db, authUser, user, hub, track, label.ref, 'Label', make=True)
     if isinstance(out, Response):
         return out
 
     user, hub, track, chrom = out
 
-    if chrom is None:
-        chrom = models.Chrom(track=track.id, name=label.ref)
-        db.add(chrom)
-        db.commit()
-
     labelsDf = chrom.getLabels(db)
+
+    print(labelsDf)
 
     if not labelsDf.empty:
         inBounds = labelsDf.apply(checkInBounds, axis=1, args=(label.start, label.end))
@@ -84,7 +80,7 @@ def putLabel(db, authUser, user, hub, track, label):
                             lastModified=datetime.datetime.now(),
                             lastModifiedBy=authUser.id)
 
-    chrom.labels.append(newLabel)
+    db.add(newLabel)
     db.flush()
     db.refresh(chrom)
     db.refresh(newLabel)

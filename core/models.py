@@ -48,9 +48,18 @@ class Hub(Base):
             refCheck = ref.name
         chrom = problems[problems.chrom == refCheck]
 
+        # Both start and end, get a range
         if start is not None is not end:
             inBounds = chrom.apply(bigWigUtil.checkInBounds, axis=1, args=(start, end))
             return chrom[inBounds]
+        # Just start, try and get specific problem
+        elif start is not None is end:
+            output = chrom[chrom['start'] == start]
+
+            if len(output.index) != 1:
+                return None
+
+            return output.iloc[0]
         else:
             return chrom
 

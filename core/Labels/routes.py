@@ -32,7 +32,7 @@ def getLabels(request: Request, user: str, hub: str, track: str, ref: str = None
               end: int = None, db: Session = Depends(core.get_db)):
     db.commit()
     output = Labels.getLabels(db, user, hub, track, ref=ref)
-
+    db.commit()
     try:
         if not output:
             return Response(status_code=204)
@@ -73,6 +73,7 @@ class LabelQuery(BaseModel):
 async def putLabel(request: Request, user: str, hub: str, track: str,
                    label: LabelQuery, db: Session = Depends(core.get_db)):
     authUser = User.getAuthUser(request, db)
+    db.commit()
     out = Labels.putLabel(db, authUser, user, hub, track, label)
 
     if isinstance(out, Response):
