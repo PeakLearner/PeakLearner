@@ -148,7 +148,9 @@ class Contig(Base):
     chrom = Column(Integer, ForeignKey('chroms.id'))
     problem = Column(Integer, ForeignKey('problems.id'))
     features = Column(PickleType)
+    iteration = Column(Integer, default=0)
     modelSums = relationship('ModelSum', lazy='dynamic')
+    jobs = relationship('Job', lazy='dynamic')
 
     def getModelSums(self, db, withLoss=False):
         # Get all labels as list of dicts to turn into a df
@@ -191,3 +193,20 @@ class ModelSum(Base):
     numPeaks = Column(Integer)
     regions = Column(Integer)
     loss = Column(PickleType)
+
+
+class Job(Base):
+    __tablename__ = 'jobs'
+    id = Column(Integer, primary_key=True, index=True)
+    contig = Column(Integer, ForeignKey('contigs.id'))
+    tasks = relationship('Task', lazy='dynamic')
+
+
+class Task(Base):
+    __tablename__ = 'tasks'
+    id = Column(Integer, primary_key=True, index=True)
+    taskType = Column(String(20))
+    penalty = Column(PickleType)
+    status = Column(String(20), default='New')
+    job = Column(Integer, ForeignKey('jobs.id'))
+

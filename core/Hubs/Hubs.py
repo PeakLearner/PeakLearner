@@ -18,7 +18,7 @@ from core.Models import Models
 from core.Handlers import Tracks
 from core.Permissions import Permissions
 from core.util import PLConfig as cfg, bigWigUtil
-from sqlalchemy import inspect
+
 
 def getHubJsons(db, owner, hub, handler):
     """Return the hub info in a way which JBrowse can understand"""
@@ -335,12 +335,12 @@ def storeHubInfo(db: Session, owner, hub, tracks):
                 db.flush()
                 db.refresh(trackInDb)
 
-            checkForPrexistingLabels(db, coverage['bigDataUrl'], trackInDb)
+            checkForPrexistingLabels(db, coverage['bigDataUrl'], hub, trackInDb)
 
     return '/%s/' % os.path.join(owner.name, hub.name)
 
 
-def checkForPrexistingLabels(db: Session, coverageUrl, track):
+def checkForPrexistingLabels(db: Session, coverageUrl, hub, track):
     trackUrl = coverageUrl.rsplit('/', 1)[0]
     labelUrl = '%s/labels.bed' % trackUrl
     with requests.get(labelUrl, verify=False) as r:
@@ -352,12 +352,12 @@ def checkForPrexistingLabels(db: Session, coverageUrl, track):
             f.flush()
             f.seek(0)
             labels = pd.read_csv(f, sep='\t', header=None)
-            labels.columns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
+            labels.columns = ['chrom', 'start', 'end', 'annotation']
 
     grouped = labels.groupby(['chrom'], as_index=False)
 
     for chromName, group in grouped:
-        group = group.sort_values('chromStart', ignore_index=True)
+        group = group.sort_values('start', ignore_index=True)
 
         chrom = track.chroms.filter(models.Chrom.name == chromName).first()
 
@@ -374,7 +374,7 @@ def checkForPrexistingLabels(db: Session, coverageUrl, track):
             if 'createdBy' in asDict:
                 del asDict['createdBy']
 
-            checkLabel = chrom.labels.filter(models.Label.start == asDict['chromStart']).first()
+            checkLabel = chrom.labels.filter(models.Label.start == asDict['start']).first()
 
             if checkLabel is None:
                 if 'lastModifiedBy' in asDict:
@@ -404,8 +404,8 @@ def checkForPrexistingLabels(db: Session, coverageUrl, track):
                     db.refresh(lastModifiedBy)
 
                 label = models.Label(chrom=chrom.id,
-                                     start=asDict['chromStart'],
-                                     end=asDict['chromEnd'],
+                                     start=asDict['start'],
+                                     end=asDict['end'],
                                      annotation=asDict['annotation'],
                                      lastModified=asDict['lastModified'],
                                      lastModifiedBy=lastModifiedBy.id)
@@ -413,7 +413,29 @@ def checkForPrexistingLabels(db: Session, coverageUrl, track):
                 chrom.labels.append(label)
                 db.commit()
 
+        checkSubmitPregensForChrom(db, hub, chrom, group)
+
     return True
+
+
+def checkSubmitPregensForChrom(db, hub, chrom, labels):
+    problems = hub.getProblems(db, ref=chrom)
+
+    for _, problem in problems.iterrows():
+        inBounds = labels.apply(bigWigUtil.checkInBounds, axis=1, args=(problem['start'], problem['end']))
+
+        contig = chrom.contigs.filter(models.Contig.problem == problem['id']).first()
+
+        if contig is None:
+            contig = models.Contig(chrom=chrom.id, problem=problem['id'])
+            db.add(contig)
+            db.flush()
+            db.refresh(contig)
+
+        if inBounds.any():
+            return Jobs.submitPregenJob(db, contig)
+        else:
+            return Jobs.submitFeatureJob(db, contig)
 
 
 def getRefSeq(genome, path, includes):

@@ -10,342 +10,172 @@ import pandas as pd
 from core.Handlers import Tracks
 from core.Models import Models
 from simpleBDB import retry, txnAbortOnError
-from core.util import PLdb as db, PLConfig as cfg
+from core.util import PLConfig as cfg
+from sqlalchemy.orm import Session
+from fastapi import Depends
+import core
+from core import models, dbutil
 
 log = logging.getLogger(__name__)
 
 statuses = ['New', 'Queued', 'Processing', 'Done', 'Error', 'NoData']
+peakSegDiskPrePenalties = [1000, 10000, 100000, 1000000]
 
 
-class JobType(type):
-    """Just a simple way to keep track of different job types without needing to do it manually"""
-    jobTypes = {}
+def createJobForRegion(contigId, db: Session = Depends(core.get_db)):
+    """Checks a contig to see if a job can be spawned, if so spawn the job"""
+    contig = db.query(models.Contig).get(contigId)
 
-    def __init__(cls, name, bases, dct):
-        """Adds everything but the base job type to the jobTypes list"""
-        if hasattr(cls, 'jobType'):
-            cls.jobTypes[cls.jobType] = cls
+    numJobs = contig.jobs.count()
 
-    def fromStorable(cls, storable):
-        """Create a job type from a storable object
+    if numJobs != 0:
+        return
 
-        These storables are dicts which are stored using the Job type in api.util.PLdb
-        """
+    modelSum = contig.getModelSums(db, withLoss=False)
 
-        if 'jobType' not in storable:
-            return None
-
-        storableClass = cls.jobTypes[storable['jobType']]
-        return storableClass.withStorable(storable)
+    return jobToRefine(db, contig, modelSum)
 
 
-class Job(metaclass=JobType):
-    """Class for storing job information"""
+def jobToRefine(db: Session, contig, modelSums):
+    minError = modelSums[modelSums['errors'] == modelSums['errors'].min()]
 
-    jobType = 'job'
+    numMinErrors = len(minError.index)
 
-    def __init__(self, user, hub, track, problem, priority, trackUrl=None, tasks=None):
-        self.user = str(user)
-        self.hub = hub
-        self.track = track
-        self.problem = problem
-        self.priority = int(priority)
+    if numMinErrors == 0:
+        return
 
-        if tasks is None:
-            self.tasks = {}
-        else:
-            self.tasks = tasks
+    if minError.iloc[0]['errors'] == 0:
+        return
 
-        # When adding labels during hub upload the URL hasn't been stored yet
-        if trackUrl is None:
-            txn = db.getTxn()
-            hubInfo = db.HubInfo(user, hub).get(txn=txn)
+    if numMinErrors > 1:
+        # no need to generate new models if error is 0
+        first = minError.iloc[0]
+        last = minError.iloc[-1]
+
+        biggerFp = first['fp'] > last['fp']
+        smallerFn = first['fn'] < last['fn']
+
+        # Sanity check for bad labels, if the minimum is still the same values
+        # With little labels this could not generate new models
+        if biggerFp or smallerFn:
+            minPenalty = first['penalty']
+            maxPenalty = last['penalty']
+
+            return submitGridSearch(db, contig, minPenalty, maxPenalty)
+        return
+
+    elif numMinErrors == 1:
+        index = minError.index[0]
+
+        model = minError.iloc[0]
+
+        if model['fp'] > model['fn']:
             try:
-                self.trackUrl = hubInfo['tracks'][track]['url']
-            except TypeError:
-                log.debug(hubInfo)
-                log.debug(db.HubInfo.db_key_tuples())
-                log.debug(user, track)
-                txn.commit()
-                raise Exception
-            txn.commit()
-        else:
-            self.trackUrl = trackUrl
-        self.status = 'New'
+                compare = modelSums.iloc[index + 1]
+            except IndexError:
+                return submitOOMJob(db, contig, model['penalty'], '*')
 
-    @classmethod
-    def withStorable(cls, storable):
-        """Creates new job using the storable object"""
-        # https://stackoverflow.com/questions/2168964/how-to-create-a-class-instance-without-calling-initializer
-        self = cls.__new__(cls)
-        self.user = str(storable['user'])
-        self.hub = storable['hub']
-        self.track = storable['track']
-        self.problem = storable['problem']
-        self.trackUrl = storable['trackUrl']
-        self.status = storable['status']
-        self.tasks = storable['tasks']
-        self.id = str(storable['id'])
-        self.iteration = storable['iteration']
-        self.priority = int(storable['priority'])
-        try:
-            self.lastModified = storable['lastModified']
-        except KeyError:
-            pass
-        return self
-
-    def putNewJob(self, txn):
-        """puts Job into job list if the job doesn't exist"""
-
-        self.id = str(db.JobInfo('Id').incrementId(txn=txn))
-
-        self.iteration = str(db.Iteration(self.user,
-                                          self.hub,
-                                          self.track,
-                                          self.problem['chrom'],
-                                          self.problem['chromStart']).increment(txn=txn))
-
-        self.lastModified = time.time()
-
-        db.Job(self.id).put(self.__dict__(), txn=txn)
-
-        return self.id
-
-    def equals(self, jobToCheck):
-        """Check if current job is equal to the job to check"""
-        if self.user != jobToCheck.user:
-            return False
-
-        if self.hub != jobToCheck.hub:
-            return False
-
-        if self.track != jobToCheck.track:
-            return False
-
-        if (self.problem['chrom'] != jobToCheck.problem['chrom']
-                or int(self.problem['chromStart']) != int(jobToCheck.problem['chromStart'])
-                or int(self.problem['chromEnd']) != int(jobToCheck.problem['chromEnd'])):
-            return False
-
-        if self.jobType != jobToCheck.jobType:
-            return False
-
-        return True
-
-    # TODO: Time prediction for job
-    def getNextNewTask(self):
-        """Get's the next task which is new"""
-        for key in self.tasks.keys():
-            task = self.tasks[key]
-            if task['status'].lower() == 'new':
-                task.status = 'Queued'
-
-    def updateTask(self, task, txn=None):
-        """Updates a task given a dict with keys to put/update"""
-        taskToUpdate = None
-        for key in self.tasks.keys():
-            taskToUpdate = self.tasks[key]
-            updateId = int(taskToUpdate['taskId'])
-            taskId = int(task['taskId'])
-            if updateId == taskId:
-                break
-
-        if taskToUpdate is None:
-            raise Exception
-
-        for key in task.keys():
-            taskToUpdate[key] = task[key]
-
-        self.lastModified = time.time()
-
-        self.updateJobStatus(txn=txn)
-
-        return taskToUpdate
-
-    def updateJobStatus(self, txn=None):
-        """Update current job status to the min of the task statuses"""
-        # A status outside the bounds
-        minStatusVal = len(statuses)
-        minStatus = self.status
-        for key in self.tasks.keys():
-            taskToCheck = self.tasks[key]
-            status = taskToCheck['status']
-            if status == 'Error' or status == 'NoData':
-                self.status = status
+            # If the next model only has 1 more peak, not worth searching
+            if model['numPeaks'] <= compare['numPeaks'] + 1:
                 return
-            statusVal = statuses.index(status)
-            if statusVal < minStatusVal:
-                minStatusVal = statusVal
-                minStatus = status
-
-        self.status = minStatus
-
-        if self.status.lower() == 'done':
-            times = []
-            for task in self.tasks.values():
-                try:
-                    times.append(float(task['totalTime']))
-                except KeyError:
-                    continue
-
-            self.time = str(sum(times))
-
-    def getPriority(self):
-        return int(self.priority)
-
-    def resetJob(self):
-        self.status = 'New'
-
-        for key in self.tasks.keys():
-            task = self.tasks[key]
-            task['status'] = 'New'
-
-        self.lastModified = time.time()
-
-    def restartUnfinished(self):
-        restarted = False
-        for task in self.tasks.values():
-            if 'Done' != task['status'] != 'NoData':
-                task['status'] = 'New'
-                restarted = True
-
-        self.updateJobStatus()
-        self.lastModified = time.time()
-        return restarted
-
-    def getJobModelSumPlaceholder(self):
-        out = pd.DataFrame()
-        for key in self.tasks.keys():
-            task = self.tasks[key]
-
-            if task['type'].lower() == 'model':
-                out = out.append(Models.getErrorSeries(task['penalty'], -1, -1), ignore_index=True)
-
-        return out
-
-    def numTasks(self):
-        return len(self.tasks.keys())
-
-    def __dict__(self):
-        output = {'user': self.user,
-                  'hub': self.hub,
-                  'track': self.track,
-                  'problem': self.problem,
-                  'jobType': self.jobType,
-                  'status': self.status,
-                  'id': self.id,
-                  'iteration': self.iteration,
-                  'tasks': self.tasks,
-                  'trackUrl': self.trackUrl,
-                  'priority': int(self.priority)}
-
-        try:
-            output['lastModified'] = self.lastModified
-        except AttributeError:
-            pass
-
-        if self.status.lower() == 'done':
+        else:
             try:
-                output['time'] = self.time
-            except AttributeError:
-                pass
+                compare = modelSums.iloc[index - 1]
+            except IndexError:
+                return submitOOMJob(db, contig, model['penalty'], '/')
 
-        return output
+            # If the previous model is only 1 peak away, not worth searching
+            if compare['numPeaks'] + 1 >= model['numPeaks']:
+                return
 
-    def addJobInfoOnTask(self, task):
-        task['user'] = self.user
-        task['hub'] = self.hub
-        task['track'] = self.track
-        task['problem'] = self.problem
-        task['iteration'] = self.iteration
-        task['jobStatus'] = self.status
-        task['id'] = self.id
-        task['trackUrl'] = self.trackUrl
-        try:
-            task['lastModified'] = self.lastModified
-        except AttributeError:
-            pass
+        if abs(compare['numPeaks'] - model['numPeaks']) <= 1:
+            return
 
-        return task
+        if float(compare['penalty']) > float(model['penalty']):
+            top = compare
+            bottom = model
+        else:
+            top = model
+            bottom = compare
 
+        return submitSearch(db, contig, bottom, top)
 
-def createModelTask(taskId, penalty):
-    output = {
-        'status': 'New',
-        'type': 'model',
-        'taskId': str(taskId),
-        'penalty': str(penalty)
-    }
-
-    return output
+    return
 
 
-def createFeatureTask(taskId):
-    output = {
-        'status': 'New',
-        'taskId': str(taskId),
-        'type': 'feature'
-    }
+def submitJob(db: Session, contig, tasks):
+    contig.iteration += 1
+    job = models.Job(contig=contig.id)
+    db.add(job)
+    db.flush()
+    db.refresh(job)
 
-    return output
-
-
-class FeatureJob(Job):
-    jobType = 'predict'
-
-    def __init__(self, user, hub, track, problem):
-        super().__init__(user, hub, track, problem, 0, tasks={'0': createFeatureTask(0)})
+    for task in tasks:
+        task = models.Task(**task, job=job.id)
+        db.add(task)
+        db.flush()
+        db.refresh(task)
+    return True
 
 
-class SingleModelJob(Job):
-    jobType = 'model'
+def submitOOMJob(db: Session, contig, penalty, jobType):
+    if jobType == '*':
+        penalty = float(penalty) * 10
+    elif jobType == '/':
+        penalty = float(penalty) / 10
+    else:
+        print("Invalid OOM Job")
+        return
 
-    def __init__(self, user, hub, track, problem, penalty, priority):
-        super().__init__(user, hub, track, problem, priority)
-        penalty = round(penalty, 6)
-        taskId = str(len(self.tasks.keys()))
-        self.tasks[taskId] = createModelTask(taskId, penalty)
+    penalty = round(penalty, 6)
 
+    task = [{'taskType': 'model', 'penalty': penalty}]
 
-class GridSearchJob(Job):
-    """"Job type for performing a gridSearch on a region"""
-    jobType = 'gridSearch'
-
-    def __init__(self, user, hub, track, problem, penalties, priority, trackUrl=None, tasks=None):
-        if tasks is None:
-            tasks = {}
-        for penalty in penalties:
-            taskId = str(len(tasks.keys()))
-            penalty = round(penalty, 6)
-            tasks[taskId] = createModelTask(taskId, penalty)
-        super().__init__(user, hub, track, problem, priority, trackUrl=trackUrl, tasks=tasks)
+    return submitJob(db,
+                     contig,
+                     task)
 
 
-class PregenJob(GridSearchJob):
-    """Grid Search but generate a feature vec"""
-    jobType = 'pregen'
+def submitGridSearch(db, contig, minPenalty, maxPenalty, num=cfg.gridSearchSize):
+    minPenalty = float(minPenalty)
+    maxPenalty = float(maxPenalty)
+    penalties = np.linspace(minPenalty, maxPenalty, num + 2).tolist()[1:-1]
 
-    def __init__(self, user, hub, track, problem, penalties, priority, trackUrl=None, tasks=None):
-        if tasks is None:
-            tasks = {}
+    tasks = []
 
-        tasks['0'] = createFeatureTask(0)
+    for penalty in penalties:
+        task = {'taskType': 'model', 'penalty': penalty}
+        tasks.append(task)
 
-        super().__init__(user, hub, track, problem, penalties, priority, trackUrl=trackUrl, tasks=tasks)
-
-    def putNewJob(self, txn):
-        # Put placeholder features
-        featureKey = (self.user,
-                      self.hub,
-                      self.track,
-                      self.problem['chrom'],
-                      self.problem['chromStart'])
-        db.Features(*featureKey).put(pd.Series(), txn)
-
-        return super().putNewJob(txn)
+    return submitJob(db, contig, tasks)
 
 
-timeUntilRestart = 3600
+def submitSearch(db, contig, bottom, top):
+    topLogPen = np.log10(float(top['penalty']))
+
+    bottomLogPen = np.log10(float(bottom['penalty']))
+
+    logPen = (topLogPen + bottomLogPen) / 2
+
+    penalty = float(10 ** logPen)
+
+    tasks = [{'penalty': penalty, 'taskType': 'model'}]
+
+    return submitJob(db, contig, tasks)
+
+
+def submitPregenJob(db, contig):
+    tasks = [{'taskType': 'feature'}]
+
+    for penalty in peakSegDiskPrePenalties:
+        task = {'taskType': 'model', 'penalty': penalty}
+        tasks.append(task)
+
+    return submitJob(db, contig, tasks)
+
+
+def submitFeatureJob(db, contig):
+    return submitJob(db, contig, [{'taskType': 'feature'}])
 
 
 @retry
@@ -666,45 +496,10 @@ def spawnJobs(data, txn=None):
     for job in db.Job.all(txn=txn):
         if job.status.lower() == 'new':
             return
-    numJobs = getNoCorrectModelsJobs(txn=txn)
 
     numJobs = checkForPredictJobs(numJobs, txn=txn)
 
     log.info('number of jobs spawned: %s' % numJobs)
-
-
-def getNoCorrectModelsJobs(txn=None):
-    needModels = db.NeedMoreModels.db_key_tuples()
-
-    numJobs = 0
-
-    for key in needModels:
-        sumDb = db.ModelSummaries(*key)
-
-        modelSum = sumDb.get(txn=txn, write=True)
-
-        # These values are checked due to how Models::getErrorSeries works
-        errorModels = modelSum[modelSum['numPeaks'] == -1]
-        processingModels = errorModels[errorModels['errors'] == -1]
-
-        if len(processingModels.index) > 0:
-            continue
-
-        job = jobToRefine(key, modelSum, txn=txn)
-        db.NeedMoreModels(*key).put(None, txn=txn)
-        if job is not None:
-            placeHolder = job.getJobModelSumPlaceholder()
-
-            sumDb.put(addModelSummaries(modelSum, placeHolder), txn=txn)
-
-            job.putNewJob(txn=txn)
-
-            numJobs += 1
-
-        if numJobs >= cfg.maxJobsToSpawn:
-            return numJobs
-
-    return numJobs
 
 
 def checkForPredictJobs(numJobs, txn=None):
@@ -800,190 +595,17 @@ def checkForSum(row, df):
     return row['penalty'] in df['penalty']
 
 
-def jobToRefine(key, modelSums, txn=None):
-    user, hub, track, ref, start = key
-
-    data = {'user': user, 'hub': hub, 'track': track}
-
-    genome = db.HubInfo(user, hub).get(txn=txn)['genome']
-
-    problems = db.Problems(genome).get(txn=txn)
-
-    chrom = problems[problems['chrom'] == ref]
-    start = chrom[chrom['chromStart'] == int(start)]
-
-    problem = start.to_dict('records')[0]
-
-    minError = modelSums[modelSums['errors'] == modelSums['errors'].min()]
-
-    numMinErrors = len(minError.index)
-
-    regions = minError['regions'].max()
-
-    if numMinErrors == 0:
-        return
-
-    if minError.iloc[0]['errors'] == 0:
-        return
-
-    if numMinErrors > 1:
-        # no need to generate new models if error is 0
-        first = minError.iloc[0]
-        last = minError.iloc[-1]
-
-        biggerFp = first['fp'] > last['fp']
-        smallerFn = first['fn'] < last['fn']
-
-        # Sanity check for bad labels, if the minimum is still the same values
-        # With little labels this could not generate new models
-        if biggerFp or smallerFn:
-            minPenalty = first['penalty']
-            maxPenalty = last['penalty']
-
-            # Temporary restriction to prevent it from generating too many models
-            # TODO: Remove this if that's okay
-            iteration = db.Iteration(user,
-                                     hub,
-                                     track,
-                                     problem['chrom'],
-                                     problem['chromStart']).get(txn=txn)
-
-            if iteration < 5:
-                return submitGridSearch(problem, data, minPenalty, maxPenalty, regions)
-        return
-
-    elif numMinErrors == 1:
-        index = minError.index[0]
-
-        model = minError.iloc[0]
-
-        if model['fp'] > model['fn']:
-            try:
-                compare = modelSums.iloc[index + 1]
-            except IndexError:
-                return submitOOMJob(problem, data, model['penalty'], '*', regions, )
-
-            # If the next model only has 1 more peak, not worth searching
-            if model['numPeaks'] <= compare['numPeaks'] + 1:
-                return
-        else:
-            try:
-                compare = modelSums.iloc[index - 1]
-            except IndexError:
-                return submitOOMJob(problem, data, model['penalty'], '/', regions)
-
-            # If the previous model is only 1 peak away, not worth searching
-            if compare['numPeaks'] + 1 >= model['numPeaks']:
-                return
-
-        if abs(compare['numPeaks'] - model['numPeaks']) <= 1:
-            return
-
-        if float(compare['penalty']) > float(model['penalty']):
-            top = compare
-            bottom = model
-        else:
-            top = model
-            bottom = compare
-
-        return submitSearch(data, problem, bottom, top, regions, txn=txn)
-
-    return
-
-
-def submitOOMJob(problem, data, penalty, jobType, regions):
-    if jobType == '*':
-        penalty = float(penalty) * 10
-    elif jobType == '/':
-        penalty = float(penalty) / 10
-    else:
-        print("Invalid OOM Job")
-        return
-
-    penalty = round(penalty, 6)
-
-    return SingleModelJob(data['user'],
-                          data['hub'],
-                          data['track'],
-                          problem,
-                          penalty,
-                          regions)
-
-
-def submitGridSearch(problem, data, minPenalty, maxPenalty, regions, num=cfg.gridSearchSize):
-    minPenalty = float(minPenalty)
-    maxPenalty = float(maxPenalty)
-    penalties = np.linspace(minPenalty, maxPenalty, num + 2).tolist()[1:-1]
-    if 'trackUrl' in data:
-        return GridSearchJob(data['user'],
-                             data['hub'],
-                             data['track'],
-                             problem,
-                             penalties,
-                             regions,
-                             trackUrl=data['trackUrl'])
-
-    return GridSearchJob(data['user'],
-                         data['hub'],
-                         data['track'],
-                         problem,
-                         penalties,
-                         regions)
-
-
-def submitSearch(data, problem, bottom, top, regions, txn=None):
-    topLogPen = np.log10(float(top['penalty']))
-
-    bottomLogPen = np.log10(float(bottom['penalty']))
-
-    logPen = (topLogPen + bottomLogPen) / 2
-
-    penalty = float(10 ** logPen)
-
-    return SingleModelJob(data['user'],
-                          data['hub'],
-                          data['track'],
-                          problem,
-                          penalty,
-                          regions)
-
-
 @retry
 @txnAbortOnError
 def putJobRefresh(data, txn=None):
     db.JobInfo('Id').put(data['Id'])
 
     for iteration in data['iterations']:
-        db.Iteration(iteration['user'], iteration['hub'], iteration['track'], iteration['chrom'], iteration['start']).put(iteration['val'], txn=txn)
+        db.Iteration(iteration['user'], iteration['hub'], iteration['track'], iteration['chrom'],
+                     iteration['start']).put(iteration['val'], txn=txn)
 
     for job in data['jobs']:
         db.Job(job['id']).put(job, txn=txn)
 
     for job in data['done']:
         db.DoneJob(job['id']).put(job, txn=txn)
-
-
-if cfg.testing:
-    @retry
-    @txnAbortOnError
-    def makeJobHaveBadTime(data, txn=None):
-        jobDb = db.Job('0')
-        job = jobDb.get(txn=txn, write=True)
-
-        job.lastModified = 0
-        job.status = 'Queued'
-
-        jobDb.put(job.__dict__(), txn=txn)
-
-
-    @retry
-    @txnAbortOnError
-    def makeNoDataJob(data, txn=None):
-        jobDb = db.Job('0')
-        job = jobDb.get(txn=txn, write=True)
-
-        job.lastModified = 0
-        job.status = 'NoData'
-        job.tasks['0']['status'] = 'NoData'
-
-        jobDb.put(job.__dict__(), txn=txn)

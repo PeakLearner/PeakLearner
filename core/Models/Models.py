@@ -19,7 +19,6 @@ log = logging.getLogger(__name__)
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
 jbrowseModelColumns = ['ref', 'start', 'end', 'score']
-peakSegDiskPrePenalties = [1000, 10000, 100000, 1000000]
 flopartLabels = {'noPeak': 0,
                  'noPeaks': 0,
                  'peakStart': 1,
