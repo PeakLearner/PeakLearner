@@ -8,6 +8,7 @@ from core import Authentication
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import Response, HTMLResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
 
 import core
 
@@ -30,7 +31,8 @@ templates = Jinja2Templates(directory='website/templates')
             response_model=List[Models.Job],
             summary='Gets all the jobs',
             description='Gets all the jobs currently on the server')
-async def getJobs(request: Request):
+async def getJobs(request: Request,
+                  db: Session = Depends(core.get_db)):
     """Retrieves all jobs from PeakLearner"""
     if 'accept' in request.headers:
         outputType = request.headers['accept']
@@ -38,11 +40,11 @@ async def getJobs(request: Request):
         outputType = 'json'
 
     if 'text/html' in outputType or outputType == '*/*':
-        out = Jobs.jobsStats({})
+        out = Jobs.jobsStats(db)
         out['request'] = request
         return templates.TemplateResponse('stats/jobs.html', out)
     elif outputType == 'json' or outputType == 'application/json':
-        return Jobs.getAllJobs({})
+        return Jobs.getAllJobs(db)
 
 
 @router.get('/queue',
@@ -54,10 +56,12 @@ async def getJobs(request: Request):
             response_model=Models.TaskInfo,
             summary='Gets the next available task and queues it',
             description='If there is a task in a job which is able to be queued, queue it and return the job')
-async def queueNextTask():
+async def queueNextTask(db: Session = Depends(core.get_db)):
     """Queues the next job and returns the job which was queued"""
     # TODO: Some sort of authentication system
-    out = Jobs.queueNextTask({})
+    db.commit()
+    out = Jobs.queueNextTask(db)
+    print(out)
 
     if out is None:
         return Response(status_code=204)
@@ -74,15 +78,15 @@ async def queueNextTask():
             response_model=Models.Job,
             summary='Gets the job with the ID',
             description='Retrieves a job given the ID in the url')
-async def getJobWithId(request: Request, job_id: int):
+async def getJobWithId(request: Request, job_id: int,
+                  db: Session = Depends(core.get_db)):
     """Retrieves a singular job"""
     if 'accept' in request.headers:
         outputType = request.headers['accept']
     else:
         outputType = 'json'
 
-    data = {'jobId': job_id}
-    out = Jobs.getJobWithId(data)
+    out = Jobs.getJobWithId(db, job_id)
 
     if 'text/html' in outputType or outputType == '*/*':
         out['request'] = request
@@ -95,17 +99,16 @@ async def getJobWithId(request: Request, job_id: int):
 @router.post('/{job_id}', response_model=Models.TaskInfo,
              summary='Updates a task in a job',
              description='Updates the task given the parameters')
-async def postJobWithId(job_id: int, task: dict):
+async def postJobWithId(job_id: int, task: dict, db: Session = Depends(core.get_db)):
     """Modifies a task in a job"""
-    data = {'id': job_id, 'task': task}
 
-    return Jobs.updateTask(data)
+    return Jobs.updateTask(db, job_id, task)
 
 
 @router.post('/{job_id}/reset', response_model=Models.Job,
              summary='Resets the job',
              description='Resets the given job')
-async def resetJob(job_id: int):
+async def resetJob(job_id: int, db: Session = Depends(core.get_db)):
     """Resets all tasks which are not done"""
     data = {'jobId': job_id}
 
@@ -115,7 +118,7 @@ async def resetJob(job_id: int):
 @router.post('/{job_id}/restart', response_model=Models.Job,
              summary='Restarts the job',
              description='Restarts the given job, sets all tasks back to status New')
-async def restartJob(job_id: int, taskId: int = 0):
+async def restartJob(job_id: int, taskId: int = 0, db: Session = Depends(core.get_db)):
     """Completely restarts a job like it was fresh"""
     data = {'jobId': job_id, 'task_id': taskId}
 
@@ -132,7 +135,7 @@ async def restartJob(job_id: int, taskId: int = 0):
                       },
                       summary='Get jobs for current viewed track region',
                       description='Provides information on current jobs within a region')
-async def getTrackJobs(user: str, hub: str, track: str, ref: str, start: int, end: int):
+async def getTrackJobs(user: str, hub: str, track: str, ref: str, start: int, end: int, db: Session = Depends(core.get_db)):
     """Retrieves jobs for a given track/contig"""
     data = {'user': user,
             'hub': hub,

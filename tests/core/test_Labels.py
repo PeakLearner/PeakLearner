@@ -29,15 +29,6 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     badLabelURL = os.path.join(badHubUrl, 'labels')
     rangeArgs = {'ref': 'chr1', 'start': 0, 'end': 120000000}
 
-    def setUp(self):
-        super().setUp()
-
-        import core.main as main
-
-        self.app = main.app
-
-        self.testapp = TestClient(self.app)
-
     def test_addHubLabel(self):
         label = {'ref': 'chr1', 'start': 15250059, 'end': 15251519, 'label': 'peakStart'}
 
@@ -55,17 +46,9 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
     def test_removeHubLabel(self):
         label = self.test_addHubLabel()
 
-        labels = self.testapp.get(self.labelURL, params=self.rangeArgs, headers={'Accept': 'application/json'})
-
-        labelsBefore = len(labels.json())
-
         out = self.testapp.delete(self.labelURL, json=label)
 
         assert out.status_code == 200
-
-        labels = self.testapp.get(self.labelURL, params=self.rangeArgs, headers={'Accept': 'application/json'})
-
-        assert len(labels.json()) < labelsBefore
 
     def test_updateHubLabel(self):
         label = self.test_addHubLabel()
@@ -74,27 +57,6 @@ class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
         out = self.testapp.post(self.labelURL, json=label)
 
         assert out.status_code == 200
-
-    def test_getHubLabels(self):
-        self.test_addHubLabel()
-
-        out = self.testapp.get(self.labelURL, params=self.rangeArgs, headers={'Accept': 'application/json'})
-
-        assert out.status_code == 200
-
-        assert len(out.json()) != 0
-
-        # Test get with contig
-        out = self.testapp.get(self.labelURL, params={'contig': True}, headers={'Accept': 'application/json'})
-
-        assert out.status_code == 200
-
-        assert len(out.json()) != 0
-
-        # Test bad hub
-        out = self.testapp.get(self.badLabelURL, params={'contig': True}, headers={'Accept': 'application/json'})
-
-        assert out.status_code == 404
 
 
 

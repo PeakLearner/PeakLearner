@@ -195,11 +195,26 @@ class ModelSum(Base):
     loss = Column(PickleType)
 
 
+statuses = ['New', 'Queued', 'Processing', 'Done', 'Error', 'NoData']
+
+
 class Job(Base):
     __tablename__ = 'jobs'
     id = Column(Integer, primary_key=True, index=True)
     contig = Column(Integer, ForeignKey('contigs.id'))
     tasks = relationship('Task', lazy='dynamic')
+
+    def getStatus(self):
+        minIndex = len(statuses)
+        tasks = self.tasks.all()
+
+        for task in tasks:
+            index = statuses.index(task.status)
+
+            if index < minIndex:
+                minIndex = index
+
+        return statuses[minIndex]
 
 
 class Task(Base):
@@ -210,3 +225,24 @@ class Task(Base):
     status = Column(String(20), default='New')
     job = Column(Integer, ForeignKey('jobs.id'))
 
+    def addJobInfo(self, db):
+        job = db.query(Job).get(self.job)
+        contig = db.query(Contig).get(job.contig)
+        problem = db.query(Problem).get(contig.problem)
+        problem = {'chrom': problem.chrom, 'start': problem.start, 'end': problem.end}
+        chrom = db.query(Chrom).get(contig.chrom)
+        track = db.query(Track).get(chrom.track)
+        hub = db.query(Hub).get(track.hub)
+        user = db.query(User).get(hub.owner)
+        return {'user': user.name,
+                  'hub': hub.name,
+                  'track': track.name,
+                  'id': job.id,
+                  'problem': problem,
+                  'url': track.url,
+                  'status': job.getStatus(),
+                  'task': {
+                      'id': self.id,
+                      'taskType': self.taskType,
+                      'penalty': self.penalty,
+                      'status': self.status}}

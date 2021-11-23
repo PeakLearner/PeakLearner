@@ -3,8 +3,7 @@ import time
 
 import numpy as np
 import pandas as pd
-from requests import Session
-
+from sqlalchemy.orm import Session
 from core.Models import Models
 from fastapi import Response
 from core import models
@@ -150,55 +149,36 @@ def deleteLabel(db, authUser, user, hub, track, label):
         return labelToDelete
 
 
-def zaddContigToLabel(row, contig):
-    inBounds = contig.apply(db.checkInBounds, axis=1, args=(row['chrom'], row['chromStart'], row['chromEnd']))
-
-    contigInBounds = contig[inBounds]
-
-    if len(contigInBounds.index) == 1:
-        contigRow = contigInBounds.iloc[0]
-        row['contigStart'] = contigRow['chromStart']
-        row['contigEnd'] = contigRow['chromEnd']
-
-    return row
-
-
-def zhubInfoLabels(db: Session, hub):
+def hubInfoLabels(db: Session, hub):
     """Provides table with user as index row, and chrom as column name. Value is label counts across tracks for that user/chrom"""
-    tracks = hub.join(models.Hub.tracks)
-    print(tracks)
+
     labels = []
-    for track in tracks:
+    for track in hub.tracks.all():
         chroms = track.chroms.all()
 
         for chrom in chroms:
-            print(chrom)
-            raise Exception
-        labelsDf = db.Labels(*key).get(txn=txn)
-        labels.append(labelsDf)
+            labelsDf = chrom.getLabels(db)
+            labels.append(labelsDf)
 
     allLabels = pd.concat(labels)
     grouped = allLabels.groupby('chrom')
-    chromLabelUserTotals = grouped.apply(checkUserTotal)
+    chromLabelUserTotals = grouped.apply(checkUserTotal, db)
+
+    print(chromLabelUserTotals)
 
     labelTable = pd.DataFrame(chromLabelUserTotals.apply(pd.Series)).T.fillna(0).astype(np.int64).to_html().replace(' border="1"', '')
 
     return {'labelTable': labelTable.replace('dataframe', 'table'), 'numLabels': len(allLabels.index)}
 
 
-def zcheckUserTotal(row):
+def checkUserTotal(row, db):
     """Calculates the total number of labels for each unique user given a chrom"""
     unique = row['lastModifiedBy'].unique()
 
     out = {}
 
     for uniqueUser in unique:
-        # This should be NaN
-        if isinstance(uniqueUser, float):
-            uniqueUser = 'Public'
-            labelsByUser = row['lastModifiedBy'].isnull()
-        else:
-            labelsByUser = row['lastModifiedBy'] == uniqueUser
+        labelsByUser = row['lastModifiedBy'] == uniqueUser
 
         total = labelsByUser.value_counts()
 
@@ -207,22 +187,25 @@ def zcheckUserTotal(row):
         except KeyError:
             continue
 
-        if uniqueUser is None:
-            uniqueUser = 'Public'
-
         try:
             out[uniqueUser] += numLabels
         except KeyError:
             out[uniqueUser] = numLabels
 
-    return out
+    outWithUsernames = {}
+
+    for key, value in out.items():
+        user = db.query(models.User).get(key)
+        outWithUsernames[user.name] = value
+
+    return outWithUsernames
 
 
-def zlabelsStats(data, txn=None):
+def labelsStats(db: Session):
     chroms = labels = 0
 
-    for key in db.Labels.db_key_tuples():
-        labelsDf = db.Labels(*key).get(txn=txn)
+    for chrom in db.query(models.Chrom).all():
+        labelsDf = chrom.getLabels(db)
 
         if labelsDf.empty:
             continue

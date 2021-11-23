@@ -51,8 +51,6 @@
                     <th scope="col">Status</th>
                     <th scope="col">Hub Link</th>
                     <th scope="col">Track</th>
-                    <th scope="col">Type</th>
-                    <th scope="col">Priority</th>
                     <th scope="col">Reset Button</th>
                 </tr>
                 </thead>
@@ -64,8 +62,6 @@
                     <td>{{job['status']}}</td>
                     <td><a href="/{{job['user']}}/{{job['hub']}}/">{{job['user'] + '/' + job['hub']}}</a></td>
                     <td>{{job['track']}}</td>
-                    <td>{{job['jobType']}}</td>
-                    <td>{{job['priority']}}</td>
                     <td>
                         <button type="button" class="btn btn-light" onclick="resetJob({{job['id']}})">Reset</button>
                     </td>

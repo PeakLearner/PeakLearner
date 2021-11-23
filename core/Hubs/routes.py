@@ -45,6 +45,8 @@ def getJbrowsePage(request: Request, user: str, hub: str):
                     description='Gets the hubInfo for this hub. It contains the tracks, urls, the reference genome, and categories for that data')
 def getHubInfo(request: Request, user: str, hub: str, db: Session = Depends(core.get_db)):
     """Retrieves the hub info and serves it as a json or html file"""
+    authUser = User.getAuthUser(request, db)
+    db.commit()
     owner = db.query(models.User).filter(models.User.name == user).first()
 
     if owner is None:
@@ -63,8 +65,8 @@ def getHubInfo(request: Request, user: str, hub: str, db: Session = Depends(core
         outputType = 'json'
 
     if 'text/html' in outputType:
-        labelTable = Labels.hubInfoLabels(db, data)
-        output = {'request': request, 'hubInfo': output, **labelTable, 'hubName': hub, 'user': 'user'}
+        labelTable = Labels.hubInfoLabels(db, hub)
+        output = {'request': request, 'hubInfo': output, **labelTable, 'hubName': hub.name, 'user': authUser.name}
         return templates.TemplateResponse('hubInfo.html', output)
     elif outputType == 'json' or outputType == 'application/json' or outputType == '*/*':
         return output

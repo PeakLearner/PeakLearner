@@ -45,7 +45,8 @@ def getChrom(db: Session, user, hub, track, chrom: str, make=False):
 
 
 def getChromAndCheckPerm(db: Session, authUser, user, hub, track, chrom, perm, make=False):
-    user, hub = getHub(db, user, hub)
+    if isinstance(hub, str):
+        user, hub = getHub(db, user, hub)
 
     if not hub.checkPermission(authUser, perm):
         if authUser.name == 'Public':

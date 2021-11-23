@@ -96,9 +96,6 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         for trackKey in requestOutput['tracks']:
             assert trackKey in expectedTrackKeys
 
-    def getJobs(self):
-        return self.testapp.get(self.jobsURL, headers={'Accept': 'application/json'})
-
     def getLabels(self, params):
         return self.testapp.get(self.labelURL, params=params, headers={'Accept': 'application/json'})
 
@@ -365,3 +362,45 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
         out = self.testapp.get('/myHubs/')
 
         assert out.status_code == 200
+
+    def test_get_jobs(self):
+        out = self.testapp.get(self.jobsURL, headers={'Accept': 'application/json'})
+
+        assert out.status_code == 200
+
+        assert out.json() != 0
+
+    def test_queue_task(self):
+        queueUrl = os.path.join(self.jobsURL, 'queue')
+
+        out = self.testapp.get(queueUrl, headers={'Accept': 'application/json'})
+
+        assert out.status_code == 200
+
+    def test_update_task(self):
+        jobUrl = os.path.join(self.jobsURL, '1')
+
+        out = self.testapp.post(jobUrl, json={'status': 'Queued'})
+
+        assert out.status_code == 200
+
+        out = self.testapp.get(jobUrl, headers={'Accept': 'application/json'})
+
+        assert out.status_code == 200
+
+        job = out.json()
+
+        assert job['task']['status'] == 'Queued'
+
+    def test_finish_task(self):
+        jobUrl = os.path.join(self.jobsURL, '1')
+
+        out = self.testapp.post(jobUrl, json={'status': 'Done'})
+
+        assert out.status_code == 200
+
+        out = self.testapp.get(jobUrl, headers={'Accept': 'application/json'})
+
+        assert out.status_code == 200
+
+        job = out.json()

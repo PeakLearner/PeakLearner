@@ -142,8 +142,18 @@ def putHubLabel(request: Request, user: str, hub: str,
                 hubLabelData: HubLabelWithLabel, db: Session = Depends(core.get_db)):
 
     authUser = User.getAuthUser(request, db)
+    db.commit()
 
-    for track in hubLabelData.tracks:
+    tracks = hubLabelData.tracks
+
+    if tracks is None:
+        user, hub = dbutil.getHub(db, user, hub)
+        if hub is None:
+            return Response(status_code=404)
+
+        tracks = hub.tracks.all()
+
+    for track in tracks:
         db.commit()
         label = LabelQuery(ref=hubLabelData.ref, start=hubLabelData.start, end=hubLabelData.end,
                            label=hubLabelData.label)
@@ -165,8 +175,18 @@ def putHubLabel(request: Request, user: str, hub: str,
 async def postHubLabel(request: Request, user: str, hub: str, hubLabelData: HubLabelWithLabel,
                        db: Session = Depends(core.get_db)):
     authUser = User.getAuthUser(request, db)
+    db.commit()
 
-    for track in hubLabelData.tracks:
+    tracks = hubLabelData.tracks
+
+    if tracks is None:
+        user, hub = dbutil.getHub(db, user, hub)
+        if hub is None:
+            return Response(status_code=404)
+
+        tracks = hub.tracks.all()
+
+    for track in tracks:
         label = LabelQuery(ref=hubLabelData.ref, start=hubLabelData.start, end=hubLabelData.end,
                            label=hubLabelData.label)
 
@@ -187,15 +207,21 @@ async def postHubLabel(request: Request, user: str, hub: str, hubLabelData: HubL
 async def deleteHubLabel(request: Request, user: str, hub: str, hubLabelData: HubLabelData,
                          db: Session = Depends(core.get_db)):
     authUser = User.getAuthUser(request, db)
+    db.commit()
 
-    for track in hubLabelData.tracks:
+    tracks = hubLabelData.tracks
+
+    if tracks is None:
+        user, hub = dbutil.getHub(db, user, hub)
+        if hub is None:
+            return Response(status_code=404)
+
+        tracks = hub.tracks.all()
+
+    for track in tracks:
         label = LabelQuery(ref=hubLabelData.ref, start=hubLabelData.start, end=hubLabelData.end)
 
-        output = Labels.deleteLabel(db, authUser, user, hub, track, label)
-
-        if isinstance(output, Response):
-            db.rollback()
-            return output
+        Labels.deleteLabel(db, authUser, user, hub, track, label)
 
     db.commit()
 

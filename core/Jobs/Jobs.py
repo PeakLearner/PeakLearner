@@ -12,13 +12,12 @@ from core.Models import Models
 from simpleBDB import retry, txnAbortOnError
 from core.util import PLConfig as cfg
 from sqlalchemy.orm import Session
-from fastapi import Depends
+from fastapi import Depends, Response
 import core
 from core import models, dbutil
 
 log = logging.getLogger(__name__)
 
-statuses = ['New', 'Queued', 'Processing', 'Done', 'Error', 'NoData']
 peakSegDiskPrePenalties = [1000, 10000, 100000, 1000000]
 
 
@@ -241,57 +240,38 @@ def restartJob(data, txn=None):
         return jobToRestart
 
 
-@retry
-@txnAbortOnError
-def updateTask(data, txn=None):
+def updateTask(db: Session, jobId, task):
     """Updates a task given the job/task id and stuff to update it with"""
-    jobId = data['id']
-    task = data['task']
 
-    jobDb = db.Job(jobId)
-    jobToUpdate = jobDb.get(txn=txn, write=True)
-    task = jobToUpdate.updateTask(task, txn=txn)
-    if jobToUpdate.status.lower() == 'done':
-        jobDb.put(None, txn=txn)
-        db.DoneJob(jobId).put(jobToUpdate, txn=txn)
-    elif jobToUpdate.status.lower() == 'nodata':
-        jobDb.put(None, txn=txn)
-        db.NoDataJob(jobId).put(jobToUpdate, txn=txn)
-    else:
-        jobDb.put(jobToUpdate, txn=txn)
-
-    task = jobToUpdate.addJobInfoOnTask(task)
-
-    return task
-
-
-@retry
-@txnAbortOnError
-def queueNextTask(data, txn=None):
-    db.Job.syncDb()
-
-    cursor = db.Job.getCursor(txn=txn, bulk=True)
-
-    job, key, cursorAtBest = getJobWithHighestPriority(cursor)
+    job = db.query(models.Job).get(jobId)
 
     if job is None:
-        return
+        return Response(status_code=404)
 
-    key = getNextTaskInJob(job)
+    taskInDb = job.tasks.get(task['id'])
 
-    taskToUpdate = job.tasks[key]
+    if taskInDb is None:
+        return Response(status_code=404)
 
-    taskToUpdate['status'] = 'Queued'
+    if 'status' in task:
+        taskInDb.status = task['status']
 
-    job.updateJobStatus()
+    # TODO: If job is done
+    # TODO: Last Modified
 
-    cursorAtBest.put(key, job)
 
-    cursorAtBest.close()
+def queueNextTask(db: Session):
+    task = db.query(models.Task).filter(models.Task.status == 'New').first()
 
-    task = job.addJobInfoOnTask(taskToUpdate)
+    if task is None:
+        print('should check for prediction models')
 
-    return task
+    task.status = 'Queued'
+
+    db.flush()
+    db.refresh(task)
+
+    return task.addJobInfo(db)
 
 
 def getJobWithHighestPriority(cursor):
@@ -331,46 +311,21 @@ def getNextTaskInJob(job):
             return key
 
 
-@retry
-@txnAbortOnError
-def getAllJobs(data, txn=None):
+def getAllJobs(db: Session):
     jobs = []
 
-    cursor = db.Job.getCursor(txn, bulk=True)
+    jobDbs = db.query(models.Job).all()
 
-    try:
-        current = cursor.next()
-
-        while current is not None:
-            key, job = current
-
-            jobs.append(job.__dict__())
-
-            current = cursor.next()
-    except berkeleydb.db.DBLockDeadlockError:
-        cursor.close()
-        raise
-
-    cursor.close()
+    for job in jobDbs:
+        jobs.append(jobToDict(db, job))
 
     return jobs
 
 
-@retry
-@txnAbortOnError
-def getJobWithId(data, txn=None):
-    job = db.Job(data['jobId']).get(txn=txn)
+def getJobWithId(db: Session, jobId: int):
+    job = db.query(models.Job).get(jobId)
 
-    if isinstance(job, dict):
-        job = db.DoneJob(data['jobId']).get(txn=txn)
-
-        if isinstance(job, dict):
-            job = db.NoDataJob(data['jobId']).get(txn=txn)
-
-    if isinstance(job, dict):
-        return job
-
-    output = job.__dict__()
+    output = jobToDict(db, job)
 
     output['jobUser'] = output['user']
 
@@ -438,17 +393,15 @@ def jobsWithCursor(cursor, data, problems):
     return jobs
 
 
-@retry
-@txnAbortOnError
-def jobsStats(data, txn=None):
+def jobsStats(db: Session):
     numJobs = newJobs = queuedJobs = processingJobs = doneJobs = noDataJobs = errorJobs = 0
 
     times = []
 
     jobs = []
-    for job in db.Job.all(txn=txn):
+    for job in db.query(models.Job).all():
         numJobs = numJobs + 1
-        status = job.status.lower()
+        status = job.getStatus()
 
         if status == 'new':
             newJobs = newJobs + 1
@@ -468,7 +421,7 @@ def jobsStats(data, txn=None):
                     times.append(float(task['totalTime']))
 
         if status != 'done':
-            jobs.append(job.__dict__())
+            jobs.append(jobToDict(db, job))
 
     if len(times) == 0:
         avgTime = 0
@@ -483,8 +436,35 @@ def jobsStats(data, txn=None):
               'noDataJobs': noDataJobs,
               'errorJobs': errorJobs,
               'jobs': jobs,
-              'avgTime': avgTime,
-              'errorRegions': len(db.NeedMoreModels.db_keys())}
+              'avgTime': avgTime}
+
+    return output
+
+
+def jobToDict(db: Session, job):
+    contig = db.query(models.Contig).get(job.contig)
+    problem = db.query(models.Problem).get(contig.problem)
+    problem = {'chrom': problem.chrom, 'start': problem.start, 'end': problem.end}
+    chrom = db.query(models.Chrom).get(contig.chrom)
+    track = db.query(models.Track).get(chrom.track)
+    hub = db.query(models.Hub).get(track.hub)
+    user = db.query(models.User).get(hub.owner)
+    output = {'user': user.name,
+              'hub': hub.name,
+              'track': track.name,
+              'id': job.id,
+              'problem': problem,
+              'url': track.url,
+              'status': job.getStatus(),
+              'tasks': []}
+
+    for task in job.tasks.all():
+        taskOut = {'id': task.id,
+                   'taskType': task.taskType,
+                   'penalty': task.penalty,
+                   'status': task.status}
+
+        output['tasks'].append(taskOut)
 
     return output
 

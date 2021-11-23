@@ -28,8 +28,8 @@ class Status(str, Enum):
 
 class Problem(BaseModel):
     chrom: str
-    chromStart: int
-    chromEnd: int
+    start: int
+    end: int
 
 
 class TaskType(str, Enum):
@@ -38,37 +38,33 @@ class TaskType(str, Enum):
 
 
 class Task(BaseModel):
-    type: TaskType
-    taskId: str
+    taskType: TaskType
+    id: int
     status: Status
     penalty: Optional[str] = None
 
 
-class TaskInfo(Task):
+class TaskInfo(BaseModel):
     user: str
     hub: str
     track: str
+    id: int
     problem: Problem
-    iteration: str
-    jobStatus: Status
-    id: str
-    trackUrl: str
+    url: str
+    status: Status
     lastModified: Optional[datetime.datetime]
+    task: Task
 
 
 class Job(BaseModel):
     id: int
-    jobType: JobType
-    status: Status
     user: str
     hub: str
     track: str
     problem: Problem
-    trackUrl: str
-    priority: int
-    iteration: int
+    url: str
     lastModified: Optional[datetime.datetime]
-    tasks: Dict[str, Task]
+    tasks: List[Task]
 
 
 

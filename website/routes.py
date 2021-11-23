@@ -102,7 +102,8 @@ def tutorial(request: Request):
 
 
 @router.get('/stats', response_class=HTMLResponse, include_in_schema=False)
-def statsView(request: Request):
+def statsView(request: Request,
+              db: Session = Depends(core.get_db)):
     """TODO: Document this view"""
     user = request.session.get('user')
 
@@ -111,15 +112,14 @@ def statsView(request: Request):
     else:
         user = user['email']
 
-    numLabeledChroms, numLabels = Labels.labelsStats({})
-    currentJobStats = Jobs.jobsStats({})
+    numLabeledChroms, numLabels = Labels.labelsStats(db)
+    currentJobStats = Jobs.jobsStats(db)
 
     return templates.TemplateResponse('stats.html', {'request': request,
                                                      'numLabeledChroms': numLabeledChroms,
                                                      'numLabels': numLabels,
                                                      **currentJobStats,
                                                      'user': user})
-
 
 
 @router.get('/label', response_class=HTMLResponse, include_in_schema=False)
@@ -195,7 +195,3 @@ def addAdmin(request: Request, email: str):
         return Response(status_code=403)
 
     return Permissions.addAdmin(email)
-
-
-
-

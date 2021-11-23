@@ -26,3 +26,4 @@ tools
 .env
 .pytest_cache
 testDbs
+test.db
