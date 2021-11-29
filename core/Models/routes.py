@@ -15,7 +15,6 @@ from fastapi import APIRouter, Request, Depends
 from fastapi.responses import Response, HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-
 csvResponse = {
     200: {
         "content": {"text/csv": {"description": "Gets the value as a csv"}},
@@ -40,7 +39,6 @@ def getModel(request: Request,
              visibleStart: int = None,
              visibleEnd: int = None,
              db: Session = Depends(core.get_db)):
-
     authUser = User.getAuthUser(request, db)
     db.commit()
     output = Models.getModels(db, authUser, user, hub, track, ref, start, end,
@@ -86,17 +84,11 @@ def getTrackModelSums(request: Request,
                       track: str,
                       ref: str,
                       start: int,
-                      end: int):
-    authUser = request.session.get('user')
-
-    if authUser is None:
-        authUser = 'Public'
-    else:
-        authUser = authUser['email']
-
-    data = {**locals(), 'authUser': authUser}
-
-    output = Models.getTrackModelSummaries(data)
+                      end: int,
+                      db: Session = Depends(core.get_db)):
+    db.commit()
+    output = Models.getTrackModelSummaries(db, user, hub, track, ref, start, end)
+    db.commit()
 
     if output is None:
         return Response(status_code=204)
@@ -118,17 +110,12 @@ def getTrackModelSum(request: Request,
                      hub: str,
                      track: str,
                      ref: str,
-                     start: int):
-    authUser = request.session.get('user')
+                     start: int,
+                     db: Session = Depends(core.get_db)):
 
-    if authUser is None:
-        authUser = 'Public'
-    else:
-        authUser = authUser['email']
-
-    data = {**locals(), 'authUser': authUser}
-
-    output = Models.getTrackModelSummary(data)
+    db.commit()
+    output = Models.getTrackModelSummary(db, user, hub, track, ref, start)
+    db.commit()
 
     if output is None:
         return Response(status_code=204)

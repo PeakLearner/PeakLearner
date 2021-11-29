@@ -68,11 +68,26 @@ async def queueNextTask(db: Session = Depends(core.get_db)):
     return out
 
 
+@router.get('/{job_id}/{task_id}',
+            response_model=Models.TaskInfo,
+            summary='Gets a task with job info',
+            description='If there is a task, return the task with added job info')
+async def getTask(job_id: int, task_id: int, db: Session = Depends(core.get_db)):
+    """Gets a task with job info"""
+    # TODO: Some sort of authentication system
+    db.commit()
+    out = Jobs.getTask(db, task_id)
+
+    if out is None:
+        return Response(status_code=204)
+    return out
+
+
 @router.get('/{job_id}',
             responses={
                 200: {
                     "content": {"text/html": {}},
-                    "description": "Provides information on a task",
+                    "description": "Provides information on a job",
                 }
             },
             response_model=Models.Job,
@@ -102,7 +117,13 @@ async def getJobWithId(request: Request, job_id: int,
 async def postJobWithId(job_id: int, task: dict, db: Session = Depends(core.get_db)):
     """Modifies a task in a job"""
 
-    return Jobs.updateTask(db, job_id, task)
+
+    db.commit()
+    out = Jobs.updateTask(db, job_id, task)
+    db.commit()
+
+    if isinstance(out, Response):
+        return out
 
 
 @router.post('/{job_id}/reset', response_model=Models.Job,
@@ -110,21 +131,18 @@ async def postJobWithId(job_id: int, task: dict, db: Session = Depends(core.get_
              description='Resets the given job')
 async def resetJob(job_id: int, db: Session = Depends(core.get_db)):
     """Resets all tasks which are not done"""
-    data = {'jobId': job_id}
-
-    return Jobs.resetJob(data)
+    return Jobs.resetJob(db, job_id)
 
 
 @router.post('/{job_id}/restart', response_model=Models.Job,
              summary='Restarts the job',
              description='Restarts the given job, sets all tasks back to status New')
-async def restartJob(job_id: int, taskId: int = 0, db: Session = Depends(core.get_db)):
+async def restartJob(job_id: int, db: Session = Depends(core.get_db)):
     """Completely restarts a job like it was fresh"""
-    data = {'jobId': job_id, 'task_id': taskId}
-
-    output = Jobs.restartJob(data)
-
-    return output.__dict__()
+    db.commit()
+    out = Jobs.restartJob(db, job_id)
+    db.commit()
+    return out
 
 
 @core.trackRouter.get('/jobs',
@@ -144,7 +162,7 @@ async def getTrackJobs(user: str, hub: str, track: str, ref: str, start: int, en
             'start': start,
             'end': end}
 
-    output = Jobs.getTrackJobs(data)
+    output = Jobs.getTrackJobs(db, user, hub, track, ref, start, end)
 
     return output
 
@@ -156,6 +174,6 @@ async def runJobSpawn():
 
 
 @core.otherRouter.get('/checkRestartJobs', include_in_schema=False)
-async def checkRestartJobs():
+async def checkRestartJobs(db: Session = Depends(core.get_db)):
     """Checks if a job hasn't been modified in more than an hour, if so then restart the job"""
-    return Jobs.checkRestartJobs({})
+    return Jobs.checkRestartJobs(db)

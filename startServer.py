@@ -46,5 +46,5 @@ def doBackup():
 
 
 if __name__ == '__main__':
-    scheduler.start()
+    # scheduler.start()
     uvicorn.run('core.main:app', host=host, port=port, workers=1)

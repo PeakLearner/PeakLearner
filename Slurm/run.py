@@ -31,7 +31,8 @@ def runTask():
 def start():
     if not runTask():
         print('should be sleeping')
-        time.sleep(15)
+        if not cfg.debug:
+            time.sleep(15)
 
 
 if __name__ == '__main__':

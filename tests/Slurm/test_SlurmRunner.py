@@ -1,3 +1,5 @@
+import os
+
 import Slurm
 Slurm.SlurmConfig.testing()
 import requests
@@ -23,10 +25,8 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
         """ Bring server up. """
         await super().setUp()
 
-        import core.main as main
-
         self.proc = Process(target=uvicorn.run,
-                            args=(main.app,),
+                            args=(self.app,),
                             kwargs={
                                 "host": host,
                                 "port": port,
@@ -35,33 +35,20 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
         self.proc.start()
         await asyncio.sleep(1)
 
-    async def test_slurmRunner(self):
+    async def test_FeatureJob(self):
+        # Runs a job
+        assert Slurm.run.runTask()
 
-        from core.util import PLdb as db
+    async def test_ModelJob(self):
+        jobsUrl = os.path.join(url, 'Jobs', '11', '12')
 
-        txn = db.getTxn()
-        job = db.Job('2').get(txn=txn, write=True)
+        r = requests.get(jobsUrl)
 
-        job.problem['chromEnd'] = job.problem['chromStart'] + 1000
+        assert r.status_code == 200
 
-        db.Job('0').put(job, txn=txn)
-        txn.commit()
+        task = r.json()
 
-
-        count = 0
-
-        while True:
-            # To prevent getting stuck here
-            assert count < 50
-            count += 1
-            txn = db.getTxn()
-            job = db.Job('2').get(txn=txn)
-            txn.commit()
-
-            # Empty dict default return for get when the job doesn't actually exist
-            if isinstance(job, dict):
-                break
-            assert Slurm.run.runTask()
+        assert Slurm.Tasks.runTask(task)
 
     async def tearDown(self):
         """ Shutdown the app. """

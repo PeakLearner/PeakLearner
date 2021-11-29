@@ -380,7 +380,7 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
     def test_update_task(self):
         jobUrl = os.path.join(self.jobsURL, '1')
 
-        out = self.testapp.post(jobUrl, json={'status': 'Queued'})
+        out = self.testapp.post(jobUrl, json={'status': 'Queued', 'id': 1})
 
         assert out.status_code == 200
 
@@ -390,17 +390,31 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         job = out.json()
 
-        assert job['task']['status'] == 'Queued'
+        assert len(job['tasks']) == 1
+
+        assert job['tasks'][0]['status'] == 'Queued'
 
     def test_finish_task(self):
+        out = self.testapp.get(self.jobsURL, headers={'Accept': 'application/json'})
+
+        assert out.status_code == 200
+
+        numJobs = len(out.json())
+
         jobUrl = os.path.join(self.jobsURL, '1')
 
-        out = self.testapp.post(jobUrl, json={'status': 'Done'})
+        out = self.testapp.post(jobUrl, json={'status': 'Done', 'id': 1})
 
         assert out.status_code == 200
 
         out = self.testapp.get(jobUrl, headers={'Accept': 'application/json'})
 
+        # Job should be deleted
+        assert out.status_code == 404
+
+        out = self.testapp.get(self.jobsURL, headers={'Accept': 'application/json'})
+
         assert out.status_code == 200
 
-        job = out.json()
+        # No prediction yet so don't add a prediction job with that feature
+        assert len(out.json()) == numJobs - 1

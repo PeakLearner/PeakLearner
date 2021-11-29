@@ -16,8 +16,12 @@ def putFeatures(db, user, hub, track, featureData: FeatureData):
                                                                 problem['chrom'],
                                                                 problem['start'],
                                                                 make=True)
+    featuresDf = pd.read_json(featureData.data)
 
-    contig.features = pd.read_json(featureData.data)
+    if len(featuresDf.index) != 1:
+        raise ValueError
+
+    contig.features = featuresDf.iloc[0]
     db.commit()
     db.refresh(contig)
 

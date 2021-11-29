@@ -422,6 +422,8 @@ def checkSubmitPregensForChrom(db, hub, chrom, labels):
     problems = hub.getProblems(db, ref=chrom)
 
     for _, problem in problems.iterrows():
+        # print(problem)
+        # print(labels)
         inBounds = labels.apply(bigWigUtil.checkInBounds, axis=1, args=(problem['start'], problem['end']))
 
         contig = chrom.contigs.filter(models.Contig.problem == problem['id']).first()
@@ -433,9 +435,9 @@ def checkSubmitPregensForChrom(db, hub, chrom, labels):
             db.refresh(contig)
 
         if inBounds.any():
-            return Jobs.submitPregenJob(db, contig)
+            Jobs.submitPregenJob(db, contig)
         else:
-            return Jobs.submitFeatureJob(db, contig)
+            Jobs.submitFeatureJob(db, contig)
 
 
 def getRefSeq(genome, path, includes):

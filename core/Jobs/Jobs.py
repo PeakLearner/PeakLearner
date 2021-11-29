@@ -1,3 +1,4 @@
+import datetime
 import json
 
 import numpy as np
@@ -15,6 +16,7 @@ from sqlalchemy.orm import Session
 from fastapi import Depends, Response
 import core
 from core import models, dbutil
+from core.Prediction import Prediction
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +34,10 @@ def createJobForRegion(contigId, db: Session = Depends(core.get_db)):
 
     modelSum = contig.getModelSums(db, withLoss=False)
 
-    return jobToRefine(db, contig, modelSum)
+    out = jobToRefine(db, contig, modelSum)
+
+    if out is None is not contig.features:
+        return submitPredictionJob(db, contig)
 
 
 def jobToRefine(db: Session, contig, modelSums):
@@ -110,10 +115,15 @@ def submitJob(db: Session, contig, tasks):
     db.refresh(job)
 
     for task in tasks:
+        if 'penalty' in task:
+            task['penalty'] = round(task['penalty'], 6)
+
         task = models.Task(**task, job=job.id)
+        task.lastModified = datetime.datetime.now()
         db.add(task)
         db.flush()
         db.refresh(task)
+
     return True
 
 
@@ -125,8 +135,6 @@ def submitOOMJob(db: Session, contig, penalty, jobType):
     else:
         print("Invalid OOM Job")
         return
-
-    penalty = round(penalty, 6)
 
     task = [{'taskType': 'model', 'penalty': penalty}]
 
@@ -177,67 +185,54 @@ def submitFeatureJob(db, contig):
     return submitJob(db, contig, [{'taskType': 'feature'}])
 
 
-@retry
-@txnAbortOnError
-def checkRestartJobs(data, txn=None):
-    jobKeys = db.Job.db_key_tuples()
+def submitPredictionJob(db, contig):
+    penaltyToPredict = Prediction.getPenalty(db, contig)
 
-    currentTime = time.time()
+    if penaltyToPredict is None:
+        print('test')
+        return
 
-    for key in jobKeys:
-        jobTxn = db.getTxn(parent=txn)
-        jobDb = db.Job(*key)
-        jobToCheck = jobDb.get(txn=jobTxn, write=True)
+    task = [{'taskType': 'model', 'penalty': penaltyToPredict}]
 
-        if jobToCheck.status.lower() == 'nodata':
-            jobDb.put(None, txn=jobTxn)
-            db.NoDataJob(*key).put(jobToCheck, txn=jobTxn)
-            jobTxn.commit()
-            continue
+    return submitJob(db, contig, task)
 
+
+def checkRestartJobs(db: Session):
+    tasks = db.query(models.Task).all()
+
+    currentTime = datetime.datetime.now()
+
+    for task in tasks:
         try:
-            timeDiff = currentTime - jobToCheck.lastModified
+            timeDiff = currentTime - task.lastModified
         except AttributeError:
-            jobToCheck.lastModified = time.time()
-            jobDb.put(jobToCheck, txn=jobTxn)
-            jobTxn.commit()
+            task.lastModified = datetime.datetime.now()
+            db.flush()
             continue
 
-        if timeDiff > timeUntilRestart:
-            jobToCheck.restartUnfinished()
-            jobDb.put(jobToCheck, txn=jobTxn)
-            jobTxn.commit()
+        if timeDiff.seconds > cfg.timeUntilRestart:
+            task.status = 'New'
+            db.flush()
+            db.refresh(task)
             continue
 
-        jobTxn.abort()
 
-
-@retry
-@txnAbortOnError
-def resetJob(data, txn=None):
+def resetJob(db: Session, jobId):
     """resets a job to a new state"""
-    jobId = data['jobId']
-    jobDb = db.Job(jobId)
-    jobToReset = jobDb.get(txn=txn, write=True)
-    if isinstance(jobToReset, dict):
+    job = db.query(models.Job).get(jobId)
+    if job is None:
         return
-    jobToReset.resetJob()
-    jobDb.put(jobToReset, txn=txn)
-    return jobToReset.__dict__()
+    job.resetJob()
+    return job.asDict(db)
 
 
-@retry
-@txnAbortOnError
-def restartJob(data, txn=None):
-    jobId = data['jobId']
-    jobDb = db.Job(jobId)
-    jobToRestart = jobDb.get(txn=txn, write=True)
-    if isinstance(jobToRestart, dict):
+def restartJob(db: Session, jobId):
+    """restarts a job to a new state"""
+    job = db.query(models.Job).get(jobId)
+    if job is None:
         return
-    restarted = jobToRestart.restartUnfinished()
-    if restarted:
-        jobDb.put(jobToRestart, txn=txn)
-        return jobToRestart
+    job.restartJob(db)
+    return job.asDict(db)
 
 
 def updateTask(db: Session, jobId, task):
@@ -248,20 +243,47 @@ def updateTask(db: Session, jobId, task):
     if job is None:
         return Response(status_code=404)
 
-    taskInDb = job.tasks.get(task['id'])
+    taskInDb = job.tasks.filter(models.Task.id == task['id']).first()
 
     if taskInDb is None:
+        print('noTask')
         return Response(status_code=404)
 
+    # Only really need to update the status
     if 'status' in task:
-        taskInDb.status = task['status']
+        if task['status'] == 'Done':
+            db.delete(taskInDb)
+        else:
+            taskInDb.status = task['status']
+            taskInDb.lastModified = datetime.datetime.now()
 
-    # TODO: If job is done
-    # TODO: Last Modified
+    db.flush()
+
+    if job.getStatus() == 'Done':
+        db.delete(job)
+        db.flush()
+        createJobForRegion(job.contig, db)
+        return Response(status_code=200)
+
+    return taskInDb.addJobInfo(db, job=job)
 
 
 def queueNextTask(db: Session):
     task = db.query(models.Task).filter(models.Task.status == 'New').first()
+
+    if task is None:
+        print('should check for prediction models')
+
+    task.status = 'Queued'
+
+    db.flush()
+    db.refresh(task)
+
+    return task.addJobInfo(db)
+
+
+def getTask(db: Session, taskId):
+    task = db.query(models.Task).get(taskId)
 
     if task is None:
         print('should check for prediction models')
@@ -317,7 +339,7 @@ def getAllJobs(db: Session):
     jobDbs = db.query(models.Job).all()
 
     for job in jobDbs:
-        jobs.append(jobToDict(db, job))
+        jobs.append(job.asDict(db))
 
     return jobs
 
@@ -325,29 +347,37 @@ def getAllJobs(db: Session):
 def getJobWithId(db: Session, jobId: int):
     job = db.query(models.Job).get(jobId)
 
-    output = jobToDict(db, job)
+    if job is None:
+        return Response(status_code=404)
+
+    output = job.asDict(db)
 
     output['jobUser'] = output['user']
 
     return output
 
 
-@retry
-@txnAbortOnError
-def getTrackJobs(data, txn=None):
-    problems = Tracks.getProblems(data, txn=txn)
+def getTrackJobs(db: Session, user, hub, track, ref, start, end):
 
-    cursor = db.Job.getCursor(txn, bulk=True)
+    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, ref)
 
-    jobs = jobsWithCursor(cursor, data, problems)
+    if chrom is None:
+        return
 
-    cursor.close()
+    problems = hub.getProblems(db, ref, start, end)
 
-    doneJobCursor = db.DoneJob.getCursor(txn, bulk=True)
+    jobs = []
 
-    jobs.extend(jobsWithCursor(doneJobCursor, data, problems))
+    for _, problem in problems.iterrows():
+        contig = chrom.contigs.filter(models.Contig.problem == problem['id']).first()
 
-    doneJobCursor.close()
+        if contig is None:
+            continue
+
+        contigJobs = contig.jobs.all()
+
+        for job in contigJobs:
+            jobs.append(job.asDict(db))
 
     return jobs
 
@@ -421,7 +451,7 @@ def jobsStats(db: Session):
                     times.append(float(task['totalTime']))
 
         if status != 'done':
-            jobs.append(jobToDict(db, job))
+            jobs.append(job.asDict(db))
 
     if len(times) == 0:
         avgTime = 0
@@ -437,34 +467,6 @@ def jobsStats(db: Session):
               'errorJobs': errorJobs,
               'jobs': jobs,
               'avgTime': avgTime}
-
-    return output
-
-
-def jobToDict(db: Session, job):
-    contig = db.query(models.Contig).get(job.contig)
-    problem = db.query(models.Problem).get(contig.problem)
-    problem = {'chrom': problem.chrom, 'start': problem.start, 'end': problem.end}
-    chrom = db.query(models.Chrom).get(contig.chrom)
-    track = db.query(models.Track).get(chrom.track)
-    hub = db.query(models.Hub).get(track.hub)
-    user = db.query(models.User).get(hub.owner)
-    output = {'user': user.name,
-              'hub': hub.name,
-              'track': track.name,
-              'id': job.id,
-              'problem': problem,
-              'url': track.url,
-              'status': job.getStatus(),
-              'tasks': []}
-
-    for task in job.tasks.all():
-        taskOut = {'id': task.id,
-                   'taskType': task.taskType,
-                   'penalty': task.penalty,
-                   'status': task.status}
-
-        output['tasks'].append(taskOut)
 
     return output
 

@@ -208,6 +208,9 @@ class Job(Base):
         minIndex = len(statuses)
         tasks = self.tasks.all()
 
+        if len(tasks) == 0:
+            return 'Done'
+
         for task in tasks:
             index = statuses.index(task.status)
 
@@ -216,6 +219,50 @@ class Job(Base):
 
         return statuses[minIndex]
 
+    def resetJob(self, db: Session):
+        tasks = self.tasks.all()
+
+        for task in tasks:
+            if task.status != 'Done':
+                task.status = 'New'
+                db.flush()
+                db.refresh(task)
+
+    def restartJob(self, db: Session):
+        tasks = self.tasks.all()
+
+        for task in tasks:
+            task.status = 'New'
+            db.flush()
+            db.refresh(task)
+
+    def asDict(self, db: Session):
+        contig = db.query(Contig).get(self.contig)
+        problem = db.query(Problem).get(contig.problem)
+        problem = {'chrom': problem.chrom, 'start': problem.start, 'end': problem.end}
+        chrom = db.query(Chrom).get(contig.chrom)
+        track = db.query(Track).get(chrom.track)
+        hub = db.query(Hub).get(track.hub)
+        user = db.query(User).get(hub.owner)
+        output = {'user': user.name,
+                  'hub': hub.name,
+                  'track': track.name,
+                  'id': self.id,
+                  'problem': problem,
+                  'url': track.url,
+                  'status': self.getStatus(),
+                  'tasks': []}
+
+        for task in self.tasks.all():
+            taskOut = {'id': task.id,
+                       'taskType': task.taskType,
+                       'penalty': task.penalty,
+                       'status': task.status}
+
+            output['tasks'].append(taskOut)
+
+        return output
+
 
 class Task(Base):
     __tablename__ = 'tasks'
@@ -223,10 +270,12 @@ class Task(Base):
     taskType = Column(String(20))
     penalty = Column(PickleType)
     status = Column(String(20), default='New')
+    lastModified = Column(DateTime)
     job = Column(Integer, ForeignKey('jobs.id'))
 
-    def addJobInfo(self, db):
-        job = db.query(Job).get(self.job)
+    def addJobInfo(self, db, job=None):
+        if job is None:
+            job = db.query(Job).get(self.job)
         contig = db.query(Contig).get(job.contig)
         problem = db.query(Problem).get(contig.problem)
         problem = {'chrom': problem.chrom, 'start': problem.start, 'end': problem.end}
@@ -235,14 +284,21 @@ class Task(Base):
         hub = db.query(Hub).get(track.hub)
         user = db.query(User).get(hub.owner)
         return {'user': user.name,
-                  'hub': hub.name,
-                  'track': track.name,
-                  'id': job.id,
-                  'problem': problem,
-                  'url': track.url,
-                  'status': job.getStatus(),
-                  'task': {
-                      'id': self.id,
-                      'taskType': self.taskType,
-                      'penalty': self.penalty,
-                      'status': self.status}}
+                'hub': hub.name,
+                'track': track.name,
+                'id': job.id,
+                'problem': problem,
+                'url': track.url,
+                'status': job.getStatus(),
+                'task': {
+                    'id': self.id,
+                    'taskType': self.taskType,
+                    'penalty': self.penalty,
+                    'status': self.status}}
+
+
+class Other(Base):
+    __tablename__ = 'other'
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(40))
+    data = Column(PickleType)

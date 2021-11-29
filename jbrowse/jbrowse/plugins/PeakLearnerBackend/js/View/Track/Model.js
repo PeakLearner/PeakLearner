@@ -164,11 +164,6 @@ define([
                         jobs.forEach(job => {
                             let jobDiv = dojo.create('div', {className: 'job-' + job.id}, jobsSection)
                             jobDiv.innerHTML += '<h4> Job ID: ' + job.id + '</h4>';
-                            jobDiv.innerHTML += '<h6> Status: ' + job.status + '</h6>';
-                            jobDiv.innerHTML += '<h6> Type: ' + job.jobType + '</h6>';
-                            jobDiv.innerHTML += '<h6> Priority: ' + job.priority + '</h6>';
-                            jobDiv.innerHTML += '<h6> Last Modified: ' + job.lastModified + '</h6>';
-
 
                             let tasksDiv = dojo.create('div', {
                                 className: 'job-' + job.id + '-tasks',
@@ -180,8 +175,8 @@ define([
                             Object.keys(job.tasks).forEach(taskId => {
                                 let task = tasks[taskId];
                                 let taskDiv = dojo.create('div', {className: 'job-' + job.id + '-task-' + taskId}, tasksDiv);
-                                taskDiv.innerHTML += '<h4>Task ID: ' + task.taskId + '</h4><hr>';
-                                taskDiv.innerHTML += '<h5>Type: ' + task.type + '</h5>';
+                                taskDiv.innerHTML += '<h4>Task ID: ' + task.id + '</h4><hr>';
+                                taskDiv.innerHTML += '<h5>Type: ' + task.taskType + '</h5>';
                                 taskDiv.innerHTML += '<h5>Status: ' + task.status + '</h5>';
                                 if (task.type === 'model') {
                                     taskDiv.innerHTML += '<h5>Penalty: ' + task.penalty + '</h5>';
@@ -253,8 +248,8 @@ define([
                 _renderCoreDetails(container, ref, visStart, visEnd) {
                     var coreDetails = dojo.create('div', {className: 'core'}, container);
                     let conf = this.browser.config;
-                    coreDetails.innerHTML += '<h2 class="sectiontitle">Hub: ' + conf.hub + '</h2>';
-                    coreDetails.innerHTML += '<h3>Owner: ' + conf.owner + '</h3>';
+                    coreDetails.innerHTML += '<h2 class="sectiontitle">Hub: ' + conf.hub.name + '</h2>';
+                    coreDetails.innerHTML += '<h3>Owner: ' + conf.owner.name + '</h3>';
                     coreDetails.innerHTML += '<h3>Track: ' + this.modelStore.track + '</h3>'
                     coreDetails.innerHTML += '<h3>Current Ref: ' + ref + '</h3>'
                     coreDetails.innerHTML += '<h3>Visible Start: ' + visStart + '</h3>'

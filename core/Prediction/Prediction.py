@@ -3,9 +3,11 @@ import pickle
 import scipy
 import numpy as np
 import pandas as pd
+from core import models, dbutil
 from glmnet_python import cvglmnet
 from simpleBDB import retry, txnAbortOnError
-from core.util import PLConfig as cfg, PLdb as db
+from sqlalchemy.orm import Session
+from glmnet_python import cvglmnetPredict
 import logging
 
 log = logging.getLogger(__name__)
@@ -92,6 +94,48 @@ def learn(X, Y, txn=None):
     Y = Y.to_numpy(dtype=np.float64, copy=True)
     cvfit = cvglmnet(x=X, y=Y)
     db.Prediction('model').put(cvfit, txn=txn)
+
+
+def getPenalty(db: Session, contig):
+    features = contig.features
+
+    if not isinstance(features, pd.Series):
+        return False
+
+    model = db.query(models.Other).filter(models.Other.name == 'prediction').first()
+
+    if model is None:
+        return False
+
+    if not isinstance(model, dict):
+        return False
+
+    colsToDrop = db.query(models.Other).filter(models.Other.name == 'badCols').first()
+
+    if colsToDrop is None:
+        raise Exception
+
+    featuresDropped = features.drop(labels=colsToDrop)
+
+    prediction = predictWithFeatures(featuresDropped, model)
+
+    if prediction is None:
+        return False
+
+    return float(10 ** prediction)
+
+
+def predictWithFeatures(features, model):
+    if not isinstance(features, pd.Series):
+        raise Exception(features)
+
+    featuresDf = pd.DataFrame().append(features, ignore_index=True)
+    guess = cvglmnetPredict(model, newx=featuresDf, s='lambda_min')[0][0]
+
+    if np.isnan(guess):
+        return
+
+    return guess
 
 
 

@@ -6,7 +6,6 @@ import logging
 import PeakError
 import numpy as np
 import pandas as pd
-from glmnet_python import cvglmnetPredict
 from core.util import PLConfig as cfg, bigWigUtil as bw
 from core.Handlers import Tracks
 from core.Jobs import Jobs
@@ -622,246 +621,52 @@ def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType):  # pragm
     return output
 
 
-def doPrediction(job, txn=None):
-    features = db.Features(job.user,
-                           job.hub,
-                           job.track,
-                           job.problem['chrom'],
-                           job.problem['chromStart']).get(txn=txn)
+def getTrackModelSummaries(db: Session, user, hub, track, ref, start, end):
+    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, ref)
 
-    if not isinstance(features, pd.Series):
-        if not features:
-            return False
-
-    model = db.Prediction('model').get(txn=txn)
-
-    if not isinstance(model, dict):
-        return False
-
-    colsToDrop = db.Prediction('badCols').get(txn=txn)
-
-    featuresDropped = features.drop(labels=colsToDrop)
-
-    prediction = predictWithFeatures(featuresDropped, model)
-
-    if prediction is None:
-        return False
-
-    return float(10 ** prediction)
-
-
-def predictWithFeatures(features, model):
-    if not isinstance(features, pd.Series):
-        raise Exception(features)
-
-    featuresDf = pd.DataFrame().append(features, ignore_index=True)
-    guess = cvglmnetPredict(model, newx=featuresDf, s='lambda_min')[0][0]
-
-    if np.isnan(guess):
+    if chrom is None:
         return
 
-    return guess
+    problems = hub.getProblems(db, ref, start, end)
 
+    modelSums = []
 
-def profile_wrap(func):
-    import cProfile
+    for _, problem in problems.iterrows():
+        contig = chrom.contigs.filter(models.Contig.problem == problem['id']).first()
 
-    def wrap(*args, **kwargs):
-        with cProfile.Profile() as pr:
-            output = func(*args, **kwargs)
+        if contig is None:
+            continue
 
-        pr.print_stats(sort='filename')
-        return output
-
-    return wrap
-
-
-def getTrackModelSummaries(data, txn=None):
-    problems = Tracks.getProblems(data, txn=txn)
-
-    output = []
-
-    for problem in problems:
-        problemTxn = db.getTxn(parent=txn)
-
-        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
-                                           problem['chromStart']).get(txn=problemTxn)
-
-        problemTxn.commit()
+        modelSummaries = contig.getModelSums(db)
 
         if len(modelSummaries.index) < 1:
             continue
 
-        output.append({'problem': problem, 'htmlData': modelSummaries.to_html()})
+        modelSums.append({'problem': problem, 'htmlData': modelSummaries.to_html()})
 
-    return output
+    return modelSums
 
 
-def getTrackModelSummary(data, txn=None):
-    hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
+def getTrackModelSummary(db: Session, user, hub, track, ref, start):
+    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, ref)
 
-    problems = db.Problems(hubInfo['genome']).get(txn=txn)
+    if chrom is None:
+        return
 
-    sameChrom = problems[problems['chrom'] == data['ref']]
+    problems = hub.getProblems(db, ref, start)
 
-    sameStart = sameChrom[sameChrom['chromStart'] == data['start']]
+    sameChrom = problems[problems['chrom'] == ref]
+
+    sameStart = sameChrom[sameChrom['chromStart'] == start]
 
     if len(sameStart) != 1:
         return
 
     problem = sameStart.iloc[0]
 
-    modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
-                                       problem['chromStart']).get(txn=txn)
+    contig = chrom.contigs.filter(models.Contig.problem == problem['id']).first()
 
-    return modelSummaries
+    if contig is None:
+        return
 
-
-def recalculateModels(data, txn=None):
-    modelSumCursor = db.ModelSummaries.getCursor(txn=txn, bulk=True)
-
-    current = modelSumCursor.next()
-
-    genomes = {}
-
-    while current is not None:
-        key, modelSum = current
-
-        modelSum = modelSum[modelSum['errors'] >= 0]
-
-        if not modelSum['penalty'].is_unique:
-            modelSum = modelSum.drop_duplicates()
-            if not modelSum['penalty'].is_unique:
-                print(modelSum)
-                break
-
-        user, hub, track, ref, start = key
-
-        hubInfo = db.HubInfo(user, hub).get(txn=txn)
-
-        genome = hubInfo['genome']
-
-        if not genome in genomes:
-            problems = db.Problems(genome).get(txn=txn)
-
-            genomes[genome] = problems
-        else:
-            problems = genomes[genome]
-
-        chromProblems = problems[problems['chrom'] == ref]
-
-        problem = chromProblems[chromProblems['chromStart'] == int(start)].iloc[0]
-
-        labels = db.Labels(user, hub, track, ref).get(txn=txn)
-
-        sumData = {'user': user, 'hub': hub, 'track': track, **problem.to_dict()}
-
-        newSum = modelSum.apply(modelSumLabelUpdate, axis=1, args=(labels, sumData, sumData, txn)).reset_index(
-            drop=True)
-
-        try:
-            toDelete = newSum['delete'] == 1
-            newSum = newSum[~toDelete].drop('delete', axis=1)
-        except KeyError:
-            pass
-
-        modelSumCursor.put(key, newSum)
-
-        current = modelSumCursor.next()
-
-    modelSumCursor.close()
-
-
-def fixModelsToModelSums(data, txn=None):
-    modelKeys = db.Model.db_key_tuples()
-
-    organizedKeys = {}
-
-    for key in modelKeys:
-        recursiveCheck(organizedKeys, list(key))
-
-    for user, hubs in organizedKeys.items():
-        for hub, tracks in hubs.items():
-            hubInfo = db.HubInfo(user, hub).get(txn=txn)
-            genome = hubInfo['genome']
-            problems = db.Problems(genome).get(txn=txn)
-            for track, chroms in tracks.items():
-                for chrom, starts in chroms.items():
-                    chromProblems = problems[problems['chrom'] == chrom]
-                    labels = db.Labels(user, hub, track, chrom).get(txn=txn)
-                    for start, penalties in starts.items():
-                        sumDb = db.ModelSummaries(user, hub, track, chrom, start)
-                        modelSumTxn = db.getTxn(parent=txn)
-                        modelSums = sumDb.get(txn=modelSumTxn, write=True)
-                        start = int(start)
-                        problem = chromProblems[chromProblems['chromStart'] == start].iloc[0]
-                        notInSum = []
-
-                        for penalty in penalties:
-                            if (modelSums['penalty'] == float(penalty)).any():
-                                continue
-                            else:
-                                modelDb = db.Model(user, hub, track, chrom, start, penalty)
-                                if float(penalty) <= 0:
-                                    modelDb.put(None, txn=modelSumTxn)
-                                    continue
-
-                                model = modelDb.get(txn=modelSumTxn)
-
-                                if model is None:
-                                    print('model is none')
-                                    modelSumTxn.abort()
-                                    raise Exception
-                                elif model.empty:
-                                    print('model is empty')
-                                    modelSumTxn.abort()
-                                    raise Exception
-
-                                notInSum.append(calculateModelLabelError(model, labels, problem, penalty))
-
-                        if len(notInSum) > 0:
-                            notInSums = pd.DataFrame(notInSum)
-                            sumDb.put(notInSums, txn=modelSumTxn)
-                            modelSumTxn.commit()
-                        else:
-                            modelSumTxn.abort()
-
-
-def recursiveCheck(data, key):
-    toCheck = key[0]
-    if toCheck not in data:
-        if len(key) <= 2:
-            data[toCheck] = [key[1]]
-            return
-
-        data[toCheck] = {}
-        key = key[1:]
-        return recursiveCheck(data[toCheck], key)
-
-    else:
-        if len(key) <= 2:
-            try:
-                data[toCheck].append(key[1])
-            except AttributeError:
-                print(data)
-
-                print(toCheck)
-                raise
-            return
-
-        key = key[1:]
-        return recursiveCheck(data[toCheck], key)
-
-
-if cfg.testing:
-    def modelSumUpload(data, txn=None):
-        user = data['user']
-        hub = data['hub']
-        track = data['track']
-        problem = data['problem']
-
-        sum = pd.read_json(data['sum'])
-
-        sumsDb = db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart'])
-
-        sumsDb.add(sum, txn=txn)
+    return contig.getModelSums(db)
