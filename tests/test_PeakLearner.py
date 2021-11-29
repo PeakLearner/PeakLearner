@@ -18,6 +18,7 @@ lockDetect = True
 
 
 class PeakLearnerTests(Base.PeakLearnerTestBase):
+    dbFile = os.path.join('data', 'test.db')
     user = 'Public'
     hub = 'H3K4me3_TDH_ENCODE'
     testHub = 'TestHub'

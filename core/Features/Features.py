@@ -1,12 +1,12 @@
 import pandas as pd
-from core.util import PLdb as db
+from sqlalchemy.orm import Session
 from core.Prediction import Prediction
 from simpleBDB import retry, txnAbortOnError
 from .Models import FeatureData
 from core import dbutil, models
 
 
-def putFeatures(db, user, hub, track, featureData: FeatureData):
+def putFeatures(db: Session, user, hub, track, featureData: FeatureData):
     """Saves features to be later used for prediction and learning"""
     problem = featureData.problem
     user, hub, track, chrom, contig, problem = dbutil.getContig(db,
@@ -30,15 +30,14 @@ def putFeatures(db, user, hub, track, featureData: FeatureData):
 
 @retry
 @txnAbortOnError
-def getFeatures(data, txn=None):
+def getFeatures(db: Session, user, hub, track, ref, start):
     """Retrieve a singular feature from the db"""
-    features = db.Features(data['user'], data['hub'], data['track'], data['ref'], data['start']).get(txn=txn)
-
-    if isinstance(features, dict):
+    user, hub, track, chrom, contig = dbutil.getContig(db, user, hub, track, ref, start)
+    if contig is None:
         return
-    elif isinstance(features, str):
+    features = contig.features
+
+    if features is None:
         return
 
-    return Prediction.dropBadCols(features, txn=txn)
-
-
+    return Prediction.dropBadCols(features)

@@ -8,92 +8,74 @@ from glmnet_python import cvglmnet
 from simpleBDB import retry, txnAbortOnError
 from sqlalchemy.orm import Session
 from glmnet_python import cvglmnetPredict
+from fastapi import Response
 import logging
 
 log = logging.getLogger(__name__)
 
 
-@retry
-@txnAbortOnError
-def runPrediction(data, txn=None):
+def runPrediction(db: Session):
     log.info('runPrediction')
-    datapoints = getDataPoints(txn=txn)
+    datapoints = getDataPoints(db)
     if datapoints is None:
         return
 
-    learn(*datapoints, txn=txn)
+    return learn(db, *datapoints)
 
 
-def getDataPoints(txn=None):
-    dataPoints = pd.DataFrame()
+def getDataPoints(db: Session):
+    query = db.query(models.ModelSum).filter(models.ModelSum.errors < 1).filter(models.ModelSum.regions >= 1)
+    modelSums = pd.read_sql(query.statement, db.bind).set_index('id')
+    modelSums = modelSums.drop('loss', axis=1)
 
-    cursor = db.ModelSummaries.getCursor(txn=None, bulk=True)
+    logPenalties = np.log10(modelSums['penalty'].astype(float))
 
-    current = cursor.next()
+    def addFeatures(row):
+        contig = db.query(models.Contig).get(row['contig'])
+        return contig.features
 
-    while current is not None:
-        key, modelSum = current
-        if modelSum.empty:
-            current = cursor.next()
-            continue
+    features = modelSums.apply(addFeatures, axis=1)
 
-        if modelSum['regions'].max() < 1:
-            current = cursor.next()
-            continue
+    noNegatives = features.replace(-np.Inf, np.nan)
 
-        withPeaks = modelSum[modelSum['numPeaks'] > 0]
+    afterDrop = noNegatives.dropna(axis=1)
 
-        noError = withPeaks[withPeaks['errors'] < 1]
+    badCols = list(set(features.columns) - set(afterDrop.columns))
 
-        logPenalties = np.log10(noError['penalty'].astype(float))
+    # Need to know which columns were dropped just in case it would drop too little columns for prediction
+    badColsInDb = db.query(models.Other).filter(models.Other.name == 'badCols').first()
 
-        featuresDb = db.Features(*key)
-        features = featuresDb.get(txn=txn)
-
-        for penalty in logPenalties:
-            datapoint = features.copy()
-
-            datapoint['logPenalty'] = penalty
-
-            dataPoints = dataPoints.append(datapoint, ignore_index=True)
-
-        current = cursor.next()
-
-    cursor.close()
-
-    # TODO: Save datapoints, update ones which have changed, not all of them every time
-
-    if dataPoints.empty:
-        return
-    Y = dataPoints['logPenalty']
-    X = dataPoints.drop('logPenalty', 1)
-
-    return dropBadCols(X, txn=txn), Y
-
-
-def dropBadCols(data, txn=None):
-    pd.set_option("display.max_rows", None, "display.max_columns", None)
-    noNegatives = data.replace(-np.Inf, np.nan)
-
-    if isinstance(data, pd.DataFrame):
-        output = noNegatives.dropna(axis=1)
-
-        # Take a note of what columns were dropped so that can be later used during prediction
-        # This line just compares the two column indices and finds the differences
-        badCols = list(set(data.columns) - set(output.columns))
-        db.Prediction('badCols').put(badCols, txn=txn)
-
+    if badColsInDb is None:
+        badColsInDb = models.Other(name='badCols', data=badCols)
+        db.add(badColsInDb)
+        db.flush()
+        db.refresh(badColsInDb)
     else:
-        output = noNegatives.dropna()
+        badColsInDb.data = badCols
+        db.flush()
+        db.refresh(badColsInDb)
 
-    return output
+    return afterDrop, logPenalties
 
 
-def learn(X, Y, txn=None):
+def learn(db: Session, X, Y):
+    if len(X.index) < 10:
+        return Response(status_code=204)
     X = X.to_numpy(dtype=np.float64, copy=True)
     Y = Y.to_numpy(dtype=np.float64, copy=True)
     cvfit = cvglmnet(x=X, y=Y)
-    db.Prediction('model').put(cvfit, txn=txn)
+
+    model = db.query(models.Other).filter(models.Other.name == 'model').first()
+
+    if model is None:
+        model = models.Other(name='model', data=cvfit)
+        db.add(model)
+        db.flush()
+        db.refresh(model)
+    else:
+        model.data = cvfit
+        db.flush()
+        db.refresh(model)
 
 
 def getPenalty(db: Session, contig):

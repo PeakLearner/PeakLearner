@@ -19,7 +19,6 @@ from sqlalchemy.orm import sessionmaker
 dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
 dbDir = os.path.join(dataDir, 'db')
 dbLogBackupDir = os.path.join(dataDir, 'db_log_backup')
-dbFile = os.path.join('data', 'test.db')
 testDataPath = os.path.join('tests', 'data')
 testDbsPath = 'testDbs'
 
@@ -35,7 +34,7 @@ class PeakLearnerTestBase(unittest.TestCase):
 
         if os.path.exists('test.db'):
             os.remove('test.db')
-        shutil.copy(dbFile, '.')
+        shutil.copy(self.dbFile, '.')
 
         SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 
@@ -70,7 +69,7 @@ class PeakLearnerAsyncTestBase(asynctest.TestCase):
     async def setUp(self):
         if os.path.exists('test.db'):
             os.remove('test.db')
-        shutil.copy(dbFile, '.')
+        shutil.copy(self.dbFile, '.')
 
         SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 

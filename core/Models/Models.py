@@ -198,17 +198,15 @@ def updateAllModelLabels(db: Session, authUser, user, hub, track, chrom, labelsD
         newSums = modelSummaries.apply(modelSumLabelUpdate, axis=1, args=(labelsDf, problem, contigModelsPath))
 
         for index, newSum in newSums.iterrows():
-            print(index)
-            print(type(index))
             toUpdate = contig.modelSums.get(index.item())
 
-            toUpdate.fp = newSum.fp
-            toUpdate.fn = newSum.fn
-            toUpdate.possible_fp = newSum.possible_fp
-            toUpdate.possible_fn = newSum.possible_fn
-            toUpdate.errors = newSum.errors
-            toUpdate.numPeaks = newSum.numPeaks
-            toUpdate.regions = newSum.regions
+            toUpdate.fp = newSum.fp.item()
+            toUpdate.fn = newSum.fn.item()
+            toUpdate.possible_fp = newSum.possible_fp.item()
+            toUpdate.possible_fn = newSum.possible_fn.item()
+            toUpdate.errors = newSum.errors.item()
+            toUpdate.numPeaks = newSum.numPeaks.item()
+            toUpdate.regions = newSum.regions.item()
 
             db.flush()
             db.refresh(toUpdate)
@@ -263,18 +261,19 @@ def putModel(db, user, hub, track, data: PyModels.ModelData):
     modelSumOut = calculateModelLabelError(justPeaks, labelsDf, problem, penalty)
 
     modelSum = models.ModelSum(contig=contig.id,
-                               fp=modelSumOut['fp'],
-                               fn=modelSumOut['fn'],
-                               possible_fp=modelSumOut['possible_fp'],
-                               possible_fn=modelSumOut['possible_fn'],
-                               errors=modelSumOut['errors'],
-                               regions=modelSumOut['regions'],
-                               numPeaks=modelSumOut['numPeaks'],
+                               fp=modelSumOut['fp'].item(),
+                               fn=modelSumOut['fn'].item(),
+                               possible_fp=modelSumOut['possible_fp'].item(),
+                               possible_fn=modelSumOut['possible_fn'].item(),
+                               errors=modelSumOut['errors'].item(),
+                               regions=modelSumOut['regions'].item(),
+                               numPeaks=modelSumOut['numPeaks'].item(),
                                loss=pd.read_json(data.lossData),
                                penalty=penalty)
 
     contig.modelSums.append(modelSum)
     db.commit()
+    db.refresh(modelSum)
 
     return True
 
@@ -283,8 +282,13 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
     numPeaks = len(modelDf.index)
     if not labels.empty:
         labels = labels[labels['annotation'] != 'unknown']
-        labelsIsInProblem = labels.apply(bw.checkInBounds, axis=1,
+        try:
+            labelsIsInProblem = labels.apply(bw.checkInBounds, axis=1,
                                          args=(problem.start, problem.end))
+        except KeyError:
+            print(problem)
+            print(problem.__dict__)
+            raise
         labelsInProblem = labels[labelsIsInProblem]
 
         numLabelsInProblem = len(labelsInProblem.index)
@@ -335,8 +339,8 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
 
 
 def getErrorSeries(penalty, numPeaks, regions=0, errors=-1, fp=0, possible_fp=0, fn=0, possible_fn=0):
-    return pd.Series({'regions': regions, 'fp': fp, 'possible_fp': possible_fp, 'fn': fn, 'possible_fn': possible_fn,
-                      'errors': errors, 'penalty': penalty, 'numPeaks': numPeaks})
+    return pd.Series({'regions': np.int64(regions), 'fp': np.int64(fp), 'possible_fp': np.int64(possible_fp), 'fn': np.int64(fn), 'possible_fn': np.int64(possible_fn),
+                      'errors': np.int64(errors), 'penalty': penalty, 'numPeaks': np.int64(numPeaks)})
 
 
 # TODO: This could be better (learning a penalty based on PeakSegDisk Models?)

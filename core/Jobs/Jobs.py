@@ -34,10 +34,9 @@ def createJobForRegion(contigId, db: Session = Depends(core.get_db)):
 
     modelSum = contig.getModelSums(db, withLoss=False)
 
-    out = jobToRefine(db, contig, modelSum)
-
-    if out is None is not contig.features:
+    if modelSum is None is not contig.features:
         return submitPredictionJob(db, contig)
+    return jobToRefine(db, contig, modelSum)
 
 
 def jobToRefine(db: Session, contig, modelSums):

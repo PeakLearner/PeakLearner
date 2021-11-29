@@ -4,7 +4,7 @@ import time
 import numpy as np
 import pandas as pd
 
-from core.util import PLdb as pldb
+from core.util import PLdb as pldb, bigWigUtil
 from core.Models.Models import calculateModelLabelError
 from core import database, models
 
@@ -203,6 +203,8 @@ with SessionLocal() as session:
                     session.add(label)
                     session.commit()
 
+                session.commit()
+
             labelDf.apply(putLabels, axis=1)
             current += 1
             print('Num labels to add left', totalLabelDfs - current)
@@ -238,7 +240,7 @@ with SessionLocal() as session:
                 session.add(chrom)
                 session.commit()
                 session.refresh(chrom)
-            labels = chrom.labels.all()
+            labels = chrom.getLabels(session)
             if labels is None:
                 raise Exception
             contigStartInt = int(start)
@@ -248,7 +250,7 @@ with SessionLocal() as session:
             if problem is None:
                 raise Exception
 
-            contig = chrom.contigs.filter(models.Contig.start == int(contigStartInt)).first()
+            contig = chrom.contigs.filter(models.Contig.problem == problem.id).first()
             if contig is None:
                 contig = models.Contig(chrom=chrom.id, problem=problem.id)
                 session.add(contig)
@@ -269,45 +271,25 @@ with SessionLocal() as session:
             if len(modelDf.index) < 1:
                 continue
 
-            if len(labels) < 1:
-                labelsDf = pd.DataFrame()
-            else:
-                labels = [{'chrom': problem.chrom,
-                           'chromStart': label.start,
-                           'chromEnd': label.end,
-                           'annotation': label.annotation} for label in labels]
+            isInBounds = labels.apply(bigWigUtil.checkInBounds, axis=1, args=(problem.start, problem.end))
 
-                labelsDf = pd.DataFrame(labels)
+            labelsDf = labels[isInBounds]
 
-                isInBounds = labelsDf.apply(pldb.checkInBounds, axis=1, args=(problem.chrom, problem.start, problem.end))
-
-                labelsDf = labelsDf[isInBounds]
-
-            problemDict = {'chrom': problem.chrom,
-                           'chromStart': problem.start, 'chromEnd': problem.end}
-            modelSumOut = calculateModelLabelError(modelDf, labelsDf, problemDict, penalty)
+            modelSumOut = calculateModelLabelError(modelDf, labelsDf, problem, penalty)
 
             loss = pldb.Loss(*key).get()
 
             if loss is None:
-                modelSum = models.ModelSum(contig=contig.id,
-                                           fp=modelSumOut['fp'],
-                                           fn=modelSumOut['fn'],
-                                           possible_fp=modelSumOut['possible_fp'],
-                                           possible_fn=modelSumOut['possible_fn'],
-                                           errors=modelSumOut['errors'],
-                                           regions=modelSumOut['regions'],
-                                           numPeaks=modelSumOut['numPeaks'],
-                                           penalty=floatPenalty)
+                continue
             else:
                 modelSum = models.ModelSum(contig=contig.id,
-                                           fp=modelSumOut['fp'],
-                                           fn=modelSumOut['fn'],
-                                           possible_fp=modelSumOut['possible_fp'],
-                                           possible_fn=modelSumOut['possible_fn'],
-                                           errors=modelSumOut['errors'],
-                                           regions=modelSumOut['regions'],
-                                           numPeaks=modelSumOut['numPeaks'],
+                                           fp=modelSumOut['fp'].item(),
+                                           fn=modelSumOut['fn'].item(),
+                                           possible_fp=modelSumOut['possible_fp'].item(),
+                                           possible_fn=modelSumOut['possible_fn'].item(),
+                                           errors=modelSumOut['errors'].item(),
+                                           regions=modelSumOut['regions'].item(),
+                                           numPeaks=modelSumOut['numPeaks'].item(),
                                            penalty=floatPenalty,
                                            loss=loss)
 

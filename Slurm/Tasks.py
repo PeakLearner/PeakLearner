@@ -18,6 +18,9 @@ def model(job, dataPath, coveragePath, trackUrl):
     task = job['task']
     segmentsPath = '%s_penalty=%s_segments.bed' % (coveragePath, task['penalty'])
     lossPath = '%s_penalty=%s_loss.tsv' % (coveragePath, task['penalty'])
+    if cfg.debug:
+        if os.path.exists(segmentsPath):
+            return sendModel(segmentsPath, lossPath, job, trackUrl)
     try:
         PeakSegDisk.FPOP_files(coveragePath, segmentsPath, lossPath, str(task['penalty']))
     except FileNotFoundError:

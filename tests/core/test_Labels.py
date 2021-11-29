@@ -20,6 +20,7 @@ useThreads = False
 
 
 class PeakLearnerJobsTests(Base.PeakLearnerTestBase):
+    dbFile = os.path.join('data', 'test.db')
     user = 'Public'
     hub = 'H3K4me3_TDH_ENCODE'
     track = 'aorta_ENCFF115HTK'

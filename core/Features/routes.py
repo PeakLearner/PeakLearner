@@ -11,9 +11,6 @@ from sqlalchemy.orm import Session
 from .Models import FeatureData
 
 
-
-
-
 @core.trackRouter.put('/features',
                       summary='Put features',
                       description='Allows HPC clusters to upload the features which they generate')
@@ -37,7 +34,8 @@ async def putFeatures(request: Request, user: str, hub: str, track: str,
                       },
                       summary='Get features for current viewed track region',
                       description='Provides information on current features within a region')
-def getFeatures(request: Request, user: str, hub: str, track: str, ref: str, start: int):
+def getFeatures(request: Request, user: str, hub: str, track: str, ref: str, start: int,
+                db: Session = Depends(core.get_db)):
     "Retrieves a feature vec from the db for a given region"
     # Unpacks the data into 1 dict
     data = {'user': user, 'hub': hub, 'track': track, 'ref': ref, 'start': start}

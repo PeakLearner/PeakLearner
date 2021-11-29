@@ -18,6 +18,7 @@ url = 'http://%s:%s' % (host, port)
 
 
 class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
+    dbFile = os.path.join('data', 'test.db')
     user = 'Public'
     hub = 'H3K4me3_TDH_ENCODE'
 

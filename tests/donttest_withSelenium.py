@@ -68,16 +68,15 @@ class TitleChanges(object):
 
 
 class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
+    dbFile = os.path.join('data', 'test.db')
     user = 'Public'
     hub = 'H3K4me3_TDH_ENCODE'
 
     async def setUp(self):
         await super().setUp()
 
-        import core.main as main
-
         self.proc = Process(target=uvicorn.run,
-                            args=(main.app,),
+                            args=(self.app,),
                             kwargs={
                                 "host": host,
                                 "port": port,

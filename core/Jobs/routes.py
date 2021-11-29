@@ -61,7 +61,6 @@ async def queueNextTask(db: Session = Depends(core.get_db)):
     # TODO: Some sort of authentication system
     db.commit()
     out = Jobs.queueNextTask(db)
-    print(out)
 
     if out is None:
         return Response(status_code=204)
@@ -102,6 +101,9 @@ async def getJobWithId(request: Request, job_id: int,
         outputType = 'json'
 
     out = Jobs.getJobWithId(db, job_id)
+
+    if isinstance(out, Response):
+        return out
 
     if 'text/html' in outputType or outputType == '*/*':
         out['request'] = request

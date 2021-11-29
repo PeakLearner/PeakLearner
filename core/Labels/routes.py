@@ -44,6 +44,8 @@ def getLabels(request: Request, user: str, hub: str, track: str, ref: str = None
     if end is not None is not start:
         inBounds = output.apply(checkInBounds, axis=1, args=(start, end))
         output = output[inBounds].rename(jbrowseMapper, axis=1)
+        if output.empty:
+            return Response(status_code=204)
 
     if 'Accept' in request.headers:
         outputType = request.headers['Accept']
