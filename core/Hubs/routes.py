@@ -45,19 +45,12 @@ def getJbrowsePage(request: Request, user: str, hub: str):
                     description='Gets the hubInfo for this hub. It contains the tracks, urls, the reference genome, and categories for that data')
 def getHubInfo(request: Request, user: str, hub: str, db: Session = Depends(core.get_db)):
     """Retrieves the hub info and serves it as a json or html file"""
+    db.commit()
     authUser = User.getAuthUser(request, db)
     db.commit()
-    owner = db.query(models.User).filter(models.User.name == user).first()
 
-    if owner is None:
-        return
-
-    hub = owner.hubs.filter(models.Hub.name == hub).first()
-
-    if hub is None:
-        return
-
-    output = Hubs.getHubInfo(db, owner, hub)
+    output = Hubs.getHubInfo(db, user, hub)
+    db.commit()
 
     if 'accept' in request.headers:
         outputType = request.headers['accept']
@@ -65,8 +58,9 @@ def getHubInfo(request: Request, user: str, hub: str, db: Session = Depends(core
         outputType = 'json'
 
     if 'text/html' in outputType:
-        labelTable = Labels.hubInfoLabels(db, hub)
-        output = {'request': request, 'hubInfo': output, **labelTable, 'hubName': hub.name, 'user': authUser.name}
+        labelTable = Labels.hubInfoLabels(db, user, hub)
+        output = {'request': request, 'hubInfo': output, **labelTable, 'hubName': hub, 'user': authUser.name}
+        db.commit()
         return templates.TemplateResponse('hubInfo.html', output)
     elif outputType == 'json' or outputType == 'application/json' or outputType == '*/*':
         return output
@@ -92,7 +86,7 @@ async def getJbrowseJsons(user: str, hub: str, handler: str, db: Session = Depen
 @core.hubRouter.delete('',
                        summary='Deletes a hub, requires authentication',
                        description='Removes a hub from the database. The labels/models aren\'t deleted')
-def deleteHub(request: Request, user: str, hub: str):
+def deleteHub(request: Request, user: str, hub: str, db: Session = Depends(core.get_db)):
     """Delete a db.HubInfo object
 
     Using a transaction delete a db.HubInfo by replacing it with a None object
@@ -102,17 +96,19 @@ def deleteHub(request: Request, user: str, hub: str):
     myHubs: reroute to page from which deleting is page so that deleting process of a hub is seamless.
     """
 
-    authUser = request.session.get('user')
-
-    if authUser is None:
-        userEmail = None
-    else:
-        userEmail = authUser['email']
+    db.commit()
+    authUser = User.getAuthUser(request, db)
+    db.commit()
 
     # create authorization
-    Hubs.deleteHub(user, hub, userEmail)
+    out = Hubs.deleteHub(db, user, hub, authUser)
 
-    return RedirectResponse(request.url)
+    if isinstance(out, Response):
+        return out
+    db.commit()
+
+    # Status code of 304 should change the request from a delete to a get
+    return RedirectResponse('/myHubs', status_code=304)
 
 
 class HubURL(BaseModel):
@@ -124,14 +120,12 @@ class HubURL(BaseModel):
                       description='Route for uploading a new UCSC formatted hub.txt with a genomes.txt and trackList.txt in the same directory')
 async def uploadHubUrl(request: Request, hubUrl: HubURL, db: Session = Depends(core.get_db)):
     """How hubs are uploaded to peaklearner"""
-    user = request.session.get('user')
+    db.commit()
+    authUser = User.getAuthUser(request, db)
+    db.commit()
 
-    if user is None:
-        userEmail = None
-    else:
-        userEmail = user['email']
-
-    output = Hubs.parseHub(db, hubUrl, userEmail)
+    output = Hubs.parseHub(db, hubUrl, authUser)
+    db.commit()
 
     return output
 
@@ -139,7 +133,7 @@ async def uploadHubUrl(request: Request, hubUrl: HubURL, db: Session = Depends(c
 @core.hubRouter.post('/public',
                      summary='Sets a hub to a public hub',
                      description='Allows a hub to be publicly viewed')
-async def setPublic(request: Request, user: str, hub: str):
+async def setPublic(request: Request, user: str, hub: str, db: Session = Depends(core.get_db)):
     """Make a hub public from checking the public checkbox on a hub card
 
     Update the db.HubInfo object from the post request by receiving its hub name and owner userid and creating a
@@ -153,21 +147,15 @@ async def setPublic(request: Request, user: str, hub: str):
 
     body = await request.body()
 
-    data = {'user': user, 'hub': hub, 'chkpublic': len(body) != 0}
+    db.commit()
+    authUser = User.getAuthUser(request, db)
+    db.commit()
 
-    authUser = request.session.get('user')
+    out = Hubs.makeHubPublic(db, user, hub, authUser, len(body) != 0)
 
-    if authUser is None:
-        authUserEmail = 'Public'
-    else:
-        authUserEmail = authUser['email']
+    db.commit()
 
-    # TODO: Authentication
-    data['currentUser'] = authUserEmail
-
-    returnVal = Hubs.makeHubPublic(data)
-
-    if isinstance(returnVal, Response):
+    if isinstance(out, Response):
         return Response
 
     # See other status code, should redirect to GET response instead of POST
@@ -177,7 +165,8 @@ async def setPublic(request: Request, user: str, hub: str):
 @core.hubRouter.post('/addTrack',
                     summary='Adds a track to a hub',
                     description='Adds a track to a hub with a track name and categories')
-def addTrack(request: Request, user: str, hub: str, category: str = Form(...), track: str = Form(...), url: str = Form(...)):
+def addTrack(request: Request, user: str, hub: str, category: str = Form(...), track: str = Form(...), url: str = Form(...),
+             db: Session = Depends(core.get_db)):
     """Add a track to a db.HubInfo object
 
     Update the db.HubInfo object from the post request by receiving its hub name and owner userid and then conducting a
@@ -190,17 +179,12 @@ def addTrack(request: Request, user: str, hub: str, category: str = Form(...), t
         current hub is seamless.
     """
 
-    authUser = request.session.get('user')
+    db.commit()
+    authUser = User.getAuthUser(request, db)
+    db.commit()
 
-    if authUser is None:
-        userEmail = None
-    else:
-        userEmail = authUser['email']
-
-    hubName = hub
-    owner = user
-
-    out = Hubs.addTrack(owner, hubName, userEmail, category, track, url)
+    out = Hubs.addTrack(db, user, hub, authUser, category, track, url)
+    db.commit()
     if isinstance(out, Response):
         return out
 
@@ -210,7 +194,8 @@ def addTrack(request: Request, user: str, hub: str, category: str = Form(...), t
 @core.hubRouter.post('/removeTrack',
                     summary='Removes a track from a hub',
                     description='Removes a track from a hub with a track name. This could be changed to a DELETE')
-async def removeTrack(request: Request, user: str, hub: str, trackName: str = Form(...)):
+async def removeTrack(request: Request, user: str, hub: str, trackName: str = Form(...),
+                      db: Session = Depends(core.get_db)):
     """Remove a track from a db.HubInfo object
 
     Update the db.HubInfo object from the post request by receiving its hub name and owner userid and then conducting a
@@ -223,16 +208,15 @@ async def removeTrack(request: Request, user: str, hub: str, trackName: str = Fo
         current hub is seamless.
     """
 
-    authUser = request.session.get('user')
+    db.commit()
+    authUser = User.getAuthUser(request, db)
+    db.commit()
 
-    if authUser is None:
-        userEmail = None
-    else:
-        userEmail = authUser['email']
+    out = Hubs.removeTrack(db, user, hub, authUser, trackName)
+    db.commit()
 
-    out = Hubs.removeTrack(user, hub, userEmail, trackName)
-    if out is not None:
-        return out
+    if isinstance(out, Response):
+        return Response
 
     return RedirectResponse('/myHubs', status_code=302)
 

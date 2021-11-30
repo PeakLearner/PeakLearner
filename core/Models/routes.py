@@ -5,7 +5,6 @@ from pydantic.main import BaseModel
 
 import core
 from . import PyModels
-from core.Loss.Models import LossData
 from core.Models import Models, PyModels
 from core.util import PLConfig as cfg
 from core.Permissions import Permissions

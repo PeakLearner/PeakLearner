@@ -143,6 +143,7 @@ class HubLabelWithLabel(HubLabelData):
 def putHubLabel(request: Request, user: str, hub: str,
                 hubLabelData: HubLabelWithLabel, db: Session = Depends(core.get_db)):
 
+    db.commit()
     authUser = User.getAuthUser(request, db)
     db.commit()
 

@@ -68,7 +68,7 @@ def getAuthUser(request: Request, db: Session = Depends(core.get_db)):
 
     user = db.query(models.User).filter(models.User.name == authUser).first()
 
-    if user is None and authUser == 'Public':
+    if user is None:
         user = models.User(name=authUser)
         db.add(user)
         db.commit()

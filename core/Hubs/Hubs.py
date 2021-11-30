@@ -117,44 +117,47 @@ def removeUserFromHub(request, owner, hubName, delUser, txn=None):
     txn.commit()
 
 
-def addTrack(owner, hubName, userid, category, trackName, url, txn=None):
-    hub = db.HubInfo(owner, hubName).get(txn=txn)
+def addTrack(db: Session, user, hub, authUser, categories, trackName, url):
+    user, hub = dbutil.getHub(db, user, hub)
 
-    permDb = db.Permission(owner, hubName)
-    perms = permDb.get(txn=txn)
+    if not hub.checkPermission(authUser, 'hub'):
+        return Response(status_code=403)
 
-    if perms is None:
+    track = hub.tracks.filter(models.Track.name == trackName).first()
+
+    if track is None:
+        track = models.Track(hub=hub.id,
+                             name=trackName,
+                             categories=categories,
+                             url=url)
+        hub.tracks.append(track)
+        db.flush()
+        db.refresh(track)
+
+
+def removeTrack(db: Session, user, hub, authUser, trackName):
+    out = dbutil.getTrackAndCheckPerm(db, authUser, user, hub, trackName, 'hub')
+    if isinstance(out, Response):
+        return out
+
+    user, hub, track = out
+
+    if out is None:
         return Response(status_code=404)
 
-    if perms.hasPermission(userid, 'Hub'):
-        hub['tracks'][trackName] = {'categories': category, 'key': trackName, 'url': url}
-        db.HubInfo(owner, hubName).put(hub, txn=txn)
-    else:
-        return Response(status_code=401)
+    db.delete(track)
+    db.flush()
 
 
-def removeTrack(owner, hubName, userid, trackName, txn=None):
-    hub = db.HubInfo(owner, hubName).get(txn=txn)
+def deleteHub(db: Session, owner, hub, authUser):
+    owner, hub = dbutil.getHub(db, owner, hub)
 
-    permDb = db.Permission(owner, hubName)
-    perms = permDb.get(txn=txn)
+    if authUser.name != owner.name:
+        return Response(status_code=403)
 
-    if perms is None:
-        return Response(status_code=404)
-
-    if not perms.hasPermission(userid, 'Hub'):
-        return Response(status_code=401)
-
-    del hub['tracks'][trackName]
-    db.HubInfo(owner, hubName).put(hub, txn=txn)
-
-
-def deleteHub(owner, hub, userid, txn=None):
-    if userid != owner:
-        raise AbortTXNException
-
-    hub_info = None
-    db.HubInfo(userid, hub).put(hub_info, txn=txn)
+    if hub is None:
+        return Response(status_code=500)
+    db.delete(hub)
 
 
 def getHubInfosForMyHubs(db: Session, authUser):
@@ -172,13 +175,13 @@ def getHubInfosForMyHubs(db: Session, authUser):
         if not Permissions.hasViewPermission(hub, authUser):
             continue
 
-        permissions[(owner, hubName)] = Permissions.getHubPermissions(db, hub)
+        permissions[(owner.name, hubName)] = Permissions.getHubPermissions(db, hub)
 
         num_labels = 0
 
         hubInfo['numLabels'] = num_labels
 
-        hubInfos[(owner, hubName)] = hubInfo
+        hubInfos[(owner.name, hubName)] = hubInfo
 
     return {"user": authUser.name,
             "hubInfos": hubInfos,
@@ -186,24 +189,15 @@ def getHubInfosForMyHubs(db: Session, authUser):
             "permissions": permissions}
 
 
-def makeHubPublic(data, txn=None):
-    userid = data['currentUser']
-    owner = data['user']
-    hubName = data['hub']
+def makeHubPublic(db: Session, user, hub, authUser, public):
+    user, hub = dbutil.getHub(db, user, hub)
 
-    if userid != owner:
-        perms = db.Permission(owner, hubName).get(txn=txn)
-        if perms is None:
-            return Response(status_code=404)
+    if not hub.checkPermission(authUser, 'moderator'):
+        return Response(status_code=403)
 
-        if not perms.hasPermission(userid, 'Hub'):
-            return Response(status_code=401)
-
-    hub = db.HubInfo(owner, hubName).get(txn=txn, write=True)
-    hub['isPublic'] = data['chkpublic']
-    db.HubInfo(owner, hubName).put(hub, txn=txn)
-
-    return True
+    hub.public = public
+    db.flush()
+    db.refresh(hub)
 
 
 def createTrackListWithHubInfo(info, owner, hub):
@@ -236,19 +230,12 @@ def createTrackListWithHubInfo(info, owner, hub):
 def parseHub(db: Session, data, user):
     parsed = parseUCSC(data, user)
     # Add a way to configure hub here somehow instead of just loading everything
-    return createHubFromParse(db, parsed)
+    return createHubFromParse(db, parsed, user)
 
 
 # All this should probably be done asynchronously
-def createHubFromParse(db: Session, parsed):
+def createHubFromParse(db: Session, parsed, owner):
     # Will need to add a way to add additional folder depth for userID once authentication is added
-    owner = db.query(models.User).filter(models.User.name == parsed['user']).first()
-    if owner is None:
-        owner = models.User(name=parsed['user'])
-        db.add(owner)
-        db.commit()
-        db.refresh(owner)
-
     genomesFile = parsed['genomesFile']
 
     # This will need to be updated if there are multiple genomes in file
@@ -262,7 +249,7 @@ def createHubFromParse(db: Session, parsed):
     hub = owner.hubs.filter(models.Hub.name == parsed['hub']).first()
 
     if hub is None:
-        hub = models.Hub(owner=owner.id, name=parsed['hub'], genome=genome.id, public=parsed['isPublic'])
+        hub = models.Hub(owner=owner.id, name=parsed['hub'], genome=genome.id, public=parsed['public'])
         db.add(hub)
         db.flush()
         db.refresh(hub)
@@ -617,14 +604,13 @@ def parseUCSC(data, user):
 
     hub = readUCSCLines(lines)
 
-    if user is None:
-        user = 'Public'
-        hub['isPublic'] = True
+    if user.name == 'Public':
+        hub['public'] = True
     else:
-        hub['isPublic'] = False
+        hub['public'] = False
 
-    hub['user'] = user
-    hub['owner'] = user
+    hub['user'] = user.name
+    hub['owner'] = user.name
     hub['labels'] = 0
     hub['users'] = []
 
@@ -799,12 +785,13 @@ def downloadAndUnpackFile(url, path):
     return path
 
 
-def getHubInfo(db, owner, hub):
+def getHubInfo(db, user, hub):
+    user, hub = dbutil.getHub(db, user, hub)
     tracks = hub.tracks.all()
 
     genome = db.query(models.Genome).get(hub.genome)
 
-    hubInfoToReturn = {'owner': owner.name,
+    hubInfoToReturn = {'owner': user.name,
                        'name': hub.name,
                        'genome': genome.name,
                        'public': hub.public,

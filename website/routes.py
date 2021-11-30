@@ -123,7 +123,8 @@ def statsView(request: Request,
 
 
 @router.get('/label', response_class=HTMLResponse, include_in_schema=False)
-def labelStats(request: Request):
+def labelStats(request: Request,
+               db: Session = Depends(core.get_db)):
     user = request.session.get('user')
 
     if user is None:
@@ -131,7 +132,7 @@ def labelStats(request: Request):
     else:
         user = user['email']
 
-    numLabeledChroms, numLabels = Labels.labelsStats({})
+    numLabeledChroms, numLabels = Labels.labelsStats(db)
 
     return templates.TemplateResponse('stats/labels.html', {'request': request,
                                                             'numLabeledChroms': numLabeledChroms,

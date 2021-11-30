@@ -142,7 +142,7 @@ function editHubs(show) {
  * refreshes to myHubs page after deleting a hub
  */
 function refreshAfterDelete(){
-    window.location.href = '/myHubs/'
+    window.location.href = '/myHubs'
 }
 
 /**
@@ -153,7 +153,7 @@ function refreshAfterDelete(){
  */
 function confirmDeleteHub(hub, owner){
     if(confirm(`Are you sure you want to delete ${hub}`)) {
-        $.ajax(`/${owner}/${hub}/`, {
+        $.ajax(`/${owner}/${hub}`, {
             type: 'DELETE',
             timeout: 60000,
             // setTimeout required because when attempting to refresh immediately this results in a key error

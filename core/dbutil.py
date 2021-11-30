@@ -7,22 +7,40 @@ def getUser(db: Session, user: str):
     return db.query(models.User).filter(models.User.name == user).first()
 
 
-def getHub(db: Session, user, hub: str):
+def getHub(db: Session, user, hub):
     if isinstance(user, str):
         user = getUser(db, user)
+
+    if not isinstance(hub, str):
+        return user, hub
 
     if user is not None:
         return user, user.hubs.filter(models.Hub.name == hub).first()
     return user, None
 
 
-def getTrack(db: Session, user, hub, track: str):
+def getTrack(db: Session, user, hub, track):
     if isinstance(hub, str):
         user, hub = getHub(db, user, hub)
+
+    if not isinstance(track, str):
+        return user, hub, track
 
     if hub is not None:
         return user, hub, hub.tracks.filter(models.Track.name == track).first()
     return user, hub, None
+
+
+def getTrackAndCheckPerm(db: Session, authUser, user, hub, track: str, perm):
+    if isinstance(hub, str):
+        user, hub = getHub(db, user, hub)
+
+    if not hub.checkPermission(authUser, perm):
+        if authUser.name == 'Public':
+            return Response(status_code=401)
+        return Response(status_code=403)
+
+    return getTrack(db, user, hub, track)
 
 
 def getChrom(db: Session, user, hub, track, chrom: str, make=False):

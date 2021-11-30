@@ -33,6 +33,8 @@ class Hub(Base):
         perm = self.permissions.filter(HubPermission.user == user.id).first()
 
         if perm is None:
+            if user.id == self.owner:
+                return True
             return False
         return perm.checkPerm(permStr)
 
@@ -162,6 +164,8 @@ class Contig(Base):
         return sums.drop('loss', axis=1)
 
 
+# Instead of chrom based with a one to many for chrom -> label, maybe making that a many to many
+# relationship makes sense?
 class Label(Base):
     __tablename__ = 'labels'
     id = Column(Integer, primary_key=True, unique=True, index=True)

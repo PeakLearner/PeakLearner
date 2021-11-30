@@ -44,6 +44,9 @@ def getModels(db: Session,
 
     problems = hub.getProblems(db, chrom, start, end)
 
+    if chrom is None:
+        return
+
     chromLabels = chrom.getLabels(db)
 
     output = pd.DataFrame()

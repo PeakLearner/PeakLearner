@@ -149,10 +149,11 @@ def deleteLabel(db, authUser, user, hub, track, label):
         return labelToDelete
 
 
-def hubInfoLabels(db: Session, hub):
+def hubInfoLabels(db: Session, user, hub):
     """Provides table with user as index row, and chrom as column name. Value is label counts across tracks for that user/chrom"""
 
     labels = []
+    user, hub = dbutil.getHub(db, user, hub)
     for track in hub.tracks.all():
         chroms = track.chroms.all()
 
@@ -162,43 +163,42 @@ def hubInfoLabels(db: Session, hub):
 
     allLabels = pd.concat(labels)
     grouped = allLabels.groupby('chrom')
-    chromLabelUserTotals = grouped.apply(checkUserTotal, db)
 
-    print(chromLabelUserTotals)
+    def checkUserTotal(row):
+        """Calculates the total number of labels for each unique user given a chrom"""
+        unique = row['lastModifiedBy'].unique()
+
+        out = {}
+
+        for uniqueUser in unique:
+            labelsByUser = row['lastModifiedBy'] == uniqueUser
+
+            total = labelsByUser.value_counts()
+
+            try:
+                numLabels = total[True]
+            except KeyError:
+                continue
+
+            try:
+                out[uniqueUser] += numLabels
+            except KeyError:
+                out[uniqueUser] = numLabels
+
+        outWithUsernames = {}
+
+        for key, value in out.items():
+            db.flush()
+            user = db.query(models.User).get(key.item())
+            outWithUsernames[user.name] = value
+
+        return outWithUsernames
+
+    chromLabelUserTotals = grouped.apply(checkUserTotal)
 
     labelTable = pd.DataFrame(chromLabelUserTotals.apply(pd.Series)).T.fillna(0).astype(np.int64).to_html().replace(' border="1"', '')
 
     return {'labelTable': labelTable.replace('dataframe', 'table'), 'numLabels': len(allLabels.index)}
-
-
-def checkUserTotal(row, db):
-    """Calculates the total number of labels for each unique user given a chrom"""
-    unique = row['lastModifiedBy'].unique()
-
-    out = {}
-
-    for uniqueUser in unique:
-        labelsByUser = row['lastModifiedBy'] == uniqueUser
-
-        total = labelsByUser.value_counts()
-
-        try:
-            numLabels = total[True]
-        except KeyError:
-            continue
-
-        try:
-            out[uniqueUser] += numLabels
-        except KeyError:
-            out[uniqueUser] = numLabels
-
-    outWithUsernames = {}
-
-    for key, value in out.items():
-        user = db.query(models.User).get(key)
-        outWithUsernames[user.name] = value
-
-    return outWithUsernames
 
 
 def labelsStats(db: Session):

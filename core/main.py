@@ -8,7 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import website.routes
 from core.util import PLConfig as cfg, PLdb as db
-from core import Jobs, Labels, Loss, Features, Hubs, Models, Permissions, Prediction, User, Authentication
+# None of these are used explicitly but importing them causes the __init__.py file to start and import the routes
+# The routes use the routers defined in core/__init__.py
+from core import Jobs, Labels, Features, Hubs, Models, Permissions, Prediction, User, Authentication
 import core
 
 from . import database

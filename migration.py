@@ -1,11 +1,14 @@
 import datetime
 import time
-
+import os
 import numpy as np
 import pandas as pd
 
 from core.util import PLdb as pldb, bigWigUtil
-from core.Models.Models import calculateModelLabelError
+from core.Models.Models import calculateModelLabelError, modelsPath, putModel
+from core.Models.PyModels import ModelData
+from core.Features.Features import putFeatures
+from core.Features.Models import FeatureData
 from core import database, models
 
 pldb.openEnv()
@@ -279,25 +282,19 @@ with SessionLocal() as session:
 
             loss = pldb.Loss(*key).get()
 
-            if loss is None:
+            if loss is None or modelDf is None:
+                session.flush()
                 continue
-            else:
-                modelSum = models.ModelSum(contig=contig.id,
-                                           fp=modelSumOut['fp'].item(),
-                                           fn=modelSumOut['fn'].item(),
-                                           possible_fp=modelSumOut['possible_fp'].item(),
-                                           possible_fn=modelSumOut['possible_fn'].item(),
-                                           errors=modelSumOut['errors'].item(),
-                                           regions=modelSumOut['regions'].item(),
-                                           numPeaks=modelSumOut['numPeaks'].item(),
-                                           penalty=floatPenalty,
-                                           loss=loss)
 
-            session.add(modelSum)
-            session.commit()
-            session.refresh(modelSum)
+            problemAsDict = {'chrom': chrom.name,
+                             'start': problem.start,
+                             'end': problem.end}
+            modelData = ModelData(problem=problemAsDict,
+                                  penalty=penalty,
+                                  modelData=modelDf.to_json(),
+                                  lossData=loss.to_json())
 
-            # TODO: Models out to fs
+            putModel(session, owner.name, hub.name, track.name, modelData)
 
         print('finished migrating models')
 
@@ -322,7 +319,7 @@ with SessionLocal() as session:
             genome = session.query(models.Genome).get(hub.genome)
             if genome is None:
                 raise Exception
-            track = hub.tracks.filter(models.Track.trackName == trackName).first()
+            track = hub.tracks.filter(models.Track.name == trackName).first()
             if track is None:
                 raise Exception
             chrom = track.chroms.filter(models.Chrom.name == chromName).first()
@@ -333,17 +330,13 @@ with SessionLocal() as session:
                 session.refresh(chrom)
             contigStartInt = int(start)
 
-            contig = chrom.contigs.filter(models.Contig.start == int(contigStartInt)).first()
+            features = pd.DataFrame(pldb.Features(*key).get()).T
 
-            features = pldb.Features(*key).get()
+            problem = hub.getProblems(session, ref=chrom.name, start=contigStartInt)
+            problemDict = {'chrom': chrom.name, 'start': problem.start, 'end': problem.end}
+            featureData = FeatureData(data=features.to_json(),
+                                      problem=problemDict)
 
-            if contig is None:
-                contig = models.Contig(chrom=chrom.id, start=contigStartInt, problem=problem.id, features=features)
-                session.add(contig)
-                session.commit()
-                session.refresh(contig)
-            else:
-                contig.features = features
-                session.commit()
-                session.refresh(contig)
+            putFeatures(session, owner, hub.name, track.name, featureData)
+
         print('finished migrating features')
