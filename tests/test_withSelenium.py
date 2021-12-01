@@ -648,6 +648,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
         """ Shutdown the app. """
 
         self.proc.terminate()
+        await asyncio.sleep(1)
 
         self.driver.save_screenshot(os.path.join('screenshots', self._testMethodName + '.png'))
 

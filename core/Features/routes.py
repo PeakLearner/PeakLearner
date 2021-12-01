@@ -20,6 +20,7 @@ async def putFeatures(request: Request, user: str, hub: str, track: str,
     # Unpacks the data into 1 dict
     db.commit()
     if Features.putFeatures(db, user, hub, track, featureData):
+        db.commit()
         return Response(status_code=200)
 
     return Response(status_code=404)
@@ -39,8 +40,9 @@ def getFeatures(request: Request, user: str, hub: str, track: str, ref: str, sta
     "Retrieves a feature vec from the db for a given region"
     # Unpacks the data into 1 dict
     data = {'user': user, 'hub': hub, 'track': track, 'ref': ref, 'start': start}
-
+    db.commit()
     out = Features.getFeatures(data)
+    db.commit()
 
     if out is None:
         return Response(status_code=204)

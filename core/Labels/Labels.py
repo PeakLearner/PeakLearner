@@ -152,14 +152,9 @@ def deleteLabel(db, authUser, user, hub, track, label):
 def hubInfoLabels(db: Session, user, hub):
     """Provides table with user as index row, and chrom as column name. Value is label counts across tracks for that user/chrom"""
 
-    labels = []
     user, hub = dbutil.getHub(db, user, hub)
-    for track in hub.tracks.all():
-        chroms = track.chroms.all()
 
-        for chrom in chroms:
-            labelsDf = chrom.getLabels(db)
-            labels.append(labelsDf)
+    labels = hub.getAllLabels(db)
 
     allLabels = pd.concat(labels)
     grouped = allLabels.groupby('chrom')

@@ -93,6 +93,14 @@ class Hub(Base):
 
         return labelsList
 
+    def getNumLabels(self):
+        total = 0
+
+        for track in self.tracks.all():
+            total += track.getNumLabels()
+
+        return total
+
 
 class HubPermission(Base):
     __tablename__ = 'hubperms'
@@ -162,6 +170,15 @@ class Track(Base):
         if chromLabels:
             return pd.concat(chromLabels)
 
+    def getNumLabels(self):
+        total = 0
+
+        for chrom in self.chroms.all():
+            total += chrom.getNumLabels()
+
+        return total
+
+
 
 class Chrom(Base):
     __tablename__ = 'chroms'
@@ -177,6 +194,9 @@ class Chrom(Base):
         labels['label_id'] = labels['id']
         labels['chrom'] = self.name
         return labels.set_index(['id'])
+
+    def getNumLabels(self):
+        return self.labels.count()
 
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors', 'numPeaks', 'penalty']

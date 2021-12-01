@@ -171,9 +171,7 @@ def getHubInfosForMyHubs(db: Session, authUser):
 
         permissions[(owner.name, hubName)] = Permissions.getHubPermissions(db, hub)
 
-        num_labels = 0
-
-        hubInfo['numLabels'] = num_labels
+        hubInfo['numLabels'] = hub.getNumLabels()
 
         hubInfos[(owner.name, hubName)] = hubInfo
 

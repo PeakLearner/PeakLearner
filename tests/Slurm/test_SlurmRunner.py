@@ -5,6 +5,7 @@ Slurm.SlurmConfig.testing()
 import requests
 from tests import Base
 from multiprocessing import Process
+from fastapi.testclient import TestClient
 
 import asyncio
 
@@ -56,3 +57,4 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
         super().tearDown()
 
         self.proc.terminate()
+        await asyncio.sleep(1)

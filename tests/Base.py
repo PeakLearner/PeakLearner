@@ -92,8 +92,6 @@ class PeakLearnerAsyncTestBase(asynctest.TestCase):
 
         self.app = app
 
-        self.testapp = TestClient(self.app)
-
     def tearDown(self):
         if not os.path.exists(testDbsPath):
             os.makedirs(testDbsPath)

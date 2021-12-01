@@ -10,6 +10,7 @@ import pandas.errors
 
 from core.util import PLConfig as cfg, bigWigUtil as bw
 from core.Jobs import Jobs
+from core.Prediction import Prediction
 from . import PyModels
 from core import dbutil, models
 from sqlalchemy.orm import Session
@@ -56,14 +57,24 @@ def getModels(db: Session,
         chromLabels = pd.DataFrame()
 
     for _, problem in problems.iterrows():
+        if chrom is None:
+            altout = generateAltModel(track,
+                                      chromStr,
+                                      problem,
+                                      chromLabels,
+                                      modelType=modelType,
+                                      scale=scale,
+                                      visibleStart=visibleStart,
+                                      visibleEnd=visibleEnd)
+            if isinstance(altout, pd.DataFrame):
+                output = output.append(altout, ignore_index=True)
+
+            continue
         contig = chrom.contigs.filter(models.Contig.problem == problem['id']).first()
 
         if contig is None:
-            altout = generateAltModel(db,
-                                      user,
-                                      hub,
-                                      track,
-                                      chrom,
+            altout = generateAltModel(track,
+                                      chrom.name,
                                       problem,
                                       chromLabels,
                                       modelType=modelType,
@@ -78,11 +89,8 @@ def getModels(db: Session,
         modelSummaries = contig.getModelSums(db)
 
         if len(modelSummaries.index) < 1:
-            altout = generateAltModel(db,
-                                      user,
-                                      hub,
-                                      track,
-                                      chrom,
+            altout = generateAltModel(track,
+                                      chrom.name,
                                       problem,
                                       chromLabels,
                                       modelType=modelType,
@@ -98,11 +106,8 @@ def getModels(db: Session,
         modelSummaries = modelSummaries[modelSummaries['errors'] >= 0]
 
         if len(modelSummaries.index) < 1:
-            altout = generateAltModel(db,
-                                      user,
-                                      hub,
-                                      track,
-                                      chrom,
+            altout = generateAltModel(track,
+                                      chrom.name,
                                       problem,
                                       chromLabels,
                                       modelType=modelType,
@@ -117,11 +122,8 @@ def getModels(db: Session,
         maxRegions = modelSummaries[modelSummaries['regions'] == modelSummaries['regions'].max()]
 
         if len(maxRegions.index) < 1:
-            altout = generateAltModel(db,
-                                      user,
-                                      hub,
-                                      track,
-                                      chrom,
+            altout = generateAltModel(track,
+                                      chrom.name,
                                       problem,
                                       chromLabels,
                                       modelType=modelType,
@@ -135,11 +137,8 @@ def getModels(db: Session,
         withPeaks = maxRegions[maxRegions['numPeaks'] > 0]
 
         if len(withPeaks.index) < 1:
-            altout = generateAltModel(db,
-                                      user,
-                                      hub,
-                                      track,
-                                      chrom,
+            altout = generateAltModel(track,
+                                      chrom.name,
                                       problem,
                                       chromLabels,
                                       modelType=modelType,
@@ -153,11 +152,8 @@ def getModels(db: Session,
         noError = withPeaks[withPeaks['errors'] < 1]
 
         if len(noError.index) < 1:
-            altout = generateAltModel(db,
-                                      user,
-                                      hub,
-                                      track,
-                                      chrom,
+            altout = generateAltModel(track,
+                                      chrom.name,
                                       problem,
                                       chromLabels,
                                       modelType=modelType,
@@ -170,7 +166,7 @@ def getModels(db: Session,
 
         elif len(noError.index) > 1:
             # Select which model to display from modelSums with 0 error
-            noError = whichModelToDisplay(data, problem, noError)
+            noError = whichModelToDisplay(db, contig, noError)
 
         penalty = noError['penalty'].iloc[0]
         modelFilePath = os.path.join(chromPath, str(problem['start']), '%s.bed' % penalty)
@@ -193,10 +189,9 @@ def getModels(db: Session,
         return []
 
 
-# Called but using pandas.apply, coverage this isn't picked up in coverage
-def whichModelToDisplay(data, problem, summary):  # pragma: no cover
+def whichModelToDisplay(db, contig, summary):
     try:
-        prediction = doPrediction(data, problem)
+        prediction = Prediction.getPenalty(db, contig)
 
         # If no prediction, use traditional system
         if prediction is None or prediction is False:
@@ -431,10 +426,7 @@ def getZoomIn(problem):
             'type': 'zoomIn'}
 
 
-def generateAltModel(db,
-                     user,
-                     hub,
-                     track,
+def generateAltModel(track,
                      chrom,
                      problem,
                      labels,
@@ -503,7 +495,7 @@ def generateAltModel(db,
             return pd.DataFrame([getZoomIn(problem)])
 
     # TODO: Cache this
-    sumData = bw.bigWigSummary(trackUrl, chrom.name, start, end, scaledBins)
+    sumData = bw.bigWigSummary(trackUrl, chrom, start, end, scaledBins)
 
     if len(sumData) < 1:
         return []
@@ -521,7 +513,7 @@ def generateAltModel(db,
     # Convert Model output to start ends on the genome
     output = out.apply(indexToStartEnd, axis=1, args=(start, scale)).astype({'start': 'int', 'end': 'int'})
 
-    output['ref'] = chrom.name
+    output['ref'] = chrom
     output['type'] = modelType
 
     output = output.rename(columns={'height': 'score'})

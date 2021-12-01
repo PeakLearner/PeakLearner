@@ -7,7 +7,7 @@ import website.routes
 from core.util import PLConfig as cfg
 # None of these are used explicitly but importing them causes the __init__.py file to start and import the routes
 # The routes use the routers defined in core/__init__.py
-from core import Jobs, Authentication
+from core import Jobs, Authentication, Features
 import core
 
 from . import database

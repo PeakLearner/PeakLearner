@@ -216,8 +216,8 @@ define([
                                 let problem = modelSum.problem;
                                 let modelSumDiv = dojo.create('div', {className: 'sum-' + problem.chrom + problem.chromStart}, modelSumsSection)
                                 modelSumDiv.innerHTML += '<h3>Ref: ' + problem.chrom + '</h3>';
-                                modelSumDiv.innerHTML += '<h3>Start: ' + problem.chromStart + '</h3>';
-                                modelSumDiv.innerHTML += '<h3>End: ' + problem.chromEnd + '</h3>';
+                                modelSumDiv.innerHTML += '<h3>Start: ' + problem.start + '</h3>';
+                                modelSumDiv.innerHTML += '<h3>End: ' + problem.end + '</h3>';
 
                                 modelSumDiv.innerHTML += modelSum.htmlData
                             })
