@@ -104,7 +104,7 @@ def getHubPermissions(db: Session, hub):
 
     for perm in perms:
         permUser = db.query(models.User).filter(models.User.id == perm.user).first()
-        print(permUser)
+        output[permUser.name] = perm.permsDict
     return output
 
 

@@ -178,4 +178,6 @@ async def runJobSpawn():
 @core.otherRouter.get('/checkRestartJobs', include_in_schema=False)
 async def checkRestartJobs(db: Session = Depends(core.get_db)):
     """Checks if a job hasn't been modified in more than an hour, if so then restart the job"""
-    return Jobs.checkRestartJobs(db)
+    db.commit()
+    Jobs.checkRestartJobs(db)
+    db.commit()

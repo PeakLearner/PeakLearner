@@ -6,6 +6,8 @@ import logging
 import PeakError
 import numpy as np
 import pandas as pd
+import pandas.errors
+
 from core.util import PLConfig as cfg, bigWigUtil as bw
 from core.Handlers import Tracks
 from core.Jobs import Jobs
@@ -17,6 +19,7 @@ log = logging.getLogger(__name__)
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
+modelColumnsNoAnnotation = ['chrom', 'chromStart', 'chromEnd', 'height']
 jbrowseModelColumns = ['ref', 'start', 'end', 'score']
 flopartLabels = {'noPeak': 0,
                  'noPeaks': 0,
@@ -40,39 +43,53 @@ def getModels(db: Session,
               scale: float = None,
               visibleStart: int = None,
               visibleEnd: int = None):
+    chromStr = chrom
     user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, chrom)
 
     problems = hub.getProblems(db, chrom, start, end)
-
-    if chrom is None:
-        return
-
-    chromLabels = chrom.getLabels(db)
-
     output = pd.DataFrame()
 
-    chromPath = os.path.join(modelsPath, user.name, hub.name, track.name, chrom.name)
-
-    if not os.path.exists(chromPath):
-        # Should Alt Model
-        raise Exception
+    if chrom is not None:
+        chromPath = os.path.join(modelsPath, user.name, hub.name, track.name, chrom.name)
+        chromLabels = chrom.getLabels(db)
+    else:
+        chromPath = os.path.join(modelsPath, user.name, hub.name, track.name, chromStr)
+        chromLabels = pd.DataFrame()
 
     for _, problem in problems.iterrows():
-        isInBounds = chromLabels.apply(bw.checkInBounds, axis=1,
-                                       args=(problem['start'], problem['end']))
-
-        problemLabels = chromLabels[isInBounds]
-
         contig = chrom.contigs.filter(models.Contig.problem == problem['id']).first()
 
         if contig is None:
-            # No models, generate a realtime model
-            raise Exception
+            altout = generateAltModel(db,
+                                      user,
+                                      hub,
+                                      track,
+                                      chrom,
+                                      problem,
+                                      chromLabels,
+                                      modelType=modelType,
+                                      scale=scale,
+                                      visibleStart=visibleStart,
+                                      visibleEnd=visibleEnd)
+            if isinstance(altout, pd.DataFrame):
+                output = output.append(altout, ignore_index=True)
+
+            continue
 
         modelSummaries = contig.getModelSums(db)
 
         if len(modelSummaries.index) < 1:
-            altout = generateAltModel(data, problem, problemLabels, txn=txn)
+            altout = generateAltModel(db,
+                                      user,
+                                      hub,
+                                      track,
+                                      chrom,
+                                      problem,
+                                      chromLabels,
+                                      modelType=modelType,
+                                      scale=scale,
+                                      visibleStart=visibleStart,
+                                      visibleEnd=visibleEnd)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
 
@@ -82,7 +99,17 @@ def getModels(db: Session,
         modelSummaries = modelSummaries[modelSummaries['errors'] >= 0]
 
         if len(modelSummaries.index) < 1:
-            altout = generateAltModel(data, problem, problemLabels, txn=txn)
+            altout = generateAltModel(db,
+                                      user,
+                                      hub,
+                                      track,
+                                      chrom,
+                                      problem,
+                                      chromLabels,
+                                      modelType=modelType,
+                                      scale=scale,
+                                      visibleStart=visibleStart,
+                                      visibleEnd=visibleEnd)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -91,7 +118,17 @@ def getModels(db: Session,
         maxRegions = modelSummaries[modelSummaries['regions'] == modelSummaries['regions'].max()]
 
         if len(maxRegions.index) < 1:
-            altout = generateAltModel(data, problem, problemLabels, txn=txn)
+            altout = generateAltModel(db,
+                                      user,
+                                      hub,
+                                      track,
+                                      chrom,
+                                      problem,
+                                      chromLabels,
+                                      modelType=modelType,
+                                      scale=scale,
+                                      visibleStart=visibleStart,
+                                      visibleEnd=visibleEnd)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -99,7 +136,17 @@ def getModels(db: Session,
         withPeaks = maxRegions[maxRegions['numPeaks'] > 0]
 
         if len(withPeaks.index) < 1:
-            altout = generateAltModel(data, problem, problemLabels, txn=txn)
+            altout = generateAltModel(db,
+                                      user,
+                                      hub,
+                                      track,
+                                      chrom,
+                                      problem,
+                                      chromLabels,
+                                      modelType=modelType,
+                                      scale=scale,
+                                      visibleStart=visibleStart,
+                                      visibleEnd=visibleEnd)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -107,7 +154,17 @@ def getModels(db: Session,
         noError = withPeaks[withPeaks['errors'] < 1]
 
         if len(noError.index) < 1:
-            altout = generateAltModel(data, problem, problemLabels, txn=txn)
+            altout = generateAltModel(db,
+                                      user,
+                                      hub,
+                                      track,
+                                      chrom,
+                                      problem,
+                                      chromLabels,
+                                      modelType=modelType,
+                                      scale=scale,
+                                      visibleStart=visibleStart,
+                                      visibleEnd=visibleEnd)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -117,7 +174,6 @@ def getModels(db: Session,
             noError = whichModelToDisplay(data, problem, noError)
 
         penalty = noError['penalty'].iloc[0]
-
         modelFilePath = os.path.join(chromPath, str(problem['start']), '%s.bed' % penalty)
 
         if not os.path.exists(chromPath):
@@ -178,16 +234,13 @@ def updateAllModelLabels(db: Session, authUser, user, hub, track, chrom, labelsD
                                                                     chrom,
                                                                     problem['start'])
 
-
         if contig is None:
             # TODO: Pregen job
             continue
 
-        modelSummaries = contig.getModelSums(db)
+        modelSummaries = contig.modelSums.all()
 
-        print(modelSummaries)
-
-        if len(modelSummaries.index) < 1:
+        if len(modelSummaries) < 1:
             # TODO: Pregen Job
             """out = Jobs.PregenJob(data['user'],
                                  data['hub'],
@@ -198,32 +251,37 @@ def updateAllModelLabels(db: Session, authUser, user, hub, track, chrom, labelsD
             continue
 
         contigModelsPath = os.path.join(modelsPath, user.name, hub.name, track.name, chrom.name, str(problem.start))
-        newSums = modelSummaries.apply(modelSumLabelUpdate, axis=1, args=(labelsDf, problem, contigModelsPath))
 
-        for index, newSum in newSums.iterrows():
-            toUpdate = contig.modelSums.get(index.item())
-
-            toUpdate.fp = newSum.fp.item()
-            toUpdate.fn = newSum.fn.item()
-            toUpdate.possible_fp = newSum.possible_fp.item()
-            toUpdate.possible_fn = newSum.possible_fn.item()
-            toUpdate.errors = newSum.errors.item()
-            toUpdate.numPeaks = newSum.numPeaks.item()
-            toUpdate.regions = newSum.regions.item()
-
+        for modelSum in modelSummaries:
+            modelSum = modelSumLabelUpdate(modelSum, labelsDf, problem, contigModelsPath)
+            contig.modelSums.append(modelSum)
             db.flush()
-            db.refresh(toUpdate)
+            db.refresh(modelSum)
+            db.refresh(contig)
+        db.commit()
 
 
 def modelSumLabelUpdate(modelSum, labels, problem, contigModelsPath):
-    modelPath = os.path.join(contigModelsPath, '%s.bed' % modelSum['penalty'])
+    modelPath = os.path.join(contigModelsPath, '%s.bed' % modelSum.penalty)
 
     if not os.path.exists(modelPath):
         return modelSum
 
-    model = pd.read_csv(modelPath, sep='\t', header=None)
+    try:
+        model = pd.read_csv(modelPath, sep='\t', header=None)
+        model.columns = modelColumnsNoAnnotation
+    except pandas.errors.EmptyDataError:
+        model = pd.DataFrame()
 
-    return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
+    updatedSum = calculateModelLabelError(model, labels, problem, modelSum.penalty)
+    modelSum.fp = updatedSum.fp.item()
+    modelSum.fn = updatedSum.fn.item()
+    modelSum.possible_fp = updatedSum.possible_fp.item()
+    modelSum.possible_fn = updatedSum.possible_fn.item()
+    modelSum.errors = updatedSum.errors.item()
+    modelSum.numPeaks = updatedSum.numPeaks.item()
+    modelSum.regions = updatedSum.regions.item()
+    return modelSum
 
 
 def putModel(db, user, hub, track, data: PyModels.ModelData):
@@ -252,12 +310,12 @@ def putModel(db, user, hub, track, data: PyModels.ModelData):
     db.commit()
 
     user, hub, track, chrom, contig, problem = dbutil.getContig(db,
-                                                       user,
-                                                       hub,
-                                                       track,
-                                                       problem['chrom'],
-                                                       problem['start'],
-                                                       make=True)
+                                                                user,
+                                                                hub,
+                                                                track,
+                                                                problem['chrom'],
+                                                                problem['start'],
+                                                                make=True)
 
     labelsDf = chrom.getLabels(db)
 
@@ -287,7 +345,7 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
         labels = labels[labels['annotation'] != 'unknown']
         try:
             labelsIsInProblem = labels.apply(bw.checkInBounds, axis=1,
-                                         args=(problem.start, problem.end))
+                                             args=(problem.start, problem.end))
         except KeyError:
             print(problem)
             print(problem.__dict__)
@@ -342,24 +400,26 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
 
 
 def getErrorSeries(penalty, numPeaks, regions=0, errors=-1, fp=0, possible_fp=0, fn=0, possible_fn=0):
-    return pd.Series({'regions': np.int64(regions), 'fp': np.int64(fp), 'possible_fp': np.int64(possible_fp), 'fn': np.int64(fn), 'possible_fn': np.int64(possible_fn),
-                      'errors': np.int64(errors), 'penalty': penalty, 'numPeaks': np.int64(numPeaks)})
+    return pd.Series(
+        {'regions': np.int64(regions), 'fp': np.int64(fp), 'possible_fp': np.int64(possible_fp), 'fn': np.int64(fn),
+         'possible_fn': np.int64(possible_fn),
+         'errors': np.int64(errors), 'penalty': penalty, 'numPeaks': np.int64(numPeaks)})
 
 
 # TODO: This could be better (learning a penalty based on PeakSegDisk Models?)
-def getLOPARTPenalty(data):
+def getLOPARTPenalty(scale):
     tempPenalties = {0.005: 2000, 0.02: 5000, 0.1: 10000}
     try:
-        return tempPenalties[data['scale']]
+        return tempPenalties[scale]
     except KeyError:
         return 5000
 
 
 # TODO: This could be better (learning a penalty based on PeakSegDisk Models?)
-def getFLOPARTPenalty(data):
+def getFLOPARTPenalty(scale):
     tempPenalties = {0.005: 2000, 0.02: 5000, 0.1: 10000}
     try:
-        return tempPenalties[data['scale']]
+        return tempPenalties[scale]
     except KeyError:
         return 5000
 
@@ -372,26 +432,29 @@ def getZoomIn(problem):
             'type': 'zoomIn'}
 
 
-def generateAltModel(data, problem, labels, txn=None):
-    if 'modelType' not in data:
+def generateAltModel(db,
+                     user,
+                     hub,
+                     track,
+                     chrom,
+                     problem,
+                     labels,
+                     modelType: str = 'NONE',
+                     scale: float = None,
+                     visibleStart: int = None,
+                     visibleEnd: int = None):
+    if modelType == 'NONE':
         return []
 
-    modelType = data['modelType'].lower()
+    modelType = modelType.lower()
 
     if modelType not in modelTypes:
         return []
 
-    user = data['user']
-    hub = data['hub']
-    track = data['track']
-    chrom = data['ref']
-    scale = data['scale']
+    trackUrl = track.url
 
-    hubInfo = db.HubInfo(user, hub).get(txn=txn)
-    trackUrl = hubInfo['tracks'][data['track']]['url']
-
-    start = max(data['visibleStart'], problem['chromStart'], 0)
-    end = min(data['visibleEnd'], problem['chromEnd'])
+    start = max(visibleStart, problem['start'], 0)
+    end = min(visibleEnd, problem['end'])
 
     scaledBins = int(scale * (end - start))
 
@@ -402,7 +465,7 @@ def generateAltModel(data, problem, labels, txn=None):
 
     denom = end - start
 
-    inBoundsLabels = labels.apply(db.checkInBounds, axis=1, args=(chrom, start, end))
+    inBoundsLabels = labels.apply(bw.checkInBounds, axis=1, args=(start, end))
     labels = labels[inBoundsLabels]
 
     # either convert labels to an index value or empty dataframe with cols if not
@@ -433,7 +496,7 @@ def generateAltModel(data, problem, labels, txn=None):
 
             newLabels = newLabels.append(row, ignore_index=True)
 
-        labelsToUse = newLabels
+        labelsToUse = newLabels.sort_values('start', ignore_index=True)
 
         sameStartEnd = (labelsToUse['end'] - labelsToUse['start']) <= 1
 
@@ -441,16 +504,15 @@ def generateAltModel(data, problem, labels, txn=None):
             return pd.DataFrame([getZoomIn(problem)])
 
     # TODO: Cache this
-    sumData = bw.bigWigSummary(trackUrl, chrom, start, end, scaledBins)
+    sumData = bw.bigWigSummary(trackUrl, chrom.name, start, end, scaledBins)
 
     if len(sumData) < 1:
-        log.warning('Sum Data is 0 for alt model', data)
         return []
 
     if modelType == 'lopart':
-        out = generateLopartModel(data, sumData, labelsToUse)
+        out = generateLopartModel(scale, sumData, labelsToUse)
     elif modelType == 'flopart':
-        out = generateFlopartModel(data, sumData, labelsToUse, lenBin)
+        out = generateFlopartModel(scale, sumData, labelsToUse, lenBin)
     else:
         return []
 
@@ -460,7 +522,7 @@ def generateAltModel(data, problem, labels, txn=None):
     # Convert Model output to start ends on the genome
     output = out.apply(indexToStartEnd, axis=1, args=(start, scale)).astype({'start': 'int', 'end': 'int'})
 
-    output['ref'] = chrom
+    output['ref'] = chrom.name
     output['type'] = modelType
 
     output = output.rename(columns={'height': 'score'})
@@ -468,10 +530,10 @@ def generateAltModel(data, problem, labels, txn=None):
     return output
 
 
-def generateLopartModel(data, sumData, labels):
+def generateLopartModel(scale, sumData, labels):
     sumData = sumDataToLopart(sumData)
 
-    out = LOPART.runSlimLOPART(sumData, labels, getLOPARTPenalty(data))
+    out = LOPART.runSlimLOPART(sumData, labels, getLOPARTPenalty(scale))
 
     lopartPeaks = lopartToPeaks(out)
 
@@ -487,10 +549,10 @@ def sumDataToLopart(data):
     return output
 
 
-def generateFlopartModel(data, sumData, labels, lenBin):
+def generateFlopartModel(scale, sumData, labels, lenBin):
     sumData = sumDataToFlopart(sumData, lenBin)
 
-    out = FLOPART.runSlimFLOPART(sumData, labels, getFLOPARTPenalty(data))
+    out = FLOPART.runSlimFLOPART(sumData, labels, getFLOPARTPenalty(scale))
 
     return flopartToPeaksUsingMaxJump(out, lenBin)
 
@@ -598,8 +660,8 @@ def indexToStartEnd(row, start, scale):
 
 # This block of code is ran but coverage doesn't pick it up as
 def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType):  # pragma: no cover
-    scaledStart = round(((row['chromStart'] - modelStart) * bins) / denom)
-    scaledEnd = round(((row['chromEnd'] - modelStart) * bins) / denom)
+    scaledStart = round(((row['start'] - modelStart) * bins) / denom)
+    scaledEnd = round(((row['end'] - modelStart) * bins) / denom)
 
     output = row.copy()
     if scaledStart <= 1:

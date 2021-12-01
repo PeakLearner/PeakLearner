@@ -54,7 +54,6 @@ def getDataPoints(db: Session):
         badColsInDb.data = badCols
         db.flush()
         db.refresh(badColsInDb)
-
     return afterDrop, logPenalties
 
 

@@ -1,3 +1,4 @@
+import _pickle
 import datetime
 import time
 import os
@@ -30,7 +31,7 @@ database.Base.metadata.create_all(bind=engine)
 with SessionLocal() as session:
     session.begin()
 
-    if True:
+    if False:
         print('Migrating HubInfos')
         for key, hub in pldb.HubInfo.all_dict().items():
             tracks = hub['tracks']
@@ -92,7 +93,7 @@ with SessionLocal() as session:
 
     print('---------------------------')
 
-    if True:
+    if False:
         print('Migrating permissions')
         for key, permissions in pldb.Permission.all_dict().items():
             owner, hubName = key
@@ -109,6 +110,8 @@ with SessionLocal() as session:
             asDict = permissions.__dict__()
 
             for userName, perms in asDict['users'].items():
+                if userName == 'Public':
+                    continue
 
                 user = session.query(models.User).filter(models.User.name == userName).first()
 
@@ -135,7 +138,7 @@ with SessionLocal() as session:
 
     print('---------------------------')
 
-    if True:
+    if False:
         print('Migrating Labels')
         allLabels = pldb.Labels.all_dict()
         totalLabelDfs = len(allLabels.keys())
@@ -215,7 +218,7 @@ with SessionLocal() as session:
 
     print('---------------------------')
 
-    if True:
+    if False:
         print('Migrating Models')
         modelKeys = pldb.Model.db_key_tuples()
         numModels = len(modelKeys)
@@ -269,7 +272,12 @@ with SessionLocal() as session:
             if modelSum is not None:
                 continue
 
-            modelDf = pldb.Model(*key).get()
+            try:
+                modelDf = pldb.Model(*key).get()
+            except UnicodeDecodeError:
+                continue
+            except _pickle.UnpicklingError:
+                continue
 
             if len(modelDf.index) < 1:
                 continue
@@ -330,7 +338,10 @@ with SessionLocal() as session:
                 session.refresh(chrom)
             contigStartInt = int(start)
 
-            features = pd.DataFrame(pldb.Features(*key).get()).T
+            featuresSeries = pldb.Features(*key).get()
+            if featuresSeries.empty:
+                continue
+            features = pd.DataFrame(featuresSeries).T
 
             problem = hub.getProblems(session, ref=chrom.name, start=contigStartInt)
             problemDict = {'chrom': chrom.name, 'start': problem.start, 'end': problem.end}
