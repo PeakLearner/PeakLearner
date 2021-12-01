@@ -27,6 +27,8 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
     hubURL = '/%s/%s' % (user, hub)
     testHubURL = '/%s/%s' % (user, testHub)
     trackURL = '%s/%s' % (hubURL, track)
+    badHubUrl = os.path.join('fake', hub)
+    badLabelURL = os.path.join(badHubUrl, 'labels')
     axlTrackURL = '%s/%s' % (hubURL, 'aorta_ENCFF502AXL')
     sampleTrackURL = '%s/%s' % (hubURL, sampleTrack)
     trackInfoURL = '%s/info' % trackURL
@@ -175,6 +177,35 @@ class PeakLearnerTests(Base.PeakLearnerTestBase):
 
         for label in labels:
             assert label['label_id'] != oldId
+
+    def test_addHubLabel(self):
+        label = {'ref': 'chr1', 'start': 15250059, 'end': 15251519, 'label': 'peakStart'}
+
+        # Test label for non existant route
+        out = self.testapp.put(self.badLabelURL, json=label)
+
+        assert out.status_code == 404
+
+        out = self.testapp.put(self.labelURL, json=label)
+
+        assert out.status_code == 200
+
+        return label
+
+    def test_a_removeHubLabel(self):
+        label = self.test_addHubLabel()
+
+        out = self.testapp.delete(self.labelURL, json=label)
+
+        assert out.status_code == 200
+
+    def test_a_updateHubLabel(self):
+        label = self.test_addHubLabel()
+        label['label'] = 'peakEnd'
+
+        out = self.testapp.post(self.labelURL, json=label)
+
+        assert out.status_code == 200
 
     def test_put_model(self):
         sampleDir = os.path.join('tests', 'data', 'Models', 'PeakLearner-7-1')
