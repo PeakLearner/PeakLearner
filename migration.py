@@ -1,22 +1,16 @@
-import _pickle
 import datetime
-import time
-import os
 import numpy as np
 import pandas as pd
 
-from core.util import PLdb as pldb, bigWigUtil
-from core.Models.Models import calculateModelLabelError, modelsPath, putModel
-from core.Models.PyModels import ModelData
 from core.Features.Features import putFeatures
 from core.Features.Models import FeatureData
 from core import database, models
+from legacy import PLdb
 
-pldb.openEnv()
-pldb.openDBs()
+PLdb.openEnv()
+PLdb.openDBs()
 
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
@@ -310,7 +304,7 @@ with SessionLocal() as session:
 
     if True:
         print('Migrating Features')
-        featureKeys = pldb.Features.db_key_tuples()
+        featureKeys = PLdb.Features.db_key_tuples()
         numFeatures = len(featureKeys)
         current = 0
 
@@ -338,7 +332,7 @@ with SessionLocal() as session:
                 session.refresh(chrom)
             contigStartInt = int(start)
 
-            featuresSeries = pldb.Features(*key).get()
+            featuresSeries = PLdb.Features(*key).get()
             if featuresSeries.empty:
                 continue
             features = pd.DataFrame(featuresSeries).T

@@ -159,40 +159,13 @@ def getMyHubs(request: Request, db: Session = Depends(core.get_db)):
 
     # TODO: Authentication
 
+    db.commit()
     authUser = User.getAuthUser(request, db)
-
+    db.commit()
     out = Hubs.getHubInfosForMyHubs(db, authUser)
+
+    db.commit()
     out['request'] = request
     out['user'] = authUser.name
 
     return templates.TemplateResponse('myHubs.html', out)
-
-
-@router.get('/admin', response_class=HTMLResponse, include_in_schema=False)
-def admin(request: Request):
-    user = request.session.get('user')
-
-    if user is None:
-        user = 'Public'
-    else:
-        user = user['email']
-
-    if not Permissions.hasAdmin(user):
-        return Response(status_code=403)
-
-    return templates.TemplateResponse('admin.html', {'request': request, 'user': user})
-
-
-@router.get('/addAdmin', include_in_schema=False)
-def addAdmin(request: Request, email: str):
-    user = request.session.get('user')
-
-    if user is None:
-        user = 'Public'
-    else:
-        user = user['email']
-
-    if not Permissions.hasAdmin(user):
-        return Response(status_code=403)
-
-    return Permissions.addAdmin(email)

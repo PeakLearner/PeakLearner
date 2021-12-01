@@ -9,7 +9,6 @@ import pandas as pd
 import pandas.errors
 
 from core.util import PLConfig as cfg, bigWigUtil as bw
-from core.Handlers import Tracks
 from core.Jobs import Jobs
 from . import PyModels
 from core import dbutil, models

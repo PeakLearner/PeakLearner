@@ -31,12 +31,32 @@ class Hub(Base):
             return True
 
         perm = self.permissions.filter(HubPermission.user == user.id).first()
-
-        if perm is None:
-            if user.id == self.owner:
-                return True
+        if user.id == self.owner:
+            return True
+        elif perm is None:
             return False
         return perm.checkPerm(permStr)
+
+    def updatePerms(self, db, args):
+        user = db.query(User).filter(User.name == args['coUser']).first()
+
+        if user is None:
+            user = User(name=args['coUser'])
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        perm = self.permissions.filter(HubPermission.user == user.id).first()
+
+        if perm is None:
+            return
+
+        perm.label = 'Label' in args
+        perm.track = 'Track' in args
+        perm.hub = 'Hub' in args
+        perm.moderator = 'Moderator' in args
+
+        return perm
 
     def getProblems(self, db: Session, ref=None, start: int = None, end: int = None):
         genome = db.query(Genome).filter(Genome.id == self.genome).first()
@@ -65,6 +85,14 @@ class Hub(Base):
         else:
             return chrom
 
+    def getAllLabels(self, db: Session):
+        labelsList = []
+
+        for track in self.tracks.all():
+            labelsList.append(track.getLabels(db))
+
+        return labelsList
+
 
 class HubPermission(Base):
     __tablename__ = 'hubperms'
@@ -76,13 +104,23 @@ class HubPermission(Base):
     hub = Column(Boolean)
     moderator = Column(Boolean)
 
-    permsDict = {'label': label,
-                 'track': track,
-                 'hub': hub,
-                 'moderator': moderator}
-
     def checkPerm(self, permStr):
-        return self.permsDict[permStr]
+        permStr = permStr.lower()
+        if permStr == 'label':
+            return self.label
+        if permStr == 'track':
+            return self.track
+        if permStr == 'hub':
+            return self.hub
+        if permStr == 'moderator':
+            return self.moderator
+        return False
+
+    def getPermsDict(self):
+        return {'label': self.label,
+                 'track': self.track,
+                 'hub': self.hub,
+                 'moderator': self.moderator}
 
 
 class Genome(Base):

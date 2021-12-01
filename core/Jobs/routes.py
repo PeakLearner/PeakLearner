@@ -167,17 +167,3 @@ async def getTrackJobs(user: str, hub: str, track: str, ref: str, start: int, en
     output = Jobs.getTrackJobs(db, user, hub, track, ref, start, end)
 
     return output
-
-
-@core.otherRouter.get('/runJobSpawn', include_in_schema=False)
-async def runJobSpawn():
-    """Checks to see if jobs can be spawned, if so then it spawns them"""
-    return Jobs.spawnJobs({})
-
-
-@core.otherRouter.get('/checkRestartJobs', include_in_schema=False)
-async def checkRestartJobs(db: Session = Depends(core.get_db)):
-    """Checks if a job hasn't been modified in more than an hour, if so then restart the job"""
-    db.commit()
-    Jobs.checkRestartJobs(db)
-    db.commit()

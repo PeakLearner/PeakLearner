@@ -3,8 +3,10 @@ from typing import Optional
 
 import core
 from core.Hubs import Hubs
-from fastapi import Request, Form
+from sqlalchemy.orm import Session
 from core.Permissions import Permissions
+from core.User import User
+from fastapi import Request, Form, Depends
 from fastapi.responses import Response, RedirectResponse
 
 
@@ -17,7 +19,7 @@ async def adjustPermsPOST(request: Request,
                           Track: Optional[str] = Form(None),
                           Hub: Optional[str] = Form(None),
                           Moderator: Optional[str] = Form(None),
-                          ):
+                          db: Session = Depends(core.get_db)):
     """Process permission change post requests
 
     Update the db.HubInfo object from the post request by receiving its hub name, owner userid and the userid of which
@@ -41,20 +43,19 @@ async def adjustPermsPOST(request: Request,
         if perms[key] is not None:
             args[key] = perms[key]
 
-    authUser = request.session.get('user')
+    db.commit()
+    authUser = User.getAuthUser(request, db)
+    db.commit()
 
-    if authUser is None:
-        authUser = 'Public'
-    else:
-        authUser = authUser['email']
-
-    Permissions.adjustPermissions(user, hub, authUser, args)
+    Permissions.adjustPermissions(db, user, hub, authUser, args)
+    db.commit()
 
     return RedirectResponse('/myHubs', status_code=302)
 
 
 @core.hubRouter.post('/addUser')
-async def addUser(request: Request, user: str, hub: str, userEmail: str = Form(...)):
+async def addUser(request: Request, user: str, hub: str, userEmail: str = Form(...),
+                  db: Session = Depends(core.get_db)):
     """Add a user to a db.HubInfo object
 
     Update the db.HubInfo object from the post request by receiving its hub name and owner userid and then calling the
@@ -65,16 +66,21 @@ async def addUser(request: Request, user: str, hub: str, userEmail: str = Form(.
     myHubs: the route in which the post request is made from initially so that the process of adding a user to the
         current hub is seamless.
     """
+    db.commit()
+    authUser = User.getAuthUser(request, db)
+    db.commit()
 
-    out = Permissions.addUserToHub(request, user, hub, userEmail)
+    out = Permissions.addUserToHub(db, user, hub, authUser, userEmail)
     if out is not None:
         return out
+    db.commit()
 
     return RedirectResponse('/myHubs', status_code=302)
 
 
 @core.hubRouter.post('/removeUser')
-async def removeUser(request: Request, user: str, hub: str, coUserName: str = Form(...)):
+async def removeUser(request: Request, user: str, hub: str, coUserName: str = Form(...),
+                     db: Session = Depends(core.get_db)):
     """Remove a user to a db.HubInfo object
 
     Update the db.HubInfo object from the post request by receiving its hub name and owner userid and then calling the
@@ -86,8 +92,14 @@ async def removeUser(request: Request, user: str, hub: str, coUserName: str = Fo
         current hub is seamless.
     """
 
-    out = Hubs.removeUserFromHub(request, user, hub, coUserName)
+    db.commit()
+    authUser = User.getAuthUser(request, db)
+    db.commit()
+
+    out = Hubs.removeUserFromHub(db, user, hub, authUser, coUserName)
     if out is not None:
         return out
+
+    db.commit()
 
     return RedirectResponse('/myHubs', status_code=302)

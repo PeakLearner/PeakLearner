@@ -38,6 +38,7 @@ def getModel(request: Request,
              visibleStart: int = None,
              visibleEnd: int = None,
              db: Session = Depends(core.get_db)):
+    db.commit()
     authUser = User.getAuthUser(request, db)
     db.commit()
     output = Models.getModels(db, authUser, user, hub, track, ref, start, end,

@@ -189,7 +189,7 @@ def hubInfoLabels(db: Session, user, hub):
 
         for key, value in out.items():
             db.flush()
-            user = db.query(models.User).get(key.item())
+            user = db.query(models.User).get(key)
             outWithUsernames[user.name] = value
 
         return outWithUsernames

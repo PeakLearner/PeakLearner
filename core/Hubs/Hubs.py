@@ -13,9 +13,7 @@ from sqlalchemy.orm import Session
 from core import models, dbutil
 from core.Jobs import Jobs
 from fastapi import Response
-from core.Labels import Labels
-from core.Models import Models
-from core.Handlers import Tracks
+from core.User import User
 from core.Permissions import Permissions
 from core.util import PLConfig as cfg, bigWigUtil
 
@@ -87,34 +85,30 @@ def checkLabelsInBoundsOnChrom(row, labels):
     return inBounds.any()
 
 
-def removeUserFromHub(request, owner, hubName, delUser, txn=None):
+def removeUserFromHub(db: Session, owner, hubName, authUser, delUser):
     """Removes a user from a hub given the hub name, owner userid, and the userid of the user to be removed
     Adjusts the db.HubInfo object by calling the remove() function on the removed userid from the ['users'] item of the
     db.HubInfo object.
     """
 
-    authUser = request.session.get('user')
+    user, hub = dbutil.getHub(db, owner, hubName)
 
-    if authUser is None:
-        authUser = 'Public'
-    else:
-        authUser = authUser['email']
-
-    txn = db.getTxn(parent=txn)
-
-    permDb = db.Permission(owner, hubName)
-    perms = permDb.get(txn=txn, write=True)
-
-    if perms is None:
+    if hub is None:
         return Response(status_code=404)
 
-    if not perms.hasPermission(authUser, 'Hub'):
-        return Response(status_code=401)
+    if not hub.checkPermission(authUser, 'hub'):
+        return Response(status_code=403)
 
-    del perms.users[delUser]
+    userToDelete = User.getUser(delUser, db)
+    db.flush()
 
-    permDb.put(perms, txn=txn)
-    txn.commit()
+    perm = hub.permissions.filter(models.HubPermission.user == userToDelete.id).first()
+
+    if perm is None:
+        return Response(status_code=400)
+
+    db.delete(perm)
+    db.flush()
 
 
 def addTrack(db: Session, user, hub, authUser, categories, trackName, url):

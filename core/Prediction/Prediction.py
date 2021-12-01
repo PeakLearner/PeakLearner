@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 from core import models, dbutil
 from glmnet_python import cvglmnet
-from simpleBDB import retry, txnAbortOnError
 from sqlalchemy.orm import Session
 from glmnet_python import cvglmnetPredict
 from fastapi import Response

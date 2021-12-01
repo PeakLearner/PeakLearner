@@ -8,36 +8,23 @@ from fastapi import Request, Depends
 from sqlalchemy.orm import Session
 
 
-def populateUserProfile(authUser, txn=None):
+def populateUserProfile(db, authUser):
     hubsToShow = []
-    allHubs = db.HubInfo.all_dict(txn)
-    for key, hub in allHubs.items():
-        user, hubName = key
-        hub['hub'] = hubName
-        if user == authUser:
+    hubs = db.query(models.Hub).all()
+    for hub in hubs:
+        if hub.checkPermission(authUser, 'label'):
             hubsToShow.append(hub)
-        elif hub['isPublic']:
-            hubsToShow.append(hub)
-        else:
-            perms = db.Permission(*key).get(txn=txn)
-
-            if perms.hasPermission(authUser, 'Label'):
-                hubsToShow.append(hub)
 
     output = []
 
     for hub in hubsToShow:
-        hubOutput = {'owner': hub['owner'],
-                     'hub': hub['hub'],
-                     'numTracks': len(hub['tracks']),
+        owner = db.query(models.User).get(hub.owner)
+        hubOutput = {'owner': owner.name,
+                     'hub': hub.name,
+                     'numTracks': len(hub.tracks.all()),
                      'totalLabels': 0,
                      'userLabels': 0}
-        hubLabels = []
-
-        labelKeys = db.Labels.keysWhichMatch(hub['owner'], hub['hub'])
-
-        for key in labelKeys:
-            hubLabels.append(db.Labels(*key).get(txn=txn))
+        hubLabels = hub.getAllLabels(db)
 
         if len(hubLabels) > 0:
             allLabels = pd.concat(hubLabels)
@@ -66,10 +53,14 @@ def getAuthUser(request: Request, db: Session = Depends(core.get_db)):
     else:
         authUser = authUser['email']
 
-    user = db.query(models.User).filter(models.User.name == authUser).first()
+    return getUser(authUser, db)
+
+
+def getUser(userName, db: Session = Depends(core.get_db)):
+    user = db.query(models.User).filter(models.User.name == userName).first()
 
     if user is None:
-        user = models.User(name=authUser)
+        user = models.User(name=userName)
         db.add(user)
         db.commit()
         db.refresh(user)

@@ -87,13 +87,6 @@ def dfPotentialSeriesOut(request: Request, out: pd.DataFrame) -> Response:
         return Response(out.to_csv(), media_type='text/csv')
 
 
-@otherRouter.get('/backup')
-def doBackup():
-    from core.util import PLdb as db
-    db.cleanLogs()
-    db.doBackup()
-
-
 def get_db():
     db = SessionLocal()
     try:
