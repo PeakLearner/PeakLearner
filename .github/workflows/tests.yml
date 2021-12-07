@@ -19,8 +19,6 @@ jobs:
       - run: sudo apt-get -y install samtools r-base npm build-essential
       - run: npm install --global node-gyp node-sass
         working-directory: jbrowse/jbrowse/
-      - run: npm run build
-        working-directory: jbrowse/jbrowse/
       - run: sudo Rscript -e 'install.packages("data.table")'
       - run: mkdir bin/
       - run: wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigSummary
