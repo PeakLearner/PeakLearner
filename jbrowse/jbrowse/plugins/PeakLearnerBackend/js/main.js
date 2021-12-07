@@ -120,9 +120,12 @@ define([
                         if (data.length > 0) {
                             let annotation = data[0];
 
+                            let browser = this.browser
 
                             let addCallback = function (data) {
                                 //console.log(data);
+                                browser.clearHighlight();
+                                browser.view.behaviorManager.swapBehaviors('highlightingMouse', 'normalMouse');
                             }
 
                             let indices = this.browser.view.trackIndices
@@ -140,9 +143,6 @@ define([
                             if (tracks.length > 0) {
                                 this.addFeatures(annotation, tracks, addCallback);
                             }
-
-                            this.browser.clearHighlight();
-                            this.browser.view.behaviorManager.swapBehaviors('highlightingMouse', 'normalMouse');
                         }
                     }
 

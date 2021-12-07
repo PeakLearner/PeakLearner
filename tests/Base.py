@@ -6,78 +6,93 @@ import aiohttp
 import unittest
 import threading
 import asynctest
+from fastapi.testclient import TestClient
+
+from core.util import PLConfig as cfg
+from core.main import app
+from core import database
+from core import get_db
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 dataDir = os.path.join('jbrowse', 'jbrowse', 'data')
 dbDir = os.path.join(dataDir, 'db')
 dbLogBackupDir = os.path.join(dataDir, 'db_log_backup')
-dbTar = os.path.join('data', 'db.tar.gz')
 testDataPath = os.path.join('tests', 'data')
+testDbsPath = 'testDbs'
 
-from core.util import PLConfig as cfg, PLdb as db
 
 cfg.testing()
 sleepTime = 600
-
-lockDetect = True
-
-def checkLocks():
-    while lockDetect:
-        db.deadlock_detect()
-        time.sleep(1)
-
-
-def lock_detect(func):
-    def wrap(*args, **kwargs):
-        global lockDetect
-        thread = threading.Thread(target=checkLocks)
-        thread.start()
-        out = func(*args, **kwargs)
-        lockDetect = False
-        thread.join(timeout=5)
-        return out
-
-    return wrap
 
 
 class PeakLearnerTestBase(unittest.TestCase):
 
     def setUp(self):
-        if True:
+        super().setUp()
+
+        if os.path.exists('test.db'):
+            os.remove('test.db')
+        shutil.copy(self.dbFile, '.')
+
+        SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+
+        engine = create_engine(
+            SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+        )
+
+        TestingSessionLocal = sessionmaker(bind=engine)
+
+        database.Base.metadata.create_all(bind=engine)
+
+        def override_get_db():
+            db = TestingSessionLocal()
             try:
-                db.closeDBs()
-            except:
-                pass
+                yield db
+            finally:
+                db.close()
 
-            if os.path.exists(dbDir):
-                shutil.rmtree(dbDir)
-            if os.path.exists(dbLogBackupDir):
-                shutil.rmtree(dbLogBackupDir)
-            with tarfile.open(dbTar) as tar:
-                tar.extractall(dataDir)
+        app.dependency_overrides[get_db] = override_get_db
 
-        db.openEnv()
-        db.openDBs()
+        self.app = app
+
+        self.testapp = TestClient(self.app)
 
     def tearDown(self):
-        db.closeDBs()
+        if not os.path.exists(testDbsPath):
+            os.makedirs(testDbsPath)
+        shutil.move('test.db', os.path.join(testDbsPath, self._testMethodName + '.db'))
 
 
 class PeakLearnerAsyncTestBase(asynctest.TestCase):
     async def setUp(self):
-        try:
-            db.closeDBs()
-        except:
-            pass
+        if os.path.exists('test.db'):
+            os.remove('test.db')
+        shutil.copy(self.dbFile, '.')
 
-        if os.path.exists(dbDir):
-            shutil.rmtree(dbDir)
-        if os.path.exists(dbLogBackupDir):
-            shutil.rmtree(dbLogBackupDir)
-        with tarfile.open(dbTar) as tar:
-            tar.extractall(dataDir)
+        SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 
-        db.openEnv()
-        db.openDBs()
+        engine = create_engine(
+            SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+        )
+
+        TestingSessionLocal = sessionmaker(bind=engine)
+
+        database.Base.metadata.create_all(bind=engine)
+
+        def override_get_db():
+            db = TestingSessionLocal()
+            try:
+                yield db
+            finally:
+                db.close()
+
+        app.dependency_overrides[get_db] = override_get_db
+
+        self.app = app
 
     def tearDown(self):
-        db.closeDBs()
+        if not os.path.exists(testDbsPath):
+            os.makedirs(testDbsPath)
+        shutil.move('test.db', os.path.join(testDbsPath, self._testMethodName + '.db'))

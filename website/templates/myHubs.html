@@ -60,6 +60,7 @@
         </div>
         {% endif %}
 
+    {% if user != 'Public' %}
         <div class="float-right">
             <button id="edit" class="btn btn-primary" onclick="editHubs(true)" style="display: inline-block; font-size: 10px;">
                 EDIT HUBS
@@ -68,6 +69,7 @@
                     style="display: none; font-size: 10px;">FINISH EDITING
             </button>
         </div>
+    {% endif %}
     </div>
 
     <br><br>
@@ -77,7 +79,6 @@
         {% set hub = hubInfos[hubName] %}
 
             <li style="list-style-type: none">
-
                 {% if hub['owner'] == user != 'Public' %}
 
                     <div class="my-hubs">
@@ -90,7 +91,6 @@
                                 </a>
 
                 {% elif user in permissions[hubName] and permissions[hubName][user]["Hub"] %}
-
                     <div class="shared-hubs">
 
                         <div class="card" style="width: 95%;">
@@ -100,7 +100,7 @@
                                     {{ hubName[1] }}
                                 </a>
 
-                {% elif hub['isPublic'] %}
+                {% elif hub['public'] or hub['owner'] == 'Public' %}
 
                     <div class="public-hubs">
 
@@ -113,7 +113,7 @@
 
                 {% endif %}
 
-                                {% if hub['owner'] == user %}
+                                {% if hub['owner'] == user and user != 'Public' %}
                                     <div class="edit-elements">
                                         <button onclick="confirmDeleteHub('{{hubName[1]}}', '{{hub['owner']}}')" class="btn btn-warning"
                                                 style="font-size: 12px; padding: 0 5px; display:inline"> -
@@ -123,13 +123,13 @@
 
                                 {% endif %}
 
-                                {% if hub['owner'] == user or permissions[(hub['owner'], hubName)[1]]['Publicity'] %}
+                                {% if hub['owner'] == user != 'Public' or permissions[(hub['owner'], hubName)[1]]['Publicity'] %}
                                     <div class="float-right">
                                         <form class="form-inline" action="/{{ hub['owner'] }}/{{ hubName[1] }}/public" method="POST">
                                             <div class="form-check form-check-inline">
                                                 <label for="chkpublic" style="margin-right: 10px; color:antiquewhite">Public:</label>
                                                 <input type="checkbox" name="chkpublic" id="chkpublic" onChange="this.form.submit()"
-                                                        {% if hub['isPublic'] %}
+                                                        {% if hub['public'] %}
                                                             checked
                                                         {% endif %}
                                                 >
@@ -146,11 +146,12 @@
                                 <br>
                                 {% if hub['owner'] == user or
                                         permissions[hubName]['Track'] or
-                                        (hub['isPublic'] and permissions[hubName]['Track']) %}
+                                        hub['public']  %}
                                     <ul class="list-group-flush" style="width:40%">
                                     {% for track in hub['tracks'] %}
                                         <li class="list-group-item">
                                             {{ track }}
+                                            {% if hub['owner'] == user != 'Public' or permissions[hubName]['Track'] %}
                                             <form class="edit-elements" action="/{{ hub['owner'] }}/{{ hubName[1] }}/removeTrack" method="post"
                                                                         style="display:none">
                                                 <input value="{{ track }}" id="track" type="hidden" name="trackName">
@@ -159,9 +160,11 @@
                                                     remove
                                                 </button>
                                             </form>
+                                            {% endif %}
                                         </li>
                                     {% endfor %}
                                     </ul>
+                                    {% if hub['owner'] == user != 'Public' or permissions[hubName]['Track'] %}
                                     <form class="edit-elements" action="/{{ hub['owner'] }}/{{ hubName[1] }}/addTrack" method="POST" style="display: none">
                                         <br>
                                         <div class="input-group mb-3">
@@ -190,6 +193,7 @@
                                                     style="margin-left: 10px">
                                         </div>
                                     </form>
+                                    {% endif %}
                                 {% endif %}
                                 <b>Labels:</b> {{ hub['numLabels'] }}
                                 <br>
@@ -245,28 +249,28 @@
                                                                     <fieldset>
                                                                         <td class="text-center">
                                                                             <input type="checkbox" name="Label" id="chkLabel" onChange="this.form.submit()"
-                                                                                    {% if coUserPerms[ "Label" ] %}
+                                                                                    {% if coUserPerms[ "label" ] %}
                                                                                         checked
                                                                                     {% endif %}
                                                                             >
                                                                         </td>
                                                                         <td class="text-center">
                                                                             <input type="checkbox" name="Track" id="chkTrack" onChange="this.form.submit()"
-                                                                                    {% if coUserPerms[ "Track" ] %}
+                                                                                    {% if coUserPerms[ "track" ] %}
                                                                                         checked
                                                                                     {% endif %}
                                                                             >
                                                                         </td>
                                                                         <td class="text-center">
                                                                             <input type="checkbox" name="Hub" id="chkHub" onChange="this.form.submit()"
-                                                                                    {% if coUserPerms[ "Hub" ] %}
+                                                                                    {% if coUserPerms[ "hub" ] %}
                                                                                         checked
                                                                                     {% endif %}
                                                                             >
                                                                         </td>
                                                                         <td class="text-center">
                                                                             <input type="checkbox" name="Moderator" id="chkModerator" onChange="this.form.submit()"
-                                                                                    {% if coUserPerms[ "Moderator" ] %}
+                                                                                    {% if coUserPerms[ "moderator" ] %}
                                                                                         checked
                                                                                     {% endif %}
                                                                             >

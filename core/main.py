@@ -1,21 +1,17 @@
-import logging
-import fastapi
-import pydantic
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 
 import website.routes
-from core.util import PLConfig as cfg, PLdb as db
-from core import Jobs, Labels, Loss, Features, Hubs, Models, Permissions, Prediction, User, Authentication
+from core.util import PLConfig as cfg
+# None of these are used explicitly but importing them causes the __init__.py file to start and import the routes
+# The routes use the routers defined in core/__init__.py
+from core import Jobs, Authentication, Features
 import core
 
-db.addExitRegister()
-
-db.openEnv()
-
-db.openDBs()
+from . import database
+database.do_create()
 
 app = FastAPI()
 

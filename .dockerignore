@@ -27,5 +27,5 @@ jbrowse/jbrowse/website
 !PeakLearnerSlurm.cfg
 !startServer.py
 
-
+test.db
 **/__pycache__

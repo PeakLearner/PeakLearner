@@ -1,21 +1,26 @@
+import os
+
 import LOPART
 import FLOPART
 import logging
 import PeakError
 import numpy as np
 import pandas as pd
-from simpleBDB import retry, txnAbortOnError
+import pandas.errors
+
+from core.util import PLConfig as cfg, bigWigUtil as bw
+from core.Jobs import Jobs
+from core.Prediction import Prediction
+from . import PyModels
+from core import dbutil, models
+from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
-from glmnet_python import cvglmnetPredict
-from core.util import PLConfig as cfg, PLdb as db, bigWigUtil as bw
-from core.Handlers import Tracks
-from core.Jobs import Jobs
 
 summaryColumns = ['regions', 'fp', 'possible_fp', 'fn', 'possible_fn', 'errors']
 modelColumns = ['chrom', 'chromStart', 'chromEnd', 'annotation', 'height']
-jbrowseModelColumns = ["ref", "start", "end", "type", "score"]
-peakSegDiskPrePenalties = [1000, 10000, 100000, 1000000]
+modelColumnsNoAnnotation = ['chrom', 'chromStart', 'chromEnd', 'height']
+jbrowseModelColumns = ['ref', 'start', 'end', 'score']
 flopartLabels = {'noPeak': 0,
                  'noPeaks': 0,
                  'peakStart': 1,
@@ -23,87 +28,123 @@ flopartLabels = {'noPeak': 0,
                  'unknown': -2}
 modelTypes = ['lopart', 'flopart']
 pd.set_option('mode.chained_assignment', None)
+modelsPath = os.path.join(cfg.dataPath, 'Models')
 
 
-@retry
-@txnAbortOnError
-def getModels(data, txn=None):
-    chromLabels = db.Labels(data['user'], data['hub'], data['track'], data['ref']).get(txn=txn)
+def getModels(db: Session,
+              authUser,
+              user: str,
+              hub: str,
+              track: str,
+              chrom: str,
+              start: int,
+              end: int,
+              modelType: str = 'NONE',
+              scale: float = None,
+              visibleStart: int = None,
+              visibleEnd: int = None):
+    chromStr = chrom
+    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, chrom)
 
-    problems = Tracks.getProblems(data, txn=txn)
-
+    problems = hub.getProblems(db, chrom, start, end)
     output = pd.DataFrame()
 
-    for problem in problems:
-        isInBounds = chromLabels.apply(db.checkInBounds, axis=1,
-                                       args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
+    if chrom is not None:
+        chromPath = os.path.join(modelsPath, user.name, hub.name, track.name, chrom.name)
+        chromLabels = chrom.getLabels(db)
+    else:
+        chromPath = os.path.join(modelsPath, user.name, hub.name, track.name, chromStr)
+        chromLabels = pd.DataFrame()
 
-        problemLabels = chromLabels[isInBounds]
+    for _, problem in problems.iterrows():
+        if chrom is None:
+            altout = generateAltModel(track,
+                                      chromStr,
+                                      problem,
+                                      chromLabels,
+                                      modelType=modelType,
+                                      scale=scale,
+                                      visibleStart=visibleStart,
+                                      visibleEnd=visibleEnd)
+            if isinstance(altout, pd.DataFrame):
+                output = output.append(altout, ignore_index=True)
 
-        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
-                                           problem['chromStart']).get(txn=txn)
+            continue
+        contig = chrom.contigs.filter(models.Contig.problem == problem['id']).first()
 
-        if len(modelSummaries.index) < 1:
-            altout = generateAltModel(data, problem, problemLabels, txn=txn)
+        if contig is None:
+            altout = generateAltModel(track,
+                                      chrom.name,
+                                      problem,
+                                      chromLabels,
+                                      modelType=modelType,
+                                      scale=scale,
+                                      visibleStart=visibleStart,
+                                      visibleEnd=visibleEnd)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
 
             continue
 
-        if len(modelSummaries.index) == 1:
-            sum = modelSummaries.iloc[0]
+        modelSummaries = contig.getModelSums(db)
 
-            # This is probably a predict model then
-            if sum['regions'] == 0 and sum['errors'] != -1:
-                if isinstance(sum['penalty'], str):
-                    penalty = sum['penalty']
-                else:
-                    if str(sum['penalty']).split('.')[1] == '0':
-                        penalty = '%g' % sum['penalty'].item()
-                    else:
-                        penalty = str(sum['penalty'])
+        if len(modelSummaries.index) < 1:
+            altout = generateAltModel(track,
+                                      chrom.name,
+                                      problem,
+                                      chromLabels,
+                                      modelType=modelType,
+                                      scale=scale,
+                                      visibleStart=visibleStart,
+                                      visibleEnd=visibleEnd)
+            if isinstance(altout, pd.DataFrame):
+                output = output.append(altout, ignore_index=True)
 
-                minErrorModelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
-                                           problem['chromStart'],
-                                           penalty)
-                try:
-                    minErrorModel = minErrorModelDb.get(txn=txn)
-                except KeyError:
-                    log.warning('Missing a model for summary', modelSummaries)
-                    continue
-
-                minErrorModel = minErrorModel[minErrorModel['annotation'] == 'peak']
-                minErrorModel.columns = jbrowseModelColumns
-
-                output = output.append(minErrorModel, ignore_index=True)
-                continue
-            else:
-                altout = generateAltModel(data, problem, problemLabels, txn=txn)
-                if isinstance(altout, pd.DataFrame):
-                    output = output.append(altout, ignore_index=True)
-                continue
+            continue
 
         # Remove processing models from ones which can be displayed
         modelSummaries = modelSummaries[modelSummaries['errors'] >= 0]
 
         if len(modelSummaries.index) < 1:
-            altout = generateAltModel(data, problem, problemLabels, txn=txn)
+            altout = generateAltModel(track,
+                                      chrom.name,
+                                      problem,
+                                      chromLabels,
+                                      modelType=modelType,
+                                      scale=scale,
+                                      visibleStart=visibleStart,
+                                      visibleEnd=visibleEnd)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
 
-        nonZeroRegions = modelSummaries[modelSummaries['regions'] > 0]
+        # Sums with max regions
+        maxRegions = modelSummaries[modelSummaries['regions'] == modelSummaries['regions'].max()]
 
-        if len(nonZeroRegions.index) < 1:
-            altout = generateAltModel(data, problem, problemLabels, txn=txn)
+        if len(maxRegions.index) < 1:
+            altout = generateAltModel(track,
+                                      chrom.name,
+                                      problem,
+                                      chromLabels,
+                                      modelType=modelType,
+                                      scale=scale,
+                                      visibleStart=visibleStart,
+                                      visibleEnd=visibleEnd)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
 
-        withPeaks = nonZeroRegions[nonZeroRegions['numPeaks'] > 0]
+        withPeaks = maxRegions[maxRegions['numPeaks'] > 0]
 
         if len(withPeaks.index) < 1:
-            altout = generateAltModel(data, problem, problemLabels, txn=txn)
+            altout = generateAltModel(track,
+                                      chrom.name,
+                                      problem,
+                                      chromLabels,
+                                      modelType=modelType,
+                                      scale=scale,
+                                      visibleStart=visibleStart,
+                                      visibleEnd=visibleEnd)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
@@ -111,25 +152,30 @@ def getModels(data, txn=None):
         noError = withPeaks[withPeaks['errors'] < 1]
 
         if len(noError.index) < 1:
-            altout = generateAltModel(data, problem, problemLabels, txn=txn)
+            altout = generateAltModel(track,
+                                      chrom.name,
+                                      problem,
+                                      chromLabels,
+                                      modelType=modelType,
+                                      scale=scale,
+                                      visibleStart=visibleStart,
+                                      visibleEnd=visibleEnd)
             if isinstance(altout, pd.DataFrame):
                 output = output.append(altout, ignore_index=True)
             continue
 
         elif len(noError.index) > 1:
             # Select which model to display from modelSums with 0 error
-            noError = whichModelToDisplay(data, problem, noError)
+            noError = whichModelToDisplay(db, contig, noError)
 
         penalty = noError['penalty'].iloc[0]
+        modelFilePath = os.path.join(chromPath, str(problem['start']), '%s.bed' % penalty)
 
-        minErrorModelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'],
-                                   penalty)
-        try:
-            minErrorModel = minErrorModelDb.getInBounds(data['ref'], data['start'], data['end'], txn=txn)
-        except KeyError:
-            log.warning('Missing a model for summary', modelSummaries)
-            continue
-        minErrorModel = minErrorModel[minErrorModel['annotation'] == 'peak']
+        if not os.path.exists(chromPath):
+            # Should Alt Model
+            raise Exception
+
+        minErrorModel = pd.read_csv(modelFilePath, sep='\t', header=None)
         minErrorModel.columns = jbrowseModelColumns
         output = output.append(minErrorModel, ignore_index=True)
 
@@ -143,41 +189,9 @@ def getModels(data, txn=None):
         return []
 
 
-@retry
-@txnAbortOnError
-def getHubModels(data, txn=None):
-    modelSumKeys = db.ModelSummaries.keysWhichMatch(data['user'], data['hub'])
-
-    output = pd.DataFrame()
-
-    for key in modelSumKeys:
-        user, hub, track, ref, start = key
-        currentSum = db.ModelSummaries(*key).get(txn=txn)
-
-        whichModel = noPredictGuess(currentSum)
-
-        if len(whichModel.index) > 1:
-            whichModel = whichModel[whichModel['penalty'] == whichModel['penalty'].min()]
-
-        penalty = whichModel['penalty'].values[0]
-
-        model = db.Model(user, hub, track, ref, start, penalty).get(txn=txn)
-
-        model['track'] = track
-        model['penalty'] = penalty
-
-        output = output.append(model, ignore_index=True)
-
-    if len(output.index) < 1:
-        return []
-
-    return output
-
-
-# Called but using pandas.apply, coverage this isn't picked up in coverage
-def whichModelToDisplay(data, problem, summary):  # pragma: no cover
+def whichModelToDisplay(db, contig, summary):
     try:
-        prediction = doPrediction(data, problem)
+        prediction = Prediction.getPenalty(db, contig)
 
         # If no prediction, use traditional system
         if prediction is None or prediction is False:
@@ -202,101 +216,134 @@ def noPredictGuess(summary):
     return summary[summary['numPeaks'] == summary['numPeaks'].min()]
 
 
-def updateAllModelLabels(data, labels, txn):
+def updateAllModelLabels(db: Session, authUser, user, hub, track, chrom, labelsDf, label):
     # This is the problems that the label update is in
+    problems = hub.getProblems(db, chrom, label.start, label.end)
 
-    problems = Tracks.getProblems(data)
+    for _, problem in problems.iterrows():
+        user, hub, track, chrom, contig, problem = dbutil.getContig(db,
+                                                                    user,
+                                                                    hub,
+                                                                    track,
+                                                                    chrom,
+                                                                    problem['start'])
 
-    for problem in problems:
-        modelTxn = db.getTxn(parent=txn)
+        if contig is None:
+            # TODO: Pregen job
+            continue
 
-        problemKey = (data['user'], data['hub'], data['track'], problem['chrom'], problem['chromStart'])
+        modelSummaries = contig.modelSums.all()
 
-        modelSummaries = db.ModelSummaries(*problemKey)
-
-        modelsums = modelSummaries.get(txn=modelTxn, write=True)
-
-        if len(modelsums.index) < 1:
-            out = Jobs.PregenJob(data['user'],
+        if len(modelSummaries) < 1:
+            # TODO: Pregen Job
+            """out = Jobs.PregenJob(data['user'],
                                  data['hub'],
                                  data['track'],
                                  problem,
                                  peakSegDiskPrePenalties,
-                                 len(labels.index))
-
-            out.putNewJob(txn=modelTxn)
-            placeHolders = out.getJobModelSumPlaceholder()
-            modelSummaries.put(placeHolders, txn=modelTxn)
-            modelTxn.commit()
+                                 len(labels.index))"""
             continue
 
-        newSum = modelsums.apply(modelSumLabelUpdate, axis=1, args=(labels, data, problem, modelTxn))
+        contigModelsPath = os.path.join(modelsPath, user.name, hub.name, track.name, chrom.name, str(problem.start))
 
-        try:
-            toDelete = newSum['delete'] == 1
-            newSum = newSum[~toDelete].drop('delete', axis=1)
-        except KeyError:
-            pass
-
-        modelSummaries.put(newSum, txn=modelTxn)
-
-        modelTxn.commit()
+        for modelSum in modelSummaries:
+            modelSum = modelSumLabelUpdate(modelSum, labelsDf, problem, contigModelsPath)
+            contig.modelSums.append(modelSum)
+            db.flush()
+            db.refresh(modelSum)
+            db.refresh(contig)
+        db.commit()
 
 
-def modelSumLabelUpdate(modelSum, labels, data, problem, txn):
-    modelDb = db.Model(data['user'], data['hub'], data['track'], problem['chrom'],
-                       problem['chromStart'], modelSum['penalty'])
+def modelSumLabelUpdate(modelSum, labels, problem, contigModelsPath):
+    modelPath = os.path.join(contigModelsPath, '%s.bed' % modelSum.penalty)
 
-    model = modelDb.get(txn=txn)
-
-    if model is None:
-        modelSum['delete'] = True
-        return modelSum
-    elif model.empty:
-        modelSum['delete'] = True
-        modelDb.put(None, txn=txn)
+    if not os.path.exists(modelPath):
         return modelSum
 
-    return calculateModelLabelError(model, labels, problem, modelSum['penalty'])
+    try:
+        model = pd.read_csv(modelPath, sep='\t', header=None)
+        model.columns = modelColumnsNoAnnotation
+    except pandas.errors.EmptyDataError:
+        model = pd.DataFrame()
+
+    updatedSum = calculateModelLabelError(model, labels, problem, modelSum.penalty)
+    modelSum.fp = updatedSum.fp.item()
+    modelSum.fn = updatedSum.fn.item()
+    modelSum.possible_fp = updatedSum.possible_fp.item()
+    modelSum.possible_fn = updatedSum.possible_fn.item()
+    modelSum.errors = updatedSum.errors.item()
+    modelSum.numPeaks = updatedSum.numPeaks.item()
+    modelSum.regions = updatedSum.regions.item()
+    return modelSum
 
 
-@retry
-@txnAbortOnError
-def putModel(data, txn=None):
-    modelData = pd.read_json(data['modelData'])
+def putModel(db, user, hub, track, data: PyModels.ModelData):
+    modelData = pd.read_json(data.modelData)
     modelData.columns = modelColumns
-    modelInfo = data['modelInfo']
-    problem = modelInfo['problem']
-    penalty = data['penalty']
-    user = modelInfo['user']
-    hub = modelInfo['hub']
-    track = modelInfo['track']
+    problem = data.problem
+    penalty = data.penalty
 
-    db.Model(user, hub, track, problem['chrom'], problem['chromStart'], penalty).put(modelData, txn=txn)
-    labels = db.Labels(user, hub, track, problem['chrom']).getInBounds(problem['chrom'],
-                                                                       problem['chromStart'],
-                                                                       problem['chromEnd'], txn=txn)
+    contigPath = os.path.join(modelsPath, user, hub, track, problem['chrom'], str(problem['start']))
 
-    modelSumsDb = db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart'])
+    if not os.path.exists(contigPath):
+        os.makedirs(contigPath)
 
-    if len(labels.index) > 0:
-        errorSum = calculateModelLabelError(modelData, labels, problem, penalty)
-        modelSumsDb.add(errorSum, txn=txn)
-    else:
-        peaks = modelData[modelData['annotation'] == 'peak']
-        errorSum = getErrorSeries(penalty, len(peaks.index), errors=0)
-        modelSumsDb.add(errorSum, txn=txn)
+    modelWithBGFile = '%s_withBG.bed' % penalty
 
-    return modelInfo
+    modelData.to_csv(os.path.join(contigPath, modelWithBGFile), sep='\t', index=False, header=False)
+
+    modelFile = '%s.bed' % penalty
+
+    justPeaks = modelData[modelData.annotation == 'peak']
+
+    toBedGraph = justPeaks.drop('annotation', axis=1)
+
+    toBedGraph.to_csv(os.path.join(contigPath, modelFile), sep='\t', index=False, header=False)
+
+    db.commit()
+
+    user, hub, track, chrom, contig, problem = dbutil.getContig(db,
+                                                                user,
+                                                                hub,
+                                                                track,
+                                                                problem['chrom'],
+                                                                problem['start'],
+                                                                make=True)
+
+    labelsDf = chrom.getLabels(db)
+
+    modelSumOut = calculateModelLabelError(justPeaks, labelsDf, problem, penalty)
+
+    modelSum = models.ModelSum(contig=contig.id,
+                               fp=modelSumOut['fp'].item(),
+                               fn=modelSumOut['fn'].item(),
+                               possible_fp=modelSumOut['possible_fp'].item(),
+                               possible_fn=modelSumOut['possible_fn'].item(),
+                               errors=modelSumOut['errors'].item(),
+                               regions=modelSumOut['regions'].item(),
+                               numPeaks=modelSumOut['numPeaks'].item(),
+                               loss=pd.read_json(data.lossData),
+                               penalty=penalty)
+
+    contig.modelSums.append(modelSum)
+    db.commit()
+    db.refresh(modelSum)
+
+    return True
 
 
 def calculateModelLabelError(modelDf, labels, problem, penalty):
-    peaks = modelDf[modelDf['annotation'] == 'peak']
-    numPeaks = len(peaks.index)
+    numPeaks = len(modelDf.index)
     if not labels.empty:
         labels = labels[labels['annotation'] != 'unknown']
-        labelsIsInProblem = labels.apply(db.checkInBounds, axis=1,
-                                         args=(problem['chrom'], problem['chromStart'], problem['chromEnd']))
+        try:
+            labelsIsInProblem = labels.apply(bw.checkInBounds, axis=1,
+                                             args=(problem.start, problem.end))
+        except KeyError:
+            print(problem)
+            print(problem.__dict__)
+            raise
         labelsInProblem = labels[labelsIsInProblem]
 
         numLabelsInProblem = len(labelsInProblem.index)
@@ -326,10 +373,12 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
                               fp=0,
                               possible_fp=numLabelsInProblem)
 
-    if numLabelsInProblem < 1:
-        return getErrorSeries(penalty, numPeaks, numLabelsInProblem)
+    elif numLabelsInProblem == 0:
+        return getErrorSeries(penalty, numPeaks, numLabelsInProblem, errors=0)
 
-    error = PeakError.error(peaks, labelsInProblem)
+    labelsInProblem = labelsInProblem[['chrom', 'start', 'end', 'annotation']]
+    labelsInProblem.columns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
+    error = PeakError.error(modelDf, labelsInProblem)
 
     if error is None:
         return getErrorSeries(penalty, numPeaks, numLabelsInProblem)
@@ -345,24 +394,26 @@ def calculateModelLabelError(modelDf, labels, problem, penalty):
 
 
 def getErrorSeries(penalty, numPeaks, regions=0, errors=-1, fp=0, possible_fp=0, fn=0, possible_fn=0):
-    return pd.Series({'regions': regions, 'fp': fp, 'possible_fp': possible_fp, 'fn': fn, 'possible_fn': possible_fn,
-                      'errors': errors, 'penalty': penalty, 'numPeaks': numPeaks})
+    return pd.Series(
+        {'regions': np.int64(regions), 'fp': np.int64(fp), 'possible_fp': np.int64(possible_fp), 'fn': np.int64(fn),
+         'possible_fn': np.int64(possible_fn),
+         'errors': np.int64(errors), 'penalty': penalty, 'numPeaks': np.int64(numPeaks)})
 
 
 # TODO: This could be better (learning a penalty based on PeakSegDisk Models?)
-def getLOPARTPenalty(data):
+def getLOPARTPenalty(scale):
     tempPenalties = {0.005: 2000, 0.02: 5000, 0.1: 10000}
     try:
-        return tempPenalties[data['scale']]
+        return tempPenalties[scale]
     except KeyError:
         return 5000
 
 
 # TODO: This could be better (learning a penalty based on PeakSegDisk Models?)
-def getFLOPARTPenalty(data):
+def getFLOPARTPenalty(scale):
     tempPenalties = {0.005: 2000, 0.02: 5000, 0.1: 10000}
     try:
-        return tempPenalties[data['scale']]
+        return tempPenalties[scale]
     except KeyError:
         return 5000
 
@@ -375,26 +426,26 @@ def getZoomIn(problem):
             'type': 'zoomIn'}
 
 
-def generateAltModel(data, problem, labels, txn=None):
-    if 'modelType' not in data:
+def generateAltModel(track,
+                     chrom,
+                     problem,
+                     labels,
+                     modelType: str = 'NONE',
+                     scale: float = None,
+                     visibleStart: int = None,
+                     visibleEnd: int = None):
+    if modelType == 'NONE':
         return []
 
-    modelType = data['modelType'].lower()
+    modelType = modelType.lower()
 
     if modelType not in modelTypes:
         return []
 
-    user = data['user']
-    hub = data['hub']
-    track = data['track']
-    chrom = data['ref']
-    scale = data['scale']
+    trackUrl = track.url
 
-    hubInfo = db.HubInfo(user, hub).get(txn=txn)
-    trackUrl = hubInfo['tracks'][data['track']]['url']
-
-    start = max(data['visibleStart'], problem['chromStart'], 0)
-    end = min(data['visibleEnd'], problem['chromEnd'])
+    start = max(visibleStart, problem['start'], 0)
+    end = min(visibleEnd, problem['end'])
 
     scaledBins = int(scale * (end - start))
 
@@ -405,7 +456,7 @@ def generateAltModel(data, problem, labels, txn=None):
 
     denom = end - start
 
-    inBoundsLabels = labels.apply(db.checkInBounds, axis=1, args=(chrom, start, end))
+    inBoundsLabels = labels.apply(bw.checkInBounds, axis=1, args=(start, end))
     labels = labels[inBoundsLabels]
 
     # either convert labels to an index value or empty dataframe with cols if not
@@ -436,7 +487,7 @@ def generateAltModel(data, problem, labels, txn=None):
 
             newLabels = newLabels.append(row, ignore_index=True)
 
-        labelsToUse = newLabels
+        labelsToUse = newLabels.sort_values('start', ignore_index=True)
 
         sameStartEnd = (labelsToUse['end'] - labelsToUse['start']) <= 1
 
@@ -447,13 +498,12 @@ def generateAltModel(data, problem, labels, txn=None):
     sumData = bw.bigWigSummary(trackUrl, chrom, start, end, scaledBins)
 
     if len(sumData) < 1:
-        log.warning('Sum Data is 0 for alt model', data)
         return []
 
     if modelType == 'lopart':
-        out = generateLopartModel(data, sumData, labelsToUse)
+        out = generateLopartModel(scale, sumData, labelsToUse)
     elif modelType == 'flopart':
-        out = generateFlopartModel(data, sumData, labelsToUse, lenBin)
+        out = generateFlopartModel(scale, sumData, labelsToUse, lenBin)
     else:
         return []
 
@@ -471,10 +521,10 @@ def generateAltModel(data, problem, labels, txn=None):
     return output
 
 
-def generateLopartModel(data, sumData, labels):
+def generateLopartModel(scale, sumData, labels):
     sumData = sumDataToLopart(sumData)
 
-    out = LOPART.runSlimLOPART(sumData, labels, getLOPARTPenalty(data))
+    out = LOPART.runSlimLOPART(sumData, labels, getLOPARTPenalty(scale))
 
     lopartPeaks = lopartToPeaks(out)
 
@@ -490,10 +540,10 @@ def sumDataToLopart(data):
     return output
 
 
-def generateFlopartModel(data, sumData, labels, lenBin):
+def generateFlopartModel(scale, sumData, labels, lenBin):
     sumData = sumDataToFlopart(sumData, lenBin)
 
-    out = FLOPART.runSlimFLOPART(sumData, labels, getFLOPARTPenalty(data))
+    out = FLOPART.runSlimFLOPART(sumData, labels, getFLOPARTPenalty(scale))
 
     return flopartToPeaksUsingMaxJump(out, lenBin)
 
@@ -601,8 +651,8 @@ def indexToStartEnd(row, start, scale):
 
 # This block of code is ran but coverage doesn't pick it up as
 def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType):  # pragma: no cover
-    scaledStart = round(((row['chromStart'] - modelStart) * bins) / denom)
-    scaledEnd = round(((row['chromEnd'] - modelStart) * bins) / denom)
+    scaledStart = round(((row['start'] - modelStart) * bins) / denom)
+    scaledEnd = round(((row['end'] - modelStart) * bins) / denom)
 
     output = row.copy()
     if scaledStart <= 1:
@@ -631,254 +681,52 @@ def convertLabelsToIndexBased(row, modelStart, denom, bins, modelType):  # pragm
     return output
 
 
-def doPrediction(job, txn=None):
-    features = db.Features(job.user,
-                           job.hub,
-                           job.track,
-                           job.problem['chrom'],
-                           job.problem['chromStart']).get(txn=txn)
+def getTrackModelSummaries(db: Session, user, hub, track, ref, start, end):
+    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, ref)
 
-    if not isinstance(features, pd.Series):
-        if not features:
-            return False
-
-    model = db.Prediction('model').get(txn=txn)
-
-    if not isinstance(model, dict):
-        return False
-
-    colsToDrop = db.Prediction('badCols').get(txn=txn)
-
-    featuresDropped = features.drop(labels=colsToDrop)
-
-    prediction = predictWithFeatures(featuresDropped, model)
-
-    if prediction is None:
-        return False
-
-    return float(10 ** prediction)
-
-
-def predictWithFeatures(features, model):
-    if not isinstance(features, pd.Series):
-        raise Exception(features)
-
-    featuresDf = pd.DataFrame().append(features, ignore_index=True)
-    guess = cvglmnetPredict(model, newx=featuresDf, s='lambda_min')[0][0]
-
-    if np.isnan(guess):
+    if chrom is None:
         return
 
-    return guess
+    problems = hub.getProblems(db, ref, start, end)
 
-def profile_wrap(func):
-    import cProfile
+    modelSums = []
 
-    def wrap(*args, **kwargs):
-        with cProfile.Profile() as pr:
-            output = func(*args, **kwargs)
+    for _, problem in problems.iterrows():
+        contig = chrom.contigs.filter(models.Contig.problem == problem['id']).first()
 
-        pr.print_stats(sort='filename')
-        return output
+        if contig is None:
+            continue
 
-    return wrap
-
-
-@retry
-@txnAbortOnError
-def getTrackModelSummaries(data, txn=None):
-    problems = Tracks.getProblems(data, txn=txn)
-
-    output = []
-
-    for problem in problems:
-        problemTxn = db.getTxn(parent=txn)
-
-        modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
-                                           problem['chromStart']).get(txn=problemTxn)
-
-        problemTxn.commit()
+        modelSummaries = contig.getModelSums(db)
 
         if len(modelSummaries.index) < 1:
             continue
 
-        output.append({'problem': problem, 'htmlData': modelSummaries.to_html()})
+        modelSums.append({'problem': problem, 'htmlData': modelSummaries.to_html()})
 
-    return output
+    return modelSums
 
 
-@retry
-@txnAbortOnError
-def getTrackModelSummary(data, txn=None):
-    hubInfo = db.HubInfo(data['user'], data['hub']).get(txn=txn)
+def getTrackModelSummary(db: Session, user, hub, track, ref, start):
+    user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, ref)
 
-    problems = db.Problems(hubInfo['genome']).get(txn=txn)
+    if chrom is None:
+        return
 
-    sameChrom = problems[problems['chrom'] == data['ref']]
+    problems = hub.getProblems(db, ref, start)
 
-    sameStart = sameChrom[sameChrom['chromStart'] == data['start']]
+    sameChrom = problems[problems['chrom'] == ref]
+
+    sameStart = sameChrom[sameChrom['chromStart'] == start]
 
     if len(sameStart) != 1:
         return
 
     problem = sameStart.iloc[0]
 
-    modelSummaries = db.ModelSummaries(data['user'], data['hub'], data['track'], problem['chrom'],
-                                       problem['chromStart']).get(txn=txn)
+    contig = chrom.contigs.filter(models.Contig.problem == problem['id']).first()
 
-    return modelSummaries
+    if contig is None:
+        return
 
-
-@retry
-@txnAbortOnError
-def recalculateModels(data, txn=None):
-    modelSumCursor = db.ModelSummaries.getCursor(txn=txn, bulk=True)
-
-    current = modelSumCursor.next()
-
-    genomes = {}
-
-    while current is not None:
-        key, modelSum = current
-
-        modelSum = modelSum[modelSum['errors'] >= 0]
-
-        if not modelSum['penalty'].is_unique:
-            modelSum = modelSum.drop_duplicates()
-            if not modelSum['penalty'].is_unique:
-                print(modelSum)
-                break
-
-        user, hub, track, ref, start = key
-
-        hubInfo = db.HubInfo(user, hub).get(txn=txn)
-
-        genome = hubInfo['genome']
-
-        if not genome in genomes:
-            problems = db.Problems(genome).get(txn=txn)
-
-            genomes[genome] = problems
-        else:
-            problems = genomes[genome]
-
-        chromProblems = problems[problems['chrom'] == ref]
-
-        problem = chromProblems[chromProblems['chromStart'] == int(start)].iloc[0]
-
-        labels = db.Labels(user, hub, track, ref).get(txn=txn)
-
-        sumData = {'user': user, 'hub': hub, 'track': track, **problem.to_dict()}
-
-        newSum = modelSum.apply(modelSumLabelUpdate, axis=1, args=(labels, sumData, sumData, txn)).reset_index(drop=True)
-
-        try:
-            toDelete = newSum['delete'] == 1
-            newSum = newSum[~toDelete].drop('delete', axis=1)
-        except KeyError:
-            pass
-
-        modelSumCursor.put(key, newSum)
-
-        current = modelSumCursor.next()
-
-    modelSumCursor.close()
-
-
-@retry
-@txnAbortOnError
-def fixModelsToModelSums(data, txn=None):
-    modelKeys = db.Model.db_key_tuples()
-
-    organizedKeys = {}
-
-    for key in modelKeys:
-        recursiveCheck(organizedKeys, list(key))
-
-    for user, hubs in organizedKeys.items():
-        for hub, tracks in hubs.items():
-            hubInfo = db.HubInfo(user, hub).get(txn=txn)
-            genome = hubInfo['genome']
-            problems = db.Problems(genome).get(txn=txn)
-            for track, chroms in tracks.items():
-                for chrom, starts in chroms.items():
-                    chromProblems = problems[problems['chrom'] == chrom]
-                    labels = db.Labels(user, hub, track, chrom).get(txn=txn)
-                    for start, penalties in starts.items():
-                        sumDb = db.ModelSummaries(user, hub, track, chrom, start)
-                        modelSumTxn = db.getTxn(parent=txn)
-                        modelSums = sumDb.get(txn=modelSumTxn, write=True)
-                        start = int(start)
-                        problem = chromProblems[chromProblems['chromStart'] == start].iloc[0]
-                        notInSum = []
-
-                        for penalty in penalties:
-                            if (modelSums['penalty'] == float(penalty)).any():
-                                continue
-                            else:
-                                modelDb = db.Model(user, hub, track, chrom, start, penalty)
-                                if float(penalty) <= 0:
-                                    modelDb.put(None, txn=modelSumTxn)
-                                    continue
-
-                                model = modelDb.get(txn=modelSumTxn)
-
-                                if model is None:
-                                    print('model is none')
-                                    modelSumTxn.abort()
-                                    raise Exception
-                                elif model.empty:
-                                    print('model is empty')
-                                    modelSumTxn.abort()
-                                    raise Exception
-
-                                notInSum.append(calculateModelLabelError(model, labels, problem, penalty))
-
-                        if len(notInSum) > 0:
-                            notInSums = pd.DataFrame(notInSum)
-                            sumDb.put(notInSums, txn=modelSumTxn)
-                            modelSumTxn.commit()
-                        else:
-                            modelSumTxn.abort()
-
-
-def recursiveCheck(data, key):
-    toCheck = key[0]
-    if toCheck not in data:
-        if len(key) <= 2:
-            data[toCheck] = [key[1]]
-            return
-
-        data[toCheck] = {}
-        key = key[1:]
-        return recursiveCheck(data[toCheck], key)
-
-    else:
-        if len(key) <= 2:
-            try:
-                data[toCheck].append(key[1])
-            except AttributeError:
-                print(data)
-
-                print(toCheck)
-                raise
-            return
-
-        key = key[1:]
-        return recursiveCheck(data[toCheck], key)
-
-
-if cfg.testing:
-    @retry
-    @txnAbortOnError
-    def modelSumUpload(data, txn=None):
-        user = data['user']
-        hub = data['hub']
-        track = data['track']
-        problem = data['problem']
-
-        sum = pd.read_json(data['sum'])
-
-        sumsDb = db.ModelSummaries(user, hub, track, problem['chrom'], problem['chromStart'])
-
-        sumsDb.add(sum, txn=txn)
+    return contig.getModelSums(db)

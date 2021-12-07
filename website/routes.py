@@ -1,13 +1,16 @@
 from core.Permissions import Permissions
-from core.util import PLdb as db, PLConfig as cfg
+from core.util import PLConfig as cfg
 from core.Models import Models
 from core.Jobs import Jobs
 from core.Labels import Labels
 from core.Hubs import Hubs
+from core.User import User
 
-from fastapi import APIRouter, Request, Response
+from sqlalchemy.orm import Session
+from fastapi import APIRouter, Request, Response, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+import core
 
 router = APIRouter()
 
@@ -99,7 +102,8 @@ def tutorial(request: Request):
 
 
 @router.get('/stats', response_class=HTMLResponse, include_in_schema=False)
-def statsView(request: Request):
+def statsView(request: Request,
+              db: Session = Depends(core.get_db)):
     """TODO: Document this view"""
     user = request.session.get('user')
 
@@ -108,8 +112,8 @@ def statsView(request: Request):
     else:
         user = user['email']
 
-    numLabeledChroms, numLabels = Labels.labelsStats({})
-    currentJobStats = Jobs.jobsStats({})
+    numLabeledChroms, numLabels = Labels.labelsStats(db)
+    currentJobStats = Jobs.jobsStats(db)
 
     return templates.TemplateResponse('stats.html', {'request': request,
                                                      'numLabeledChroms': numLabeledChroms,
@@ -118,9 +122,9 @@ def statsView(request: Request):
                                                      'user': user})
 
 
-
 @router.get('/label', response_class=HTMLResponse, include_in_schema=False)
-def labelStats(request: Request):
+def labelStats(request: Request,
+               db: Session = Depends(core.get_db)):
     user = request.session.get('user')
 
     if user is None:
@@ -128,7 +132,7 @@ def labelStats(request: Request):
     else:
         user = user['email']
 
-    numLabeledChroms, numLabels = Labels.labelsStats({})
+    numLabeledChroms, numLabels = Labels.labelsStats(db)
 
     return templates.TemplateResponse('stats/labels.html', {'request': request,
                                                             'numLabeledChroms': numLabeledChroms,
@@ -137,7 +141,7 @@ def labelStats(request: Request):
 
 
 @router.get('/myHubs', response_class=HTMLResponse, include_in_schema=False)
-def getMyHubs(request: Request):
+def getMyHubs(request: Request, db: Session = Depends(core.get_db)):
     """My Hubs page renderer
 
     Loops through each db.HubInfo item in the database in which the current authenticated user is either the owner or
@@ -155,49 +159,13 @@ def getMyHubs(request: Request):
 
     # TODO: Authentication
 
-    user = request.session.get('user')
+    db.commit()
+    authUser = User.getAuthUser(request, db)
+    db.commit()
+    out = Hubs.getHubInfosForMyHubs(db, authUser)
 
-    if user is None:
-        user = 'Public'
-    else:
-        user = user['email']
-
-    out = Hubs.getHubInfosForMyHubs(user)
+    db.commit()
     out['request'] = request
-    out['user'] = user
+    out['user'] = authUser.name
 
     return templates.TemplateResponse('myHubs.html', out)
-
-
-@router.get('/admin', response_class=HTMLResponse, include_in_schema=False)
-def admin(request: Request):
-    user = request.session.get('user')
-
-    if user is None:
-        user = 'Public'
-    else:
-        user = user['email']
-
-    if not Permissions.hasAdmin(user):
-        return Response(status_code=403)
-
-    return templates.TemplateResponse('admin.html', {'request': request, 'user': user})
-
-
-@router.get('/addAdmin', include_in_schema=False)
-def addAdmin(request: Request, email: str):
-    user = request.session.get('user')
-
-    if user is None:
-        user = 'Public'
-    else:
-        user = user['email']
-
-    if not Permissions.hasAdmin(user):
-        return Response(status_code=403)
-
-    return Permissions.addAdmin(email)
-
-
-
-

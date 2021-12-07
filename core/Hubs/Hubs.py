@@ -1,58 +1,50 @@
+import datetime
 import os
 import json
 import gzip
+
+import numpy as np
 import requests
 import tempfile
 import threading
 import pandas as pd
+from sqlalchemy.orm import Session
+
+from core import models, dbutil
 from core.Jobs import Jobs
 from fastapi import Response
-from core.Labels import Labels
-from core.Models import Models
-from core.Handlers import Tracks
+from core.User import User
 from core.Permissions import Permissions
-from core.util import PLConfig as cfg, PLdb as db
-from simpleBDB import retry, txnAbortOnError, AbortTXNException
+from core.util import PLConfig as cfg, bigWigUtil
 
 
-@retry
-@txnAbortOnError
-def getHubJsons(query, handler, txn=None):
+def getHubJsons(db, owner, hub, handler):
     """Return the hub info in a way which JBrowse can understand"""
     if handler == 'trackList.json':
 
-        hubInfo = db.HubInfo(query['user'], query['hub']).get(txn=txn)
+        hubInfo = getHubInfo(db, owner, hub)
 
-        return createTrackListWithHubInfo(hubInfo, query['user'], query['hub'])
+        return createTrackListWithHubInfo(hubInfo, owner, hub)
     else:
         print('no handler for %s' % handler)
 
-@retry
-@txnAbortOnError
-def goToRegion(data, txn=None):
-    user = data['user']
-    hub = data['hub']
 
-    hubInfo = db.HubInfo(user, hub).get(txn=txn)
-    genome = hubInfo['genome']
-    problems = db.Problems(genome).get(txn=txn)
-    tracks = list(hubInfo['tracks'].keys())
-    trackDf = pd.DataFrame(tracks, columns=['track'])
-    trackDf['user'] = user
-    trackDf['hub'] = hub
+def goToRegion(db: Session, user, hub, navigateTo):
+    user, hub = dbutil.getHub(db, user, hub)
+    problems = hub.getProblems(db)
 
     trackProblems = []
-    for key, row in trackDf.iterrows():
+    for track in hub.tracks.all():
         grouped = problems.groupby(['chrom'], as_index=False)
-        problemLabels = grouped.apply(checkProblemForLabels, row, txn)
-        problemLabels['track'] = row['track']
+        problemLabels = grouped.apply(checkProblemForLabels, db, track)
+        problemLabels['track'] = track.name
         trackProblems.append(problemLabels)
 
     trackProblems = pd.concat(trackProblems)
 
-    problemGroups = trackProblems.groupby(['chrom', 'chromStart', 'chromEnd'], as_index=False)
+    problemGroups = trackProblems.groupby(['chrom', 'start', 'end'], as_index=False)
 
-    toCheck = data['type'].lower() == 'labeled'
+    toCheck = navigateTo.lower() == 'labeled'
 
     regions = problemGroups.apply(checkPossibleRegion)
     regions.columns = ['chrom', 'chromStart', 'chromEnd', 'labeled']
@@ -74,171 +66,130 @@ def checkPossibleRegion(row):
     return row['labeled'].any()
 
 
-def checkProblemForLabels(chromGroup, track, txn):
-    chrom = chromGroup['chrom'].iloc[0]
+def checkProblemForLabels(chromGroup, db, track):
+    chrom = track.chroms.filter(models.Chrom.name == chromGroup.name).first()
 
-    key = (track['user'], track['hub'], track['track'], chrom)
-
-    if db.Labels.has_key(key):
-        labels = db.Labels(track['user'], track['hub'], track['track'], chrom).get(txn=txn)
-
-        chromGroup['labeled'] = chromGroup.apply(checkLabelsInBoundsOnChrom, axis=1, args=(labels,))
-
-    else:
+    if chrom is None:
         chromGroup['labeled'] = False
+        return chromGroup
+
+    labels = chrom.getLabels(db)
+
+    chromGroup['labeled'] = chromGroup.apply(checkLabelsInBoundsOnChrom, axis=1, args=(labels,))
 
     return chromGroup
 
 
 def checkLabelsInBoundsOnChrom(row, labels):
-    inBounds = labels.apply(db.checkInBounds, axis=1, args=(row['chrom'], row['chromStart'], row['chromEnd']))
+    inBounds = labels.apply(bigWigUtil.checkInBounds, axis=1, args=(row['start'], row['end']))
     return inBounds.any()
 
 
-@retry
-@txnAbortOnError
-def removeUserFromHub(request, owner, hubName, delUser, txn=None):
+def removeUserFromHub(db: Session, owner, hubName, authUser, delUser):
     """Removes a user from a hub given the hub name, owner userid, and the userid of the user to be removed
     Adjusts the db.HubInfo object by calling the remove() function on the removed userid from the ['users'] item of the
     db.HubInfo object.
     """
 
-    authUser = request.session.get('user')
+    user, hub = dbutil.getHub(db, owner, hubName)
 
-    if authUser is None:
-        authUser = 'Public'
-    else:
-        authUser = authUser['email']
-
-    txn = db.getTxn(parent=txn)
-
-    permDb = db.Permission(owner, hubName)
-    perms = permDb.get(txn=txn, write=True)
-
-    if perms is None:
+    if hub is None:
         return Response(status_code=404)
 
-    if not perms.hasPermission(authUser, 'Hub'):
-        return Response(status_code=401)
+    if not hub.checkPermission(authUser, 'hub'):
+        return Response(status_code=403)
 
-    del perms.users[delUser]
+    userToDelete = User.getUser(delUser, db)
+    db.flush()
 
-    permDb.put(perms, txn=txn)
-    txn.commit()
+    perm = hub.permissions.filter(models.HubPermission.user == userToDelete.id).first()
+
+    if perm is None:
+        return Response(status_code=400)
+
+    db.delete(perm)
+    db.flush()
 
 
-@retry
-@txnAbortOnError
-def addTrack(owner, hubName, userid, category, trackName, url, txn=None):
-    hub = db.HubInfo(owner, hubName).get(txn=txn)
+def addTrack(db: Session, user, hub, authUser, categories, trackName, url):
+    user, hub = dbutil.getHub(db, user, hub)
 
-    permDb = db.Permission(owner, hubName)
-    perms = permDb.get(txn=txn)
+    if not hub.checkPermission(authUser, 'hub'):
+        return Response(status_code=403)
 
-    if perms is None:
+    track = hub.tracks.filter(models.Track.name == trackName).first()
+
+    if track is None:
+        track = models.Track(hub=hub.id,
+                             name=trackName,
+                             categories=categories,
+                             url=url)
+        hub.tracks.append(track)
+        db.flush()
+        db.refresh(track)
+
+
+def removeTrack(db: Session, user, hub, authUser, trackName):
+    out = dbutil.getTrackAndCheckPerm(db, authUser, user, hub, trackName, 'hub')
+    if isinstance(out, Response):
+        return out
+
+    user, hub, track = out
+
+    if out is None:
         return Response(status_code=404)
 
-    if perms.hasPermission(userid, 'Hub'):
-        hub['tracks'][trackName] = {'categories': category, 'key': trackName, 'url': url}
-        db.HubInfo(owner, hubName).put(hub, txn=txn)
-    else:
-        return Response(status_code=401)
+    db.delete(track)
+    db.flush()
 
 
-@retry
-@txnAbortOnError
-def removeTrack(owner, hubName, userid, trackName, txn=None):
-    hub = db.HubInfo(owner, hubName).get(txn=txn)
+def deleteHub(db: Session, owner, hub, authUser):
+    owner, hub = dbutil.getHub(db, owner, hub)
 
-    permDb = db.Permission(owner, hubName)
-    perms = permDb.get(txn=txn)
+    if authUser.name != owner.name:
+        return Response(status_code=403)
 
-    if perms is None:
-        return Response(status_code=404)
-
-    if not perms.hasPermission(userid, 'Hub'):
-        return Response(status_code=401)
-
-    del hub['tracks'][trackName]
-    db.HubInfo(owner, hubName).put(hub, txn=txn)
+    if hub is None:
+        return Response(status_code=500)
+    db.delete(hub)
 
 
-@retry
-@txnAbortOnError
-def deleteHub(owner, hub, userid, txn=None):
-    if userid != owner:
-        raise AbortTXNException
-
-    hub_info = None
-    db.HubInfo(userid, hub).put(hub_info, txn=txn)
-
-
-@retry
-@txnAbortOnError
-def getHubInfosForMyHubs(userid, txn=None):
+def getHubInfosForMyHubs(db: Session, authUser):
     hubInfos = {}
     usersdict = {}
     permissions = {}
 
-    cursor = db.HubInfo.getCursor(txn=txn, bulk=True)
+    for hub in db.query(models.Hub).all():
 
-    current = cursor.next()
-    while current is not None:
-        key, currHubInfo = current
+        owner = db.query(models.User).filter(models.User.id == hub.owner).first()
+        hubName = hub.name
 
-        owner = key[0]
-        hubName = key[1]
+        hubInfo = getHubInfo(db, owner, hub)
 
-        perms = db.Permission(owner, hubName).get(txn=txn)
-
-        if not perms.hasViewPermission(userid, currHubInfo):
-            current = cursor.next()
+        if not Permissions.hasViewPermission(hub, authUser):
             continue
 
-        permissions[(owner, hubName)] = perms.users
+        permissions[(owner.name, hubName)] = Permissions.getHubPermissions(db, hub)
 
-        usersdict[(owner, hubName)] = perms.groups
+        hubInfo['numLabels'] = hub.getNumLabels()
 
-        everyLabelKey = db.Labels.keysWhichMatch(owner, hubName)
+        hubInfos[(owner.name, hubName)] = hubInfo
 
-        num_labels = 0
-        for key in everyLabelKey:
-            num_labels += len(db.Labels(*key).get(txn=txn).index)
-
-        currHubInfo['numLabels'] = num_labels
-
-        hubInfos[(owner, hubName)] = currHubInfo
-
-        current = cursor.next()
-
-    cursor.close()
-
-    return {"user": userid,
+    return {"user": authUser.name,
             "hubInfos": hubInfos,
             "usersdict": usersdict,
             "permissions": permissions}
 
 
-@retry
-@txnAbortOnError
-def makeHubPublic(data, txn=None):
-    userid = data['currentUser']
-    owner = data['user']
-    hubName = data['hub']
+def makeHubPublic(db: Session, user, hub, authUser, public):
+    user, hub = dbutil.getHub(db, user, hub)
 
-    if userid != owner:
-        perms = db.Permission(owner, hubName).get(txn=txn)
-        if perms is None:
-            return Response(status_code=404)
+    if not hub.checkPermission(authUser, 'moderator'):
+        return Response(status_code=403)
 
-        if not perms.hasPermission(userid, 'Hub'):
-            return Response(status_code=401)
-
-    hub = db.HubInfo(owner, hubName).get(txn=txn, write=True)
-    hub['isPublic'] = data['chkpublic']
-    db.HubInfo(owner, hubName).put(hub, txn=txn)
-
-    return True
+    hub.public = public
+    db.flush()
+    db.refresh(hub)
 
 
 def createTrackListWithHubInfo(info, owner, hub):
@@ -268,35 +219,40 @@ def createTrackListWithHubInfo(info, owner, hub):
     return tracklist
 
 
-def parseHub(data, user):
+def parseHub(db: Session, data, user):
     parsed = parseUCSC(data, user)
-    # Add a way to configure hub here somehow instead of just loading everythingS
-    return createHubFromParse(parsed)
+    # Add a way to configure hub here somehow instead of just loading everything
+    return createHubFromParse(db, parsed, user)
 
 
 # All this should probably be done asynchronously
-def createHubFromParse(parsed):
+def createHubFromParse(db: Session, parsed, owner):
     # Will need to add a way to add additional folder depth for userID once authentication is added
-    hub = parsed['hub']
-    user = parsed['user']
     genomesFile = parsed['genomesFile']
 
     # This will need to be updated if there are multiple genomes in file
-    genome = genomesFile['genome']
+    genome = db.query(models.Genome).filter(models.Genome.name == genomesFile['genome']).first()
+    if genome is None:
+        genome = models.Genome(name=genomesFile['genome'])
+        db.add(genome)
+        db.commit()
+        db.refresh(genome)
 
-    hubInfo = {'genome': genome,
-               'isPublic': parsed['isPublic'],
-               'owner': user}
+    hub = owner.hubs.filter(models.Hub.name == parsed['hub']).first()
 
-    dataPath = os.path.join(cfg.jbrowsePath, cfg.dataPath)
+    if hub is None:
+        hub = models.Hub(owner=owner.id, name=parsed['hub'], genome=genome.id, public=parsed['public'])
+        db.add(hub)
+        db.flush()
+        db.refresh(hub)
+
+    dataPath = cfg.dataPath
 
     includes = getGeneTracks(genome, dataPath)
 
     # Generate problems for this genome
 
-    txn = db.getTxn()
-    problems = generateProblems(genome, dataPath, txn)
-    txn.commit()
+    problems = generateProblems(db, genome, dataPath)
 
     problemPath = generateProblemTrack(problems)
 
@@ -304,16 +260,14 @@ def createHubFromParse(parsed):
 
     getRefSeq(genome, dataPath, includes)
 
-    path = storeHubInfo(user, hub, genomesFile['trackDb'], hubInfo, genome)
-    Permissions.Permission(user, hub).putNewPermissions()
+    path = storeHubInfo(db, owner, hub, genomesFile['trackDb'])
 
     return path
 
 
-def storeHubInfo(user, hub, tracks, hubInfo, genome):
+def storeHubInfo(db: Session, owner, hub, tracks):
     superList = []
     trackList = []
-    hubInfoTracks = {}
 
     # Load the track list into something which can be converted
     for track in tracks:
@@ -334,7 +288,6 @@ def storeHubInfo(user, hub, tracks, hubInfo, genome):
                     else:
                         parent['children'].append(track)
 
-    txn = db.getTxn()
     for track in trackList:
         # Determine which track is the coverage data
         coverage = None
@@ -349,24 +302,24 @@ def storeHubInfo(user, hub, tracks, hubInfo, genome):
             for category in track['longLabel'].split(' | ')[:-1]:
                 categories = categories + ' / %s' % category
 
-            hubInfoTracks[track['track']] = {'categories': categories,
-                                             'key': track['shortLabel'],
-                                             'url': coverage['bigDataUrl']}
+            trackInDb = hub.tracks.filter(models.Track.name == track['shortLabel']).first()
+            if trackInDb is None:
+                trackInDb = models.Track(
+                    hub=hub.id,
+                    categories=categories,
+                    name=track['shortLabel'],
+                    url=coverage['bigDataUrl'])
 
-            trackTxn = db.getTxn(parent=txn)
-            if not checkForPrexistingLabels(coverage['bigDataUrl'], user, hub, track, genome, trackTxn):
-                trackTxn.abort()
-                continue
-            trackTxn.commit()
+                db.add(trackInDb)
+                db.flush()
+                db.refresh(trackInDb)
+
+            checkForPrexistingLabels(db, coverage['bigDataUrl'], hub, trackInDb)
+
+    return '/%s/' % os.path.join(owner.name, hub.name)
 
 
-    hubInfo['tracks'] = hubInfoTracks
-    db.HubInfo(user, hub).put(hubInfo, txn=txn)
-    txn.commit()
-    return '/%s/' % os.path.join(str(user), hub)
-
-
-def checkForPrexistingLabels(coverageUrl, user, hub, track, genome, txn):
+def checkForPrexistingLabels(db: Session, coverageUrl, hub, track):
     trackUrl = coverageUrl.rsplit('/', 1)[0]
     labelUrl = '%s/labels.bed' % trackUrl
     with requests.get(labelUrl, verify=False) as r:
@@ -378,88 +331,96 @@ def checkForPrexistingLabels(coverageUrl, user, hub, track, genome, txn):
             f.flush()
             f.seek(0)
             labels = pd.read_csv(f, sep='\t', header=None)
-            labels.columns = ['chrom', 'chromStart', 'chromEnd', 'annotation']
+            labels.columns = ['chrom', 'start', 'end', 'annotation']
 
     grouped = labels.groupby(['chrom'], as_index=False)
-    grouped.apply(saveLabelGroup, user, hub, track, genome, coverageUrl, txn)
+
+    for chromName, group in grouped:
+        group = group.sort_values('start', ignore_index=True)
+
+        chrom = track.chroms.filter(models.Chrom.name == chromName).first()
+
+        if chrom is None:
+            chrom = models.Chrom(track=track.id, name=chromName)
+            db.add(chrom)
+            db.flush()
+            db.refresh(chrom)
+            db.refresh(track)
+
+        for _, row in group.iterrows():
+            asDict = row.to_dict()
+
+            if 'createdBy' in asDict:
+                del asDict['createdBy']
+
+            checkLabel = chrom.labels.filter(models.Label.start == asDict['start']).first()
+
+            if checkLabel is None:
+                if 'lastModifiedBy' in asDict:
+                    lmb = asDict['lastModifiedBy']
+
+                    if not isinstance(lmb, str):
+                        asDict['lastModifiedBy'] = 'Public'
+
+                    lastModifiedBy = db.query(models.User).filter(
+                        models.User.name == asDict['lastModifiedBy']).first()
+                else:
+                    asDict['lastModifiedBy'] = 'Public'
+                    lastModifiedBy = db.query(models.User).filter(
+                        models.User.name == 'Public').first()
+
+                if 'lastModified' in asDict:
+                    lm = asDict['lastModified']
+                    if lm is None or np.nan:
+                        asDict['lastModified'] = datetime.datetime.now()
+                else:
+                    asDict['lastModified'] = datetime.datetime.now()
+
+                if lastModifiedBy is None:
+                    lastModifiedBy = models.User(name=asDict['lastModifiedBy'])
+                    db.add(lastModifiedBy)
+                    db.flush()
+                    db.refresh(lastModifiedBy)
+
+                label = models.Label(chrom=chrom.id,
+                                     start=asDict['start'],
+                                     end=asDict['end'],
+                                     annotation=asDict['annotation'],
+                                     lastModified=asDict['lastModified'],
+                                     lastModifiedBy=lastModifiedBy.id)
+
+                chrom.labels.append(label)
+                db.commit()
+
+        checkSubmitPregensForChrom(db, hub, chrom, group)
 
     return True
 
 
-def saveLabelGroup(group, user, hub, track, genome, coverageUrl, txn):
-    group = group.sort_values('chromStart', ignore_index=True)
+def checkSubmitPregensForChrom(db, hub, chrom, labels):
+    problems = hub.getProblems(db, ref=chrom)
 
-    group['annotation'] = group.apply(fixNoPeaks, axis=1)
-    chrom = group['chrom'].loc[0]
+    for _, problem in problems.iterrows():
+        # print(problem)
+        # print(labels)
+        inBounds = labels.apply(bigWigUtil.checkInBounds, axis=1, args=(problem['start'], problem['end']))
 
-    txn = db.getTxn()
+        contig = chrom.contigs.filter(models.Contig.problem == problem['id']).first()
 
-    numLabels = len(group.index)
+        if contig is None:
+            contig = models.Contig(chrom=chrom.id, problem=problem['id'])
+            db.add(contig)
+            db.flush()
+            db.refresh(contig)
 
-    changes = db.Prediction('changes').get(write=True, txn=txn)
-
-    changes = changes + numLabels
-
-    db.Prediction('changes').put(changes, txn=txn)
-
-    db.Labels(user, hub, track['track'], chrom).put(group, txn=txn)
-
-    chromProblems = Tracks.getProblemsForChrom(genome, chrom, txn)
-
-    withLabels = chromProblems.apply(checkIfProblemHasLabels, axis=1, args=(group,))
-
-    doPregen = chromProblems[withLabels]
-
-    submitPregenWithData(doPregen, user, hub, track, numLabels, coverageUrl, txn)
-
-    txn.commit()
-
-
-def submitPregenWithData(doPregen, user, hub, track, numLabels, coverageUrl, txn):
-    recs = doPregen.to_dict('records')
-    for problem in recs:
-        problemTxn = db.getTxn(parent=txn)
-        penalties = Models.peakSegDiskPrePenalties
-        job = Jobs.PregenJob(user,
-                             hub,
-                             track['track'],
-                             problem,
-                             penalties,
-                             numLabels,
-                             trackUrl=coverageUrl)
-
-        if job.putNewJob(problemTxn) is None:
-            problemTxn.abort()
-            continue
-
-        placeHolders = job.getJobModelSumPlaceholder()
-
-        modelSummaries = db.ModelSummaries(user, hub, track['track'], problem['chrom'],
-                                           problem['chromStart'])
-
-        modelSummaries.put(placeHolders, txn=problemTxn)
-
-        problemTxn.commit()
-
-
-def checkIfProblemHasLabels(problem, labels):
-    inBounds = labels.apply(db.checkInBounds,
-                            axis=1,
-                            args=(problem['chrom'],
-                                  problem['chromStart'],
-                                  problem['chromEnd']))
-
-    return inBounds.any()
-
-
-def fixNoPeaks(row):
-    if row['annotation'] == 'noPeaks':
-        return 'noPeak'
-    return row['annotation']
+        if inBounds.any():
+            Jobs.submitPregenJob(db, contig)
+        else:
+            Jobs.submitFeatureJob(db, contig)
 
 
 def getRefSeq(genome, path, includes):
-    genomeRelPath = os.path.join('genomes', genome)
+    genomeRelPath = os.path.join('genomes', genome.name)
 
     genomePath = os.path.join(path, genomeRelPath)
 
@@ -472,8 +433,8 @@ def getRefSeq(genome, path, includes):
             print(genomePath, "does not exist")
             return
 
-    genomeUrl = cfg.geneUrl + genome + '/bigZips/' + genome + '.fa.gz'
-    genomeFaPath = os.path.join(genomePath, genome + '.fa')
+    genomeUrl = cfg.geneUrl + genome.name + '/bigZips/' + genome.name + '.fa.gz'
+    genomeFaPath = os.path.join(genomePath, genome.name + '.fa')
     genomeFaiPath = genomeFaPath + '.fai'
 
     downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath)
@@ -481,7 +442,7 @@ def getRefSeq(genome, path, includes):
     genomeConfigPath = os.path.join(genomePath, 'trackList.json')
 
     with open(genomeConfigPath, 'w') as genomeCfg:
-        genomeFile = genome + '.fa.fai'
+        genomeFile = genome.name + '.fa.fai'
         output = {'refSeqs': genomeFile, 'include': includes}
         json.dump(output, genomeCfg)
 
@@ -507,7 +468,7 @@ def downloadRefSeq(genomeUrl, genomeFaPath, genomeFaiPath):
 
 
 def getGeneTracks(genome, dataPath):
-    genomePath = os.path.join(dataPath, 'genomes', genome)
+    genomePath = os.path.join(dataPath, 'genomes', genome.name)
 
     genesPath = os.path.join(genomePath, 'genes')
 
@@ -517,7 +478,7 @@ def getGeneTracks(genome, dataPath):
         except OSError:
             return
 
-    genesUrl = "%s%s/database/" % (cfg.geneUrl, genome)
+    genesUrl = "%s%s/database/" % (cfg.geneUrl, genome.name)
 
     genes = ['ensGene', 'knownGene', 'ncbiRefSeq', 'refGene', 'ccdsGene']
 
@@ -635,14 +596,13 @@ def parseUCSC(data, user):
 
     hub = readUCSCLines(lines)
 
-    if user is None:
-        user = 'Public'
-        hub['isPublic'] = True
+    if user.name == 'Public':
+        hub['public'] = True
     else:
-        hub['isPublic'] = False
+        hub['public'] = False
 
-    hub['user'] = user
-    hub['owner'] = user
+    hub['user'] = user.name
+    hub['owner'] = user.name
     hub['labels'] = 0
     hub['users'] = []
 
@@ -714,13 +674,11 @@ def readUCSCLines(lines):
         return output[0]
 
 
-def generateProblems(genome, path, txn=None):
-    genesUrl = "%s%s/database/" % (cfg.geneUrl, genome)
-    genomePath = os.path.join(path, 'genomes', genome)
+def generateProblems(db: Session, genome, path):
+    genesUrl = "%s%s/database/" % (cfg.geneUrl, genome.name)
+    genomePath = os.path.join(path, 'genomes', genome.name)
     outputFile = os.path.join(genomePath, 'problems.bed')
 
-    if db.Problems.has_key(genome):
-        return outputFile
 
     if not os.path.exists(genomePath):
         try:
@@ -760,11 +718,19 @@ def generateProblems(genome, path, txn=None):
     output['chromStart'] = output['chromStart'].astype(int)
     output['chromEnd'] = output['chromEnd'].astype(int)
 
-    problemsTxn = db.getTxn(parent=txn)
+    def putProblems(row):
+        problem = genome.problems.filter(models.Problem.chrom == row['chrom']) \
+            .filter(models.Problem.start == row['chromStart']).first()
+        if problem is None:
+            problem = models.Problem(genome=genome.id,
+                                     chrom=row['chrom'],
+                                     start=row['chromStart'],
+                                     end=row['chromEnd'])
+            db.add(problem)
+            db.flush()
+            db.refresh(problem)
 
-    db.Problems(genome).put(output, txn=problemsTxn)
-
-    problemsTxn.commit()
+    output.apply(putProblems, axis=1)
 
     output.to_csv(outputFile, sep='\t', index=False, header=False)
 
@@ -811,7 +777,22 @@ def downloadAndUnpackFile(url, path):
     return path
 
 
-@retry
-@txnAbortOnError
-def getHubInfo(data, txn=None):
-    return db.HubInfo(data['user'], data['hub']).get(txn=txn)
+def getHubInfo(db, user, hub):
+    user, hub = dbutil.getHub(db, user, hub)
+    tracks = hub.tracks.all()
+
+    genome = db.query(models.Genome).get(hub.genome)
+
+    hubInfoToReturn = {'owner': user.name,
+                       'name': hub.name,
+                       'genome': genome.name,
+                       'public': hub.public,
+                       'tracks': {}}
+
+    for track in tracks:
+        trackDict = {'categories': track.categories,
+                     'key': track.name,
+                     'url': track.url}
+        hubInfoToReturn['tracks'][track.name] = trackDict
+
+    return hubInfoToReturn

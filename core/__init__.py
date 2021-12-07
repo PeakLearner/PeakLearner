@@ -6,6 +6,8 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from .database import SessionLocal
+from . import models
 
 
 otherRouter = APIRouter(
@@ -85,8 +87,9 @@ def dfPotentialSeriesOut(request: Request, out: pd.DataFrame) -> Response:
         return Response(out.to_csv(), media_type='text/csv')
 
 
-@otherRouter.get('/backup')
-def doBackup():
-    from core.util import PLdb as db
-    db.cleanLogs()
-    db.doBackup()
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

@@ -1,4 +1,5 @@
 import configparser
+import os
 
 minScale = 0.5
 gridSearchSize = 10
@@ -31,7 +32,6 @@ if 'learning' not in configSections:
     config['learning']['timeBetween'] = '600'
     config['learning']['numChanges'] = '10'
     config['learning']['minLabeledRegions'] = '20'
-    config['learning']['maxJobsToSpawn'] = '100'
 
     save = True
 
@@ -42,12 +42,13 @@ if save:
 
 # get ports from config
 jbrowsePath = 'jbrowse/jbrowse/'
-dataPath = 'data/'
+dataPath = os.path.join(jbrowsePath, 'data/')
+
 timeBetween = int(config['learning']['timeBetween'])
 numChanges = int(config['learning']['numChanges'])
 minLabeledRegions = int(config['learning']['minLabeledRegions'])
 doIdlePredictions = config['learning']['doIdlePredictions'].lower() == 'true'
-maxJobsToSpawn = int(config['learning']['maxJobsToSpawn'])
+timeUntilRestart = 3600
 client_id = config['http']['client_id']
 client_secret = config['http']['client_secret']
 authRedirect = config['http']['auth_redirect']

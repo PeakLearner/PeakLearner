@@ -177,6 +177,7 @@ define([
                     handleAs: 'json',
                     method: 'PUT',
                     data: JSON.stringify(query),
+                    sync: true,
                     headers: {'Content-Type': 'application/json'}
                 };
                 xhr(queryUrl, xhrArgs).then(

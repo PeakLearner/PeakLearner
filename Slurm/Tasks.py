@@ -14,22 +14,20 @@ except ModuleNotFoundError:
 genFeaturesPath = os.path.join('Slurm', 'GenerateFeatures.R')
 
 
-def model(task, dataPath, coveragePath, trackUrl):
+def model(job, dataPath, coveragePath, trackUrl):
+    task = job['task']
     segmentsPath = '%s_penalty=%s_segments.bed' % (coveragePath, task['penalty'])
     lossPath = '%s_penalty=%s_loss.tsv' % (coveragePath, task['penalty'])
+    if cfg.debug:
+        if os.path.exists(segmentsPath):
+            return sendModel(segmentsPath, lossPath, job, trackUrl)
     try:
         PeakSegDisk.FPOP_files(coveragePath, segmentsPath, lossPath, str(task['penalty']))
     except FileNotFoundError:
         pass
 
-    if os.path.exists(lossPath):
-        if not sendLoss(lossPath, task, trackUrl):
-            return False
-    else:
-        return False
-
-    if os.path.exists(segmentsPath):
-        if not sendSegments(segmentsPath, task, trackUrl):
+    if os.path.exists(segmentsPath) or os.path.exists(lossPath):
+        if not sendModel(segmentsPath, lossPath, job, trackUrl):
             return False
     else:
         return False
@@ -41,7 +39,7 @@ def model(task, dataPath, coveragePath, trackUrl):
     return True
 
 
-def feature(task, dataPath, coveragePath, trackUrl):
+def feature(job, dataPath, coveragePath, trackUrl):
     result = subprocess.run(['Rscript',
                              genFeaturesPath,
                              dataPath],
@@ -55,8 +53,8 @@ def feature(task, dataPath, coveragePath, trackUrl):
 
     featureDf = pd.read_csv(featurePath, sep='\t')
 
-    featureQuery = {'data': featureDf.to_dict('records'),
-                    'problem': task['problem']}
+    featureQuery = {'data': featureDf.to_json(),
+                    'problem': job['problem']}
 
     featureUrl = os.path.join(trackUrl, 'features')
 
@@ -66,44 +64,19 @@ def feature(task, dataPath, coveragePath, trackUrl):
         raise Exception(featureQuery)
 
     if not r.status_code == 200:
+        print(r.content)
         return False
 
-    print("Sent feature for ", task)
+    print("Sent feature for ", job)
 
     return True
 
 
-def sendSegments(segmentsFile, task, trackUrl):
+def sendModel(segmentsFile, lossFile, job, trackUrl):
+    task = job['task']
     modelData = pd.read_csv(segmentsFile, sep='\t', header=None)
     modelData.columns = ['chrom', 'start', 'end', 'annotation', 'mean']
     sortedModel = modelData.sort_values('start', ignore_index=True)
-
-    modelInfo = {'user': task['user'],
-                 'hub': task['hub'],
-                 'track': task['track'],
-                 'problem': task['problem'],
-                 'jobId': task['id']}
-
-    modelUrl = os.path.join(trackUrl, 'models')
-
-    query = {'modelInfo': modelInfo, 'penalty': task['penalty'], 'modelData': sortedModel.to_json()}
-
-    try:
-        r = requests.put(modelUrl, json=query, verify=cfg.verify)
-    except requests.exceptions.ConnectionError:
-        raise Exception(query)
-
-    if r.status_code == 200:
-        print('model successfully sent with penalty', task['penalty'], 'and with modelInfo:\n', modelInfo, '\n')
-        return True
-
-    return False
-
-
-def sendLoss(lossFile, task, trackUrl):
-    strPenalty = str(task['penalty'])
-    lossUrl = os.path.join(trackUrl, 'loss')
-
     lossData = pd.read_csv(lossFile, sep='\t', header=None)
     lossData.columns = ['penalty',
                         'segments',
@@ -116,32 +89,41 @@ def sendLoss(lossFile, task, trackUrl):
                         'meanIntervals',
                         'maxIntervals']
 
-    lossInfo = {'user': task['user'],
-                'hub': task['hub'],
-                'track': task['track'],
-                'problem': task['problem'],
-                'jobId': task['id']}
+    modelUrl = os.path.join(trackUrl, 'models')
 
-    query = {'lossInfo': lossInfo, 'penalty': strPenalty, 'lossData': lossData.to_json()}
+    query = {'problem': job['problem'], 'penalty': task['penalty'],
+             'modelData': sortedModel.to_json(),
+             'lossData': lossData.to_json()}
 
     try:
-        r = requests.put(lossUrl, json=query, verify=cfg.verify)
+        r = requests.put(modelUrl, json=query, verify=cfg.verify)
     except requests.exceptions.ConnectionError:
         raise Exception(query)
 
     if r.status_code == 200:
-        print('loss successfully sent with penalty', strPenalty, 'and with lossInfo:\n', lossInfo, '\n')
+        print('model successfully sent with penalty',
+              task['penalty'],
+              'and with modelInfo:\n',
+              {'user': job['user'],
+               'hub': job['hub'],
+               'track': job['track'],
+               'problem': job['problem'],
+               'id': job['id'],
+               'taskId': job['task']['id']},
+              '\n')
         return True
+    else:
+        print(r.content)
 
-    return True
+    return False
 
 
-def getCoverageFile(task, dataPath):
-    problem = task['problem']
+def getCoverageFile(job, dataPath):
+    problem = job['problem']
 
     coveragePath = os.path.join(dataPath, 'coverage.bedGraph')
 
-    coverageUrl = task['trackUrl']
+    coverageUrl = job['url']
 
     leading, trailing = coverageUrl.split('://')
 
@@ -151,8 +133,8 @@ def getCoverageFile(task, dataPath):
                                  coverageUrl,
                                  coveragePath,
                                  '-chrom=%s' % problem['chrom'],
-                                 '-start=%s' % str(problem['chromStart']),
-                                 '-end=%s' % str(problem['chromEnd'])],
+                                 '-start=%s' % str(problem['start']),
+                                 '-end=%s' % str(problem['end'])],
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         if not result.stderr == b'':
@@ -165,21 +147,21 @@ def getCoverageFile(task, dataPath):
                 tmpPath = os.path.join('/tmp', 'udcCache', leading, *trailing.split('/'))
                 if os.path.exists(tmpPath):
                     shutil.rmtree(tmpPath)
-            return fixCoverage(task, coveragePath)
+            return fixCoverage(job, coveragePath)
         except pd.errors.EmptyDataError:
             return
 
 
-def fixCoverage(task, coveragePath):
-    problem = task['problem']
+def fixCoverage(job, coveragePath):
+    problem = job['problem']
     coverage = pd.read_csv(coveragePath, sep='\t', header=None)
     coverage.columns = ['chrom', 'chromStart', 'chromEnd', 'count']
 
     chrom = coverage['chrom'].iloc[0]
-    gapStarts = [problem['chromStart'], ]
+    gapStarts = [problem['start'], ]
     gapStarts.extend(coverage['chromEnd'].tolist())
     gapEnds = coverage['chromStart'].tolist()
-    gapEnds.append(problem['chromEnd'])
+    gapEnds.append(problem['end'])
 
     data = {'chrom': chrom, 'chromStart': gapStarts, 'chromEnd': gapEnds}
 
@@ -195,12 +177,14 @@ def fixCoverage(task, coveragePath):
     return coveragePath
 
 
-def runTask(task):
-    trackUrl = os.path.join(cfg.remoteServer, task['user'], task['hub'], task['track'])
+def runTask(job):
+    trackUrl = os.path.join(cfg.remoteServer, job['user'], job['hub'], job['track'])
 
-    dataPath = os.path.join(cfg.dataPath, 'PeakLearner-%s-%s' % (task['id'], task['taskId']))
+    task = job['task']
 
-    currentJobUrl = os.path.join(cfg.jobUrl, task['id'])
+    dataPath = os.path.join(cfg.dataPath, 'PeakLearner-%s-%s' % (job['id'], task['id']))
+
+    currentJobUrl = os.path.join(cfg.jobUrl, str(job['id']))
 
     if not os.path.exists(dataPath):
         try:
@@ -208,26 +192,25 @@ def runTask(task):
         except OSError:
             raise Exception
 
-    startTime = time.time()
-
-    coveragePath = getCoverageFile(task, dataPath)
+    coveragePath = getCoverageFile(job, dataPath)
 
     if coveragePath is not None:
-        queueTime = time.time()
-
-        query = {'taskId': task['taskId'], 'status': 'Processing', 'queuedTime': queueTime - startTime}
+        query = {'id': task['id'], 'status': 'Processing'}
 
         try:
             r = requests.post(currentJobUrl, json=query, verify=cfg.verify)
         except requests.exceptions.ConnectionError:
             raise Exception(query)
 
-        task = r.json()
+        if r.status_code != 200:
+            print(r.content)
+            print(r.status_code)
+            return False
 
         funcToRun = getTaskFunc(task)
 
         try:
-            status = funcToRun(task, dataPath, coveragePath, trackUrl)
+            status = funcToRun(job, dataPath, coveragePath, trackUrl)
         except:
             if not cfg.debug:
                 os.remove(coveragePath)
@@ -236,17 +219,13 @@ def runTask(task):
 
         endTime = time.time()
 
-        totalTime = endTime - startTime
-
         if not cfg.debug:
             os.remove(coveragePath)
             shutil.rmtree(dataPath)
 
         if status:
             query = {'id': task['id'],
-                     'taskId': task['taskId'],
-                     'status': 'Done',
-                     'totalTime': str(totalTime)}
+                     'status': 'Done'}
 
             try:
                 r = requests.post(currentJobUrl, json=query, verify=cfg.verify)
@@ -260,9 +239,7 @@ def runTask(task):
 
         else:
             query = {'id': task['id'],
-                     'taskId': task['taskId'],
-                     'status': 'Error',
-                     'totalTime': str(totalTime)}
+                     'status': 'Error'}
             try:
                 r = requests.post(currentJobUrl, json=query, verify=cfg.verify)
             except requests.exceptions.ConnectionError:
@@ -274,11 +251,11 @@ def runTask(task):
             return False
 
     else:
+        print('here?')
         if not cfg.debug:
             shutil.rmtree(dataPath)
 
         query = {'id': task['id'],
-                 'taskId': task['taskId'],
                  'status': 'NoData'}
         try:
             r = requests.post(currentJobUrl, json=query, verify=cfg.verify)
@@ -294,5 +271,4 @@ def runTask(task):
 def getTaskFunc(task):
     tasks = {'model': model,
              'feature': feature}
-
-    return tasks[task['type']]
+    return tasks[task['taskType']]

@@ -39,18 +39,12 @@ def doBackup():
     requests.get(os.path.join(url, 'backup'))
 
 
-def startup():
-    from core.util import PLdb as db
-    db.clearLocks()
-
-
-scheduler.add_job(doBackup, 'cron', hour=0)
-scheduler.add_job(spawnJobs, 'interval', seconds=30)
-scheduler.add_job(runPrediction, 'interval', minutes=10)
-scheduler.add_job(checkJobsRestart, 'interval', minutes=60)
+# scheduler.add_job(doBackup, 'cron', hour=0)
+# scheduler.add_job(spawnJobs, 'interval', seconds=30)
+# scheduler.add_job(runPrediction, 'interval', minutes=10)
+# scheduler.add_job(checkJobsRestart, 'interval', minutes=60)
 
 
 if __name__ == '__main__':
-    startup()
-    scheduler.start()
+    # scheduler.start()
     uvicorn.run('core.main:app', host=host, port=port, workers=1)

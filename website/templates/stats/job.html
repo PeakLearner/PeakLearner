@@ -60,11 +60,10 @@
             <tbody>
             {% for task in tasks %}
                 {# looping over a dict will give the dicts keys so get value of dict at key and set as task #}
-                {% set task = tasks[task] %}
-                <th scope="row">{{task['taskId']}}</th>
+                <th scope="row">{{task['id']}}</th>
                 <td>{{task['status']}}</td>
-                <td>{{task['type']}}</td>
-                {% if task['type'] == 'model' %}
+                <td>{{task['taskType']}}</td>
+                {% if task['taskType'] == 'model' %}
                 <td>{{task['penalty']}}</td>
                 {% else %}
                 <td>None</td>
