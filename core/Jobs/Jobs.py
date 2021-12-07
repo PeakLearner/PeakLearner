@@ -8,7 +8,6 @@ import logging
 import pandas as pd
 
 from core.Models import Models
-from simpleBDB import retry, txnAbortOnError
 from core.util import PLConfig as cfg
 from sqlalchemy.orm import Session
 from fastapi import Depends, Response
