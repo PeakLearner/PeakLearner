@@ -1,3 +1,5 @@
+import pdb
+
 import os
 import sys
 import time
@@ -616,7 +618,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
         elem = searchbox.find_element(By.ID, 'widget_location')
         nav = elem.find_element(By.ID, 'location')
         nav.clear()
-
+        
         # not sure why navigating here goes to the url below but it does it seemingly every time so
         nav.send_keys('93504855..194041961')
 
@@ -624,7 +626,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         go.click()
 
-        assert "chr3:934" in self.driver.title
+        assert "chr3:93" in self.driver.title
 
     def scrollUp(self):
         wait = WebDriverWait(self.driver, waitTime)
