@@ -365,6 +365,96 @@ class Iteration(db.Resource):
         return current
 
 
+class LegacyPermissions:
+
+    def __init__(self, user, hub):
+        self.owner = str(user)
+        self.hub = hub
+        self.users = {'Public': {'Label': True, 'Track': False, 'Hub': False, 'Moderator': False}}
+        self.groups = {}
+
+    @classmethod
+    def fromStorable(cls, storable):
+        """Create a permissions object from a storable object
+
+        These storables are dicts which are stored using the Job type in api.util.PLdb
+        """
+
+        # https://stackoverflow.com/questions/2168964/how-to-create-a-class-instance-without-calling-initializer
+
+        try:
+            self = cls.__new__(cls)
+            self.owner = str(storable['owner'])
+            self.hub = storable['hub']
+            self.users = storable['users']
+            self.groups = storable['groups']
+            return self
+        except TypeError:
+            return storable
+
+    def putNewPermissions(self):
+        txn = getTxn()
+        self.putPermissionsWithTxn(txn=txn)
+        txn.commit()
+
+    def putPermissionsWithTxn(self, txn=None):
+        Permission(self.owner, self.hub).put(self.__dict__(), txn=txn)
+
+    def hasViewPermission(self, userToCheck, hubInfo):
+        if hubInfo['isPublic']:
+            return True
+
+        if 'Public' != userToCheck in self.users:
+            return True
+
+        if self.owner == userToCheck:
+            return True
+
+        # TODO: Add a way to check if a user is in a group which has permission
+
+        return False
+
+    def hasPermission(self, userToCheck, perm):
+        if self.owner == userToCheck:
+            return True
+
+        if userToCheck is not None and userToCheck in self.users.keys():
+            userKey = userToCheck
+        else:
+            userKey = 'Public'
+
+        currentPerms = self.users[userKey]
+
+        if currentPerms['Moderator']:
+            return True
+
+        return currentPerms[perm]
+
+    def adjustPermissions(self, owner, hub, userid, coUser, args, txn=None):
+
+        if not self.hasPermission(userid, 'Moderator'):
+            raise AbortTXNException
+
+        if coUser in self.users:
+            userPerms = self.users[coUser]
+
+            for perm in userPerms.keys():
+                if perm in args:
+                    userPerms[perm] = True
+                else:
+                    userPerms[perm] = False
+
+    def __dict__(self):
+        output = {
+            'owner': self.owner,
+            'hub': self.hub,
+            'users': self.users,
+            'groups': self.groups
+        }
+
+        return output
+
+
 class Permission(db.Resource):
     keys = ("user", "hub")
 
@@ -374,7 +464,7 @@ class Permission(db.Resource):
 
     @classmethod
     def fromStorable(cls, storable):
-        return Permissions.Permission.fromStorable(db.Resource.fromStorable(storable))
+        return LegacyPermissions.fromStorable(db.Resource.fromStorable(storable))
 
     @classmethod
     def toStorable(cls, data):

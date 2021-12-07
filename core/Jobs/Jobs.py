@@ -4,12 +4,10 @@ import json
 import numpy as np
 import time
 
-import berkeleydb
 import logging
 import pandas as pd
 
 from core.Models import Models
-from simpleBDB import retry, txnAbortOnError
 from core.util import PLConfig as cfg
 from sqlalchemy.orm import Session
 from fastapi import Depends, Response
@@ -294,43 +292,6 @@ def getTask(db: Session, taskId):
     return task.addJobInfo(db)
 
 
-def getJobWithHighestPriority(cursor):
-    jobWithTask = None
-    keyWithTask = None
-    cursorAtBest = None
-
-    current = cursor.next(flags=berkeleydb.db.DB_RMW)
-
-    while current is not None:
-        key, job = current
-
-        if job.status.lower() == 'new':
-            if jobWithTask is None:
-                jobWithTask = job
-                keyWithTask = key
-                cursorAtBest = cursor.dup()
-
-            elif jobWithTask.getPriority() < job.getPriority():
-                jobWithTask = job
-                keyWithTask = key
-                cursorAtBest.close()
-                cursorAtBest = cursor.dup()
-
-        current = cursor.next(flags=berkeleydb.db.DB_RMW)
-
-    cursor.close()
-    return jobWithTask, keyWithTask, cursorAtBest
-
-
-def getNextTaskInJob(job):
-    tasks = job.tasks
-    for key in tasks.keys():
-        task = tasks[key]
-
-        if task['status'].lower() == 'new':
-            return key
-
-
 def getAllJobs(db: Session):
     jobs = []
 
@@ -467,3 +428,28 @@ def jobsStats(db: Session):
               'avgTime': avgTime}
 
     return output
+
+
+def setupJobsAfterMigrate(db: Session):
+    for hub in db.query(models.Hub).all():
+        user = db.query(models.User).filter(models.User.id == hub.owner)
+        problems = hub.getProblems(db)
+
+        grouped = problems.groupby(['chrom'], as_index=False)
+
+        for track in hub.tracks.all():
+            for chromName, group in grouped:
+                user, hub, track, chrom = dbutil.getChrom(db, user, hub, track, chromName, make=True)
+                db.commit()
+                db.refresh(chrom)
+
+                for index, row in group.iterrows():
+                    user, hub, track, chrom, contig, problem = dbutil.getContig(db, user, hub, track, chrom, row['start'], make=True)
+                    db.commit()
+                    db.refresh(contig)
+                    createJobForRegion(contig.id, db)
+
+                db.commit()
+    db.commit()
+
+

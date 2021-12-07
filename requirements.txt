@@ -18,13 +18,11 @@ pycparser==2.20
 pandas==1.2.4
 MarkupSafe==2.0.1
 jinja2==3.0.1
-berkeleydb==18.1.4
 pytest==6.2.4
 pytest-codecov==0.3.0
 requests==2.25.1
 scipy==1.6.3
 selenium==3.141.0
-simpleBDB==1.1.30
 aiohttp==3.7.4
 asynctest==0.13.0
 apscheduler==3.7.0

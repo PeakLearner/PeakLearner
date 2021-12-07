@@ -1,3 +1,4 @@
+import _pickle
 import datetime
 import numpy as np
 import pandas as pd
@@ -5,6 +6,9 @@ import pandas as pd
 from core.Features.Features import putFeatures
 from core.Features.Models import FeatureData
 from core import database, models
+from core.Models.Models import calculateModelLabelError, putModel
+from core.Models.PyModels import ModelData
+from core.util import bigWigUtil
 from legacy import PLdb
 
 PLdb.openEnv()
@@ -13,11 +17,10 @@ PLdb.openDBs()
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+SQLALCHEMY_DATABASE_URL = 'mysql+pymysql://root:password@localhost:30036/PeakLearner'
 
-engine = create_engine(
-            SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-        )
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 database.Base.metadata.create_all(bind=engine)
@@ -25,9 +28,9 @@ database.Base.metadata.create_all(bind=engine)
 with SessionLocal() as session:
     session.begin()
 
-    if False:
+    if True:
         print('Migrating HubInfos')
-        for key, hub in pldb.HubInfo.all_dict().items():
+        for key, hub in PLdb.HubInfo.all_dict().items():
             tracks = hub['tracks']
             del hub['tracks']
 
@@ -48,7 +51,7 @@ with SessionLocal() as session:
                 session.commit()
                 session.refresh(genome)
 
-            problems = pldb.Problems(hub['genome']).get()
+            problems = PLdb.Problems(hub['genome']).get()
 
             def putProblems(row):
                 problem = genome.problems.filter(models.Problem.chrom == row['chrom'])\
@@ -87,9 +90,9 @@ with SessionLocal() as session:
 
     print('---------------------------')
 
-    if False:
+    if True:
         print('Migrating permissions')
-        for key, permissions in pldb.Permission.all_dict().items():
+        for key, permissions in PLdb.Permission.all_dict().items():
             owner, hubName = key
             if owner == 'All' and hubName == 'Admin':
                 continue
@@ -132,9 +135,9 @@ with SessionLocal() as session:
 
     print('---------------------------')
 
-    if False:
+    if True:
         print('Migrating Labels')
-        allLabels = pldb.Labels.all_dict()
+        allLabels = PLdb.Labels.all_dict()
         totalLabelDfs = len(allLabels.keys())
         current = 0
         for key, labelDf in allLabels.items():
@@ -212,9 +215,9 @@ with SessionLocal() as session:
 
     print('---------------------------')
 
-    if False:
+    if True:
         print('Migrating Models')
-        modelKeys = pldb.Model.db_key_tuples()
+        modelKeys = PLdb.Model.db_key_tuples()
         numModels = len(modelKeys)
         current = 0
 
@@ -267,7 +270,7 @@ with SessionLocal() as session:
                 continue
 
             try:
-                modelDf = pldb.Model(*key).get()
+                modelDf = PLdb.Model(*key).get()
             except UnicodeDecodeError:
                 continue
             except _pickle.UnpicklingError:
@@ -282,7 +285,7 @@ with SessionLocal() as session:
 
             modelSumOut = calculateModelLabelError(modelDf, labelsDf, problem, penalty)
 
-            loss = pldb.Loss(*key).get()
+            loss = PLdb.Loss(*key).get()
 
             if loss is None or modelDf is None:
                 session.flush()

@@ -40,11 +40,16 @@ async def getJobs(request: Request,
         outputType = 'json'
 
     if 'text/html' in outputType or outputType == '*/*':
+        db.commit()
         out = Jobs.jobsStats(db)
+        db.commit()
         out['request'] = request
         return templates.TemplateResponse('stats/jobs.html', out)
     elif outputType == 'json' or outputType == 'application/json':
-        return Jobs.getAllJobs(db)
+        db.commit()
+        out = Jobs.getAllJobs(db)
+        db.commit()
+        return out
 
 
 @router.get('/queue',
@@ -61,6 +66,7 @@ async def queueNextTask(db: Session = Depends(core.get_db)):
     # TODO: Some sort of authentication system
     db.commit()
     out = Jobs.queueNextTask(db)
+    db.commit()
 
     if out is None:
         return Response(status_code=204)
@@ -76,6 +82,7 @@ async def getTask(job_id: int, task_id: int, db: Session = Depends(core.get_db))
     # TODO: Some sort of authentication system
     db.commit()
     out = Jobs.getTask(db, task_id)
+    db.commit()
 
     if out is None:
         return Response(status_code=204)
@@ -100,7 +107,9 @@ async def getJobWithId(request: Request, job_id: int,
     else:
         outputType = 'json'
 
+    db.commit()
     out = Jobs.getJobWithId(db, job_id)
+    db.commit()
 
     if isinstance(out, Response):
         return out
@@ -133,7 +142,10 @@ async def postJobWithId(job_id: int, task: dict, db: Session = Depends(core.get_
              description='Resets the given job')
 async def resetJob(job_id: int, db: Session = Depends(core.get_db)):
     """Resets all tasks which are not done"""
-    return Jobs.resetJob(db, job_id)
+    db.commit()
+    out = Jobs.resetJob(db, job_id)
+    db.commit()
+    return out
 
 
 @router.post('/{job_id}/restart', response_model=Models.Job,
@@ -164,6 +176,15 @@ async def getTrackJobs(user: str, hub: str, track: str, ref: str, start: int, en
             'start': start,
             'end': end}
 
+    db.commit()
     output = Jobs.getTrackJobs(db, user, hub, track, ref, start, end)
+    db.commit()
 
     return output
+
+
+@core.otherRouter.get('/jobsAfterMigrate')
+async def setupJobsAfterMigration(db: Session = Depends(core.get_db)):
+    db.commit()
+    Jobs.setupJobsAfterMigrate(db)
+    db.commit()

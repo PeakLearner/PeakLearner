@@ -1,7 +1,6 @@
 import pandas as pd
 from sqlalchemy.orm import Session
 from core.Prediction import Prediction
-from simpleBDB import retry, txnAbortOnError
 from .Models import FeatureData
 from core import dbutil, models
 
@@ -28,8 +27,6 @@ def putFeatures(db: Session, user, hub, track, featureData: FeatureData):
     return True
 
 
-@retry
-@txnAbortOnError
 def getFeatures(db: Session, user, hub, track, ref, start):
     """Retrieve a singular feature from the db"""
     user, hub, track, chrom, contig = dbutil.getContig(db, user, hub, track, ref, start)

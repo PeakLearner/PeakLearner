@@ -16,7 +16,9 @@ jobs:
           python-version: 3.9
       - run: python3 -m pip install -U pip
       - run: sudo apt-get update
-      - run: sudo apt-get -y install libdb-dev libdb++-dev samtools r-base
+      - run: sudo apt-get -y install samtools r-base npm build-essential
+      - run: npm install --global node-gyp node-sass
+        working-directory: jbrowse/jbrowse/
       - run: sudo Rscript -e 'install.packages("data.table")'
       - run: mkdir bin/
       - run: wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigSummary
@@ -36,6 +38,14 @@ jobs:
       - run: mv PeakLearnerTestConfig.cfg PeakLearner.cfg
       - uses: nanasess/setup-chromedriver@master
       - run: python3 -m pytest -v --cov=core --cov=website --cov=Slurm --cov-report=xml tests/
+      - name: Upload npm log
+        uses: actions/upload-artifact@v2
+        if: ${{ failure() }}
+        with:
+          name: logtest
+          path: |
+            jbrowse/jbrowse/setup.log
+            /home/runner/.npm/_logs/*
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         if: always()
