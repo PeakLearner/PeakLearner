@@ -17,7 +17,7 @@ jobs:
       - run: python3 -m pip install -U pip
       - run: sudo apt-get update
       - run: sudo apt-get -y install samtools r-base npm build-essential
-      - run: npm install --global node-sass
+      - run: npm install --global node-gyp node-sass
       - run: sudo Rscript -e 'install.packages("data.table")'
       - run: mkdir bin/
       - run: wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigSummary
