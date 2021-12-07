@@ -16,7 +16,7 @@ jobs:
           python-version: 3.9
       - run: python3 -m pip install -U pip
       - run: sudo apt-get update
-      - run: sudo apt-get -y install libdb-dev libdb++-dev samtools r-base
+      - run: sudo apt-get -y install libdb-dev libdb++-dev samtools r-base npm
       - run: sudo Rscript -e 'install.packages("data.table")'
       - run: mkdir bin/
       - run: wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigWigSummary
