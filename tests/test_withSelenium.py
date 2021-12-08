@@ -203,32 +203,17 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
             if shouldBeModel:
                 assert len(models) > 0
 
-            for model in models:
-                start = model['location']['x']
-                end = start + model['size']['width']
-
-                for label in labels:
-                    if label['label'] == 'peakStart':
-                        if label['start'] < start < label['end']:
-                            label['inStart'] = True
-                    elif label['label'] == 'peakEnd':
-                        if label['start'] < end < label['end']:
-                            label['inEnd'] = True
-
+            for peak in models:
+                peak["peakStart"] = peak['location']['x']
+                peak["peakEnd"] = peak['peakStart']+peak['size']['width']
             for label in labels:
-                fail = 0
-                try:
-                    assert label['inEnd']
-                except KeyError:
-                    fail += 1
-
-                try:
-                    assert label['inStart']
-                except KeyError:
-                    fail += 1
-
-                if fail == 2:
-                    raise Exception
+                start_or_end_name = label["label"]
+                start_or_end_count = 0
+                for peak in models:
+                    start_or_end_value = peak[start_or_end_name]
+                    if label["start"] < start_or_end_value < label["end"]:
+                        label["count"] += 1
+                assert start_or_end_count == 1
 
     def test_JobsPage_Working(self):
         self.driver.get(url)

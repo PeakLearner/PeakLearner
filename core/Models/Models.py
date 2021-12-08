@@ -509,7 +509,7 @@ def generateAltModel(track,
     else:
         return []
 
-    if out.empty:
+    if out is None or out.empty:
         return []
 
     # Convert Model output to start ends on the genome
@@ -589,32 +589,24 @@ def lopartToPeaks(lopartOut):
 
 def flopartToPeaksUsingMaxJump(flopartOut, lenBin):
     flopartOut = flopartOut.rename(columns={'mean': 'height'})
-
     flopartOut['height'] = (flopartOut['height'] / lenBin)
-
     output = []
-
     peakPrev = None
     currentPeak = pd.DataFrame()
     for index, row in flopartOut.iterrows():
         if row['state'] != 0:
             currentPeak = currentPeak.append(row, ignore_index=True)
-
         # Prev data point is the end of a peak
         else:
             if len(currentPeak.index) != 0:
                 output.append(maxJumpOnPeaks(currentPeak, peakPrev))
-
                 currentPeak = pd.DataFrame()
-
             peakPrev = row
-
     # Handles the case where the model ends with a peak
     if len(currentPeak.index) > 0:
         output.append(maxJumpOnPeaks(currentPeak, peakPrev))
-
-    return pd.concat(output, axis=1).T
-
+    value = pd.concat(output, axis=1).T if len(output)>0 else None
+    return value
 
 def maxJumpOnPeaks(currentPeak, peakPrev):
     prev = None
