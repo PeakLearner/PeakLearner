@@ -95,4 +95,4 @@ class PeakLearnerAsyncTestBase(asynctest.TestCase):
     def tearDown(self):
         if not os.path.exists(testDbsPath):
             os.makedirs(testDbsPath)
-        shutil.move('test.db', os.path.join(testDbsPath, self._testMethodName + '.db'))
+        #shutil.move('test.db', os.path.join(testDbsPath, self._testMethodName + '.db'))

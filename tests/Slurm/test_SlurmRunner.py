@@ -38,10 +38,11 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
         await asyncio.sleep(1)
 
     async def test_FeatureJob(self):
-        # Runs a job
+        # Runs a job, first task in test data is a feature job.
         assert Slurm.run.runTask()
 
     async def test_ModelJob(self):
+        # job=11 task=12.
         jobsUrl = os.path.join(url, 'Jobs', '11', '12')
 
         r = requests.get(jobsUrl)
@@ -50,6 +51,7 @@ class PeakLearnerTests(Base.PeakLearnerAsyncTestBase):
 
         task = r.json()
 
+        # True=success, False=failure.
         assert Slurm.Tasks.runTask(task)
 
     async def tearDown(self):
